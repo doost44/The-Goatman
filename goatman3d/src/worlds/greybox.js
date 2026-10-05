@@ -10,6 +10,7 @@ export async function buildGreybox(def) {
   const group = new THREE.Group();
   const ground = [];
   const colliders = [];
+  const blockers = []; // what the third-person camera can't see through
   const actors = {};
   const r = rng(7);
 
@@ -24,6 +25,7 @@ export async function buildGreybox(def) {
     m.position.set(x, heightAt(x, z) + height / 2 - 0.2, z);
     group.add(m);
     colliders.push({ kind: 'circle', x, z, r: radius });
+    blockers.push(m);
     return m;
   };
 
@@ -75,7 +77,7 @@ export async function buildGreybox(def) {
   }
 
   return {
-    group, ground, colliders, actors, heightAt,
+    group, ground, colliders, blockers, actors, heightAt,
     update(dt, t) { for (const a of Object.values(actors)) a.update?.(dt, t); },
   };
 }

@@ -20,7 +20,7 @@ const JUMP = 7; // upward speed of a jump (about 1.2 units high)
 const AIR_CONTROL = 5; // how quickly WASD steers you in the air
 const BODY = 0.4; // his radius, for colliders
 const STEP_UP = 0.6; // highest ledge he walks straight up
-const STRIDE = 1.5; // metres per footstep sound
+export const STRIDE = 1; // metres per footstep (goatman.js times his stride to it)
 const BOB = 0.05;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -51,7 +51,6 @@ export function createPlayer(head, controls, keys) {
   let dip = 1; // landing dip progress, 0..1 (1 = standing)
   let dipDepth = 0;
   let stunned = 0; // seconds of no air control after being knocked
-  let stepDist = 0;
 
   const player = {
     pos,
@@ -175,7 +174,8 @@ export function createPlayer(head, controls, keys) {
 
   function syncHead(dt) {
     if (dip < 1) dip = Math.min(1, dip + dt / DIP_TIME);
-    player.bob = player.grounded ? Math.sin(player.stride * Math.PI / STRIDE) * BOB * player.speed : 0;
+    // The view dips as each hoof lands.
+    player.bob = player.grounded ? (Math.abs(Math.sin(player.stride * Math.PI / STRIDE)) - 0.5) * BOB * player.speed : 0;
     head.position.set(pos.x, pos.y + EYE - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
   }
 
@@ -206,9 +206,9 @@ export function createPlayer(head, controls, keys) {
       }
       const walked = Math.hypot(pos.x - before.x, pos.z - before.z);
       player.speed = THREE.MathUtils.lerp(player.speed, Math.min(1, walked / dt / SPEED), Math.min(1, dt * 10));
+      const steps = Math.floor(player.stride / STRIDE);
       player.stride += walked;
-      stepDist += walked;
-      if (stepDist > STRIDE && player.grounded) { sfx.step(player.level.surface); stepDist = 0; }
+      if (player.grounded && Math.floor(player.stride / STRIDE) > steps) sfx.step(player.level.surface);
 
       if (player.grounded && keys.Space && controls.isLocked && !player.frozen) {
         sfx.jump(player.level.surface);

@@ -16,7 +16,7 @@ Total: 28M
 | `goatman/backhead.png` | 36 KB | 512x448 | Goatman Himself/backhead1-13.png | head comes off, blue strands (SQUASHED death) |
 | `goatman/part-face-front.png` | 32 KB | 185x256 | Goatman Himself/1.png | model texture: face from the front |
 | `goatman/part-face-side.png` | 28 KB | 228x256 | Goatman Himself/9turn2.png | model texture: face in profile |
-| `goatman/part-hair.png` | 24 KB | 256x206 | Goatman Himself/9turn2.png | model texture: dark hair |
+| `goatman/part-hair.png` | 16 KB | 256x103 | Goatman Himself/9turn2.png | model texture: dark hair |
 | `goatman/part-chest.png` | 36 KB | 197x256 | Goatman Himself/1.png | model texture: chest with yellow highlights |
 | `goatman/part-arm.png` | 8 KB | 30x256 | Goatman Himself/1.png | model texture: long red arm |
 | `goatman/part-hand.png` | 12 KB | 110x256 | Goatman Himself/1.png | model texture: hand |

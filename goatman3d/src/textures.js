@@ -15,6 +15,7 @@ export function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
+  c.getContext('2d', { willReadFrequently: true }); // grade() reads the pixels back
   return c;
 }
 

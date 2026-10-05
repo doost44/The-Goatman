@@ -167,7 +167,7 @@ echo "GoatMan body crops..."
 part() { card "$GM/$2" "$OUT/goatman/part-$1.png" 256 "$(frac "${@:3:4}")" 32; note "$OUT/goatman/part-$1.png" "Goatman Himself/$2" "$7"; }
 part face-front 1.png      0.08 0.02 0.32 0.19  "model texture: face from the front"
 part face-side  9turn2.png 0.14 0.08 0.38 0.22  "model texture: face in profile"
-part hair       9turn2.png 0.15 0.01 0.34 0.09  "model texture: dark hair"
+part hair       9turn2.png 0.16 0.012 0.46 0.075 "model texture: dark hair"
 part chest      1.png      0.30 0.25 0.60 0.45  "model texture: chest with yellow highlights"
 part arm        1.png      0.06 0.40 0.14 0.75  "model texture: long red arm"
 part hand       1.png      0.05 0.81 0.15 0.93  "model texture: hand"

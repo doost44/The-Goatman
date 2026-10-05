@@ -6,6 +6,9 @@ import { createPlayer } from './player.js';
 import { createLevels } from './levels.js';
 import { createStory } from './story.js';
 import { createInteract } from './interact.js';
+import { createGoatMan } from './goatman.js';
+import { createArms } from './viewmodel.js';
+import { createView } from './view.js';
 import { playFMV } from './fmv.js';
 import { startSound, updateSound, stopSoundscape, duck } from './sound.js';
 import { updateHud, fadeTo, showError, showMessage, setCinematic } from './hud.js';
@@ -26,7 +29,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 800);
 scene.add(camera);
 
-// The mouse turns this "head"; the camera follows it (first person) or orbits it (third).
+// The mouse turns this "head"; the camera follows it (first person) or orbits it (third, view.js).
 const head = new THREE.Object3D();
 head.rotation.order = 'YXZ';
 const controls = new PointerLockControls(head, document.body);
@@ -66,13 +69,17 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
 });
 
-let levels, story, interact;
+let levels, gm, story, interact;
 try {
   levels = await createLevels(scene, player);
+  gm = await createGoatMan();
 } catch (err) {
-  showError(`Could not load the levels: ${err.message}`);
+  showError(`Could not load the game: ${err.message}`);
   throw err;
 }
+const arms = createArms(gm.materials);
+const view = createView({ renderer, scene, camera, head, player, gm, arms });
+levels.onEnter = (id, def, world) => view.enter(def, world);
 story = createStory({ levels, player, toTitle });
 interact = createInteract({ levels, player, head, controls, story });
 titleEl.style.backgroundImage = 'url(assets/video/title-poster.png)';
@@ -141,13 +148,12 @@ renderer.setAnimationLoop(() => {
     player.update(dt);
     levels.update(dt, t);
     interact.update();
+    view.update(dt);
   }
-  camera.position.copy(head.position);
-  camera.quaternion.copy(head.quaternion);
   updateSound(dt, camera);
   updateHud(dt);
-  if (state === 'play') renderer.render(scene, camera);
+  if (state === 'play') view.render();
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
-window.goatman = { THREE, scene, camera, head, controls, keys, player, levels, story, interact, settings, get state() { return state; }, newGame, toTitle };
+window.goatman = { THREE, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, interact, settings, get state() { return state; }, newGame, toTitle };
