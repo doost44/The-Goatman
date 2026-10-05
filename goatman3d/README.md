@@ -23,6 +23,7 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | E | interact (enter, talk, pet, drink, mount) |
 | 1 / 2 or mouse + click | pick a choice |
 | Space | jump |
+| G / right click | pick up or throw a pebble |
 | V | first / third person |
 | O | options |
 | P | save a 1600x1200 photo |

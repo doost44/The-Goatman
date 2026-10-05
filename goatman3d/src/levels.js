@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { buildGreybox } from './worlds/greybox.js';
+import { buildForest } from './worlds/forest.js';
 import { fadeTo, showLevelName } from './hud.js';
 import { playSoundscape, duck } from './sound.js';
+import { playAmbience } from './ambience.js';
 import { gradientTexture } from './textures.js';
 
 // Loads data/levels.json and builds one level at a time. A level's look, spawn
@@ -10,6 +12,7 @@ import { gradientTexture } from './textures.js';
 
 const BUILDERS = {
   greybox: buildGreybox,
+  forest: buildForest,
 };
 
 const fetchJSON = async (url) => {
@@ -18,7 +21,7 @@ const fetchJSON = async (url) => {
   return res.json();
 };
 
-export async function createLevels(scene, player) {
+export async function createLevels(scene, player, camera) {
   const data = await fetchJSON('data/levels.json');
   const palettes = await fetchJSON('data/palettes.json');
 
@@ -27,7 +30,7 @@ export async function createLevels(scene, player) {
     palettes,
     id: null, // current level id
     def: null, // its levels.json entry
-    world: null, // what its builder made: { group, ground, colliders, actors, update }
+    world: null, // what its builder made: { group, ground, colliders, blockers, actors, update }
     busy: false, // a transition is running
     onEnter: null, // called after a level is built, before it fades in
     load,
@@ -61,7 +64,7 @@ export async function createLevels(scene, player) {
     const build = BUILDERS[def.builder];
     if (!build) return; // a cutscene level has no world of its own
 
-    const world = await build(def, { palettes, scene });
+    const world = await build(def, { palettes, scene, camera, player });
     if (scene.background?.isTexture) scene.background.dispose();
     scene.background = gradientTexture(def.sky);
     scene.fog = new THREE.Fog(def.fog.color, def.fog.near, def.fog.far);
@@ -82,6 +85,7 @@ export async function createLevels(scene, player) {
     const spawn = def.spawns[spawnName] ?? def.spawns.start;
     player.place(spawn.at, spawn.yaw);
     playSoundscape(def.soundscape?.file ?? null, def.soundscape?.volume ?? 1);
+    playAmbience(def.ambience ?? null); // synthesised beds for scenes with no track
     levels.onEnter?.(id, def, world);
     if (def.title) showLevelName(def.title);
   }

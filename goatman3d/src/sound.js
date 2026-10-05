@@ -163,6 +163,7 @@ function noiseInto(dest, type, freq, q = 1) {
   src.connect(f);
   f.connect(dest);
   src.start(0, Math.random());
+  f.source = src; // so whoever made it can stop it
   return f;
 }
 
@@ -179,8 +180,8 @@ function oscInto(dest, type, freq) {
 function wobble(param, rate, amount) {
   const depth = ctx.createGain();
   depth.gain.value = amount;
-  oscInto(depth, 'sine', rate * (0.9 + Math.random() * 0.2));
   depth.connect(param);
+  return oscInto(depth, 'sine', rate * (0.9 + Math.random() * 0.2));
 }
 
 function buildLoops() {
@@ -347,6 +348,12 @@ export const sfx = {
     noise({ dur: 0.08, filter: 'lowpass', freq: 600, vol: 0.12, pan });
   },
   rockLand: () => noise({ dur: 0.08, filter: 'lowpass', freq: 400, vol: 0.08 }),
+  // The forest's eyes shutting when a pebble hits them, and opening somewhere else.
+  blink(pan = 0) {
+    synth({ freq: 988, dur: 0.12, type: 'triangle', vol: 0.03, pan, cutoff: 3000, cutoffEnd: 600, echoAmount: 0.5 });
+    synth({ freq: 740, dur: 0.2, type: 'triangle', vol: 0.03, pan, cutoff: 2000, cutoffEnd: 400, echoAmount: 0.5, delay: 0.09 });
+  },
+  whisper(pan = 0) { noise({ dur: 0.9, filter: 'bandpass', freq: 2200, to: 1400, q: 6, vol: 0.035, attack: 0.35, pan, echoAmount: 0.6 }); },
   // The squash: the foot coming down.
   boom() {
     noise({ dur: 2.2, filter: 'lowpass', freq: 400, to: 60, vol: 0.8 });
@@ -356,8 +363,9 @@ export const sfx = {
   whoosh(vol = 0.1) { noise({ dur: 0.6, filter: 'bandpass', freq: 400, to: 2400, q: 1, vol, attack: 0.4 }); },
 };
 
-// Raw building blocks for level ambiences (the forest's night bed lives in its own module).
-export const synthKit = { tone, noise, synth, noiseInto, oscInto, wobble, ready, ctx: () => ctx, out: (n, pan, e) => out(n, pan, e), bus: () => sfxBus };
+// Raw building blocks for level ambiences (ambience.js). music() is where a bed plugs in
+// to be ducked and set by the music volume like the soundscapes.
+export const synthKit = { tone, noise, synth, noiseInto, oscInto, wobble, ready, ctx: () => ctx, out: (n, pan, e) => out(n, pan, e), bus: () => sfxBus, music: () => duckFilter };
 
 // --- Each frame ---------------------------------------------------------------------------
 

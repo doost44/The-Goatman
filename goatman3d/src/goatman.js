@@ -185,7 +185,8 @@ export async function createGoatMan() {
     const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.22, 0.05), M.hand);
     hand.position.y = -FOREARM - 0.11;
     elbow.add(hand);
-    return { shoulder, elbow };
+    const grip = joint(elbow, 0, -FOREARM - 0.16, -0.07); // where a pebble sits in his palm
+    return { shoulder, elbow, grip };
   }
   const armL = arm(-1), armR = arm(1);
 
@@ -248,6 +249,8 @@ export async function createGoatMan() {
   let detach = 0; // how far the head is off the neck
   let headTo = HEAD_DRINK;
   let spray = -1; // backhead: below 0 the strands hold the head; 0..1 spraying out and fading
+  let hold = 0; // right forearm raised to carry a pebble, 0..1
+  let fling = 1; // a throw, 0..1 (1 = done)
 
   function apply() {
     root.position.y = J.hipY;
@@ -385,6 +388,10 @@ export async function createGoatMan() {
       firstPerson = on;
       for (const o of hideInFirstPerson) o.visible = !on;
     },
+    get firstPerson() { return firstPerson; },
+    holding: false, // carrying a pebble (rocks.js)
+    throwArm() { fling = 0; },
+    handWorld: (v) => armR.grip.getWorldPosition(v),
     // Play one of the ACTIONS; the promise resolves when it is done.
     play(name) {
       action?.resolve();
@@ -410,6 +417,12 @@ export async function createGoatMan() {
       group.position.copy(move.pos);
       group.rotation.y = move.yaw;
       let target = locomotion(dt, move);
+      // Carrying a pebble, the right forearm comes up; throwing, the arm whips over.
+      hold += ((gm.holding ? 1 : 0) - hold) * Math.min(1, dt * 8);
+      fling = Math.min(1, fling + dt / 0.35);
+      const whip = Math.sin(Math.PI * fling);
+      target.armR += (0.6 - target.armR) * hold + 1.8 * whip;
+      target.elbowR += (1.3 - target.elbowR) * hold - 0.6 * whip;
       if (action) {
         const a = ACTIONS[action.name];
         action.k = Math.min(1, action.k + dt / a.time);

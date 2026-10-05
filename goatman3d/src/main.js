@@ -9,6 +9,8 @@ import { createInteract } from './interact.js';
 import { createGoatMan } from './goatman.js';
 import { createArms } from './viewmodel.js';
 import { createView } from './view.js';
+import { createRocks } from './rocks.js';
+import { updateAmbience, stopAmbience } from './ambience.js';
 import { playFMV } from './fmv.js';
 import { startSound, updateSound, stopSoundscape, duck } from './sound.js';
 import { updateHud, fadeTo, showError, showMessage, setCinematic } from './hud.js';
@@ -71,7 +73,7 @@ addEventListener('resize', () => {
 
 let levels, gm, story, interact;
 try {
-  levels = await createLevels(scene, player);
+  levels = await createLevels(scene, player, camera);
   gm = await createGoatMan();
 } catch (err) {
   showError(`Could not load the game: ${err.message}`);
@@ -79,7 +81,11 @@ try {
 }
 const arms = createArms(gm.materials);
 const view = createView({ renderer, scene, camera, head, player, gm, arms });
-levels.onEnter = (id, def, world) => view.enter(def, world);
+const rocks = createRocks({ camera, controls, player, gm, arms });
+levels.onEnter = (id, def, world) => {
+  view.enter(def, world);
+  rocks.place(def, world);
+};
 story = createStory({ levels, player, toTitle });
 interact = createInteract({ levels, player, head, controls, story });
 titleEl.style.backgroundImage = 'url(assets/video/title-poster.png)';
@@ -123,6 +129,8 @@ function toTitle() {
   showMessage(null);
   duck(0, 'talk');
   stopSoundscape(1);
+  stopAmbience(1);
+  rocks.clear();
   levels.unload();
   player.mount = null;
   pausedEl.classList.add('hidden');
@@ -149,11 +157,13 @@ renderer.setAnimationLoop(() => {
     levels.update(dt, t);
     interact.update();
     view.update(dt);
+    rocks.update(dt);
   }
   updateSound(dt, camera);
+  updateAmbience(dt, camera);
   updateHud(dt);
   if (state === 'play') view.render();
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
-window.goatman = { THREE, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, interact, settings, get state() { return state; }, newGame, toTitle };
+window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, get state() { return state; }, newGame, toTitle };

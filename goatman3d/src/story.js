@@ -1,5 +1,6 @@
 import { dialogue, fadeTo, showMessage, setCinematic } from './hud.js';
 import { sfx, duck, stopSoundscape } from './sound.js';
+import { stopAmbience } from './ambience.js';
 import { freezeLook } from './mouse.js';
 import { playFMV } from './fmv.js';
 import { settings } from './options.js';
@@ -53,6 +54,7 @@ export function createStory({ levels, player, toTitle }) {
     duck(1, 'ending');
     await fadeTo(settings.flash ? 0.6 : 1, def.flash.in * soft, '#fff');
     stopSoundscape(0.5);
+    stopAmbience(0.5);
     levels.unload();
     const video = playFMV(def.video, { skipAfter: 3 });
     await fadeTo(0, def.flash.out * soft);

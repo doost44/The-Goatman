@@ -5,16 +5,17 @@
   "levels": {
     "forest": {
       "title": "I · THE NIGHT FOREST",
-      "builder": "greybox",
+      "builder": "forest",
       "palette": "forest",
       "sky": [[0, "#010207"], [0.6, "#04071a"], [1, "#0a0816"]],
-      "fog": { "color": "#05081d", "near": 4, "far": 42 },
-      "ambient": { "color": "#3a4478", "intensity": 0.55 },
-      "sun": { "color": "#8ea2e0", "intensity": 0.55, "dir": [-0.5, 1, 0.35] },
+      "fog": { "color": "#0a1030", "near": 2, "far": 30 },
+      "ambient": { "color": "#1a2660", "intensity": 0.3 },
+      "sun": { "color": "#9fb6ff", "intensity": 1.5, "dir": [-0.5, 1, 0.35] },
       "grade": [1.8, 0.57, 0.9, 0.45],
       "surface": "forest",
       "speed": 0.9,
       "soundscape": null,
+      "ambience": "night",
       "spawns": {
         "start": { "at": [0, 0, 2], "yaw": 0 },
         "back": { "at": [-14, 0, -134], "yaw": 160 }
@@ -22,15 +23,36 @@
       "respawn": [0, 0, 2],
       "voidY": -50,
       "terrain": {
-        "shape": "rect", "size": [80, 190], "center": [-5, -70], "segments": [24, 60],
-        "noise": 0.5, "noiseScale": 0.08, "tile": 4, "color": "#1b1424"
+        "shape": "rect", "size": [180, 270], "center": [-6, -70], "segments": [36, 54],
+        "noise": 0.6, "noiseScale": 0.08, "tile": 5, "texture": "assets/forest/floor.png", "tint": [1.15, 0.75, 0.7]
       },
       "path": {
         "width": 7,
         "points": [[0, 6], [0, -10], [5, -28], [2, -46], [-7, -62], [-5, -80], [3, -96], [-2, -112], [-12, -126], [-16, -144]]
       },
+      "backdrop": {
+        "wall": "assets/forest/wall.png", "crop": [0, 2, 256, 178], "brightness": 1.5, "repeat": 6,
+        "radius": 70, "height": 64, "below": 14,
+        "canopy": "assets/forest/weave.png", "canopyRepeat": 8, "canopyBright": 0.7
+      },
+      "trunks": {
+        "seed": 11, "rows": [[3.8, 5.4, 2.6], [5.6, 9, 3], [9, 26, 1.2]],
+        "radius": [0.25, 0.8], "height": [18, 30], "lean": 0.12, "cards": 0.35,
+        "leaners": 6, "arches": 4, "inPath": 5, "behind": 70
+      },
+      "grass": { "spacing": 1.2, "from": 1.7, "to": 7, "colors": ["#2a0e1c", "#3b1426", "#1a1030", "#24183e", "#40122a"] },
+      "marks": { "sheet": "assets/forest/marks", "seed": 3, "spacing": 4.5, "spread": 1.3, "size": 1, "tilt": [0.35, 0.8], "glow": 1.7 },
+      "eyes": {
+        "sheet": "assets/forest/marks", "seed": 4, "count": 12, "every": 5, "out": [4.4, 8.5],
+        "blink": [2, 6], "away": [1.2, 2.6], "shy": 2.2, "range": 20
+      },
+      "exit": {
+        "gap": 2.8, "trunkRadius": 2.4, "reach": 28, "fog": "#3a2340",
+        "glimpse": { "sky": "assets/field/sky.png", "cloud": "assets/field/cloud-front2.png", "peaks": "assets/field/peaks.png", "grass": "assets/field/grass.png" }
+      },
+      "rocks": { "count": 14, "seed": 9 },
       "interactions": [
-        { "type": "exit", "at": [-16, 0, -142], "radius": 3.5, "prompt": "PRESS E TO ENTER", "to": "field" }
+        { "type": "exit", "at": [-16.5, 0, -146.4], "radius": 3, "prompt": "PRESS E TO ENTER", "to": "field" }
       ]
     },
 
