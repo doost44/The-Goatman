@@ -1,0 +1,115 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body { font-family: "Courier New", Courier, monospace; color: #ffb43c; }
+
+#view {
+  position: fixed; inset: 0; width: 100vw; height: 100vh; display: block;
+  image-rendering: pixelated; /* upscale the half-res render without smoothing */
+}
+
+.box {
+  background: rgba(10, 10, 8, 0.6);
+  border: 2px solid rgba(255, 180, 60, 0.35);
+  padding: 6px 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+}
+.hidden { display: none !important; }
+
+/* --- In-game HUD ------------------------------------------------------------ */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; } /* above the fades, so lines show on black */
+body.fmv #hud { display: none; }
+#crosshair {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -52%);
+  font-size: 22px; font-weight: bold; text-shadow: 1px 1px 0 #000;
+}
+#prompt { position: absolute; left: 50%; top: calc(50% + 40px); transform: translateX(-50%); font-size: 16px; white-space: nowrap; }
+#hint { position: absolute; right: 16px; bottom: 16px; font-size: 12px; opacity: 0.85; }
+#message {
+  position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%);
+  font-size: 22px; padding: 12px 22px; text-align: center; max-width: calc(100vw - 32px);
+}
+#level-name { position: absolute; left: 16px; top: 16px; font-size: 14px; }
+#subtitle {
+  position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%);
+  max-width: min(720px, calc(100vw - 32px)); text-align: center; font-size: 15px; font-weight: bold;
+  color: #fff2d0; background: rgba(0, 0, 0, 0.6); padding: 4px 10px; text-shadow: 1px 1px 0 #000;
+}
+#error { position: absolute; top: 16px; right: 16px; color: #ff6040; max-width: 420px; }
+body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { display: none; }
+
+/* Dialogue: the two original choices, picked with the mouse (move + click) or 1 / 2. */
+#dialogue {
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px)); padding: 16px 18px; pointer-events: auto;
+}
+#dialogue p { margin: 0 0 12px; font-size: 14px; opacity: 0.8; }
+#choices { display: flex; flex-direction: column; gap: 8px; }
+.choice {
+  font: inherit; font-weight: bold; text-align: left; letter-spacing: 1px; color: #ffb43c; cursor: pointer;
+  background: rgba(10, 10, 8, 0.8); border: 2px solid rgba(255, 180, 60, 0.4); padding: 8px 12px; text-transform: uppercase;
+}
+.choice.on, .choice:hover { background: #ffb43c; color: #111; }
+
+/* Full-screen fades (black between levels, white for the finale flash). */
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 5; }
+
+/* --- Cutscenes: the 640 px videos, upscaled chunky like a 2001 FMV ------------ */
+#fmv { position: fixed; inset: 0; background: #000; z-index: 4; display: flex; align-items: center; justify-content: center; }
+#fmv video { width: 100vw; height: 100vh; object-fit: contain; image-rendering: pixelated; }
+#skip { position: absolute; right: 24px; bottom: 24px; transition: opacity 2s; }
+
+/* --- Title screen ----------------------------------------------------------- */
+#title { position: fixed; inset: 0; z-index: 3; background: #000 center / contain no-repeat; image-rendering: pixelated; }
+#title.over-3d { background-color: transparent; background-image: none !important; }
+#title .panel {
+  position: absolute; left: max(16px, 8vw); top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 12px; width: min(300px, calc(100vw - 32px)); padding: 22px;
+}
+#title h1 { margin: 0 0 4px; font-size: 34px; line-height: 1; }
+#title h2 { margin: 0 0 10px; font-size: 13px; opacity: 0.8; }
+#title .big { font-size: 22px; padding: 12px; }
+#title .small { font-size: 11px; opacity: 0.7; margin: 6px 0 0; }
+
+/* Shown when the mouse is free during play (Esc, or before the first click). */
+#paused {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.45); cursor: pointer; z-index: 2;
+}
+#paused .box { text-align: center; padding: 22px 36px; }
+#paused h1 { margin: 0 0 10px; font-size: 28px; }
+#paused p { margin: 6px 0; }
+#paused .small { font-size: 11px; opacity: 0.75; }
+
+/* Credits card after the finale. */
+#credits {
+  position: fixed; inset: 0; z-index: 6; background: #000; display: flex; align-items: center; justify-content: center;
+  text-align: center; cursor: pointer;
+}
+#credits .box { padding: 28px 40px; max-width: calc(100vw - 32px); }
+#credits h1 { margin: 0 0 14px; font-size: 30px; }
+#credits p { margin: 6px 0; font-size: 14px; }
+#credits .small { font-size: 11px; opacity: 0.7; margin-top: 18px; }
+
+/* --- Options menu and buttons, same amber terminal style as the HUD ------------- */
+.btn {
+  font: inherit; font-weight: bold; letter-spacing: 1px; color: #ffb43c; cursor: pointer; text-transform: uppercase;
+  background: rgba(10, 10, 8, 0.8); border: 2px solid rgba(255, 180, 60, 0.6); padding: 6px 12px;
+}
+.btn:hover, .btn:focus-visible { background: #ffb43c; color: #111; outline: none; }
+#options {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.6); z-index: 10; overflow-y: auto; padding: 16px 0;
+}
+#options .box { width: min(440px, calc(100vw - 32px)); padding: 18px 22px; margin: auto; }
+#options h2 { margin: 0 0 10px; font-size: 24px; }
+#options label { display: block; margin: 10px 0; font-size: 13px; }
+#options label span { color: #fff2d0; }
+#options input[type="range"], #options select { display: block; width: 100%; margin-top: 6px; accent-color: #ffb43c; }
+#options select { font: inherit; color: #ffb43c; background: #111; border: 2px solid rgba(255, 180, 60, 0.6); padding: 4px; }
+#options .check input { accent-color: #ffb43c; margin-right: 8px; }
+#options .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+#options .small { font-size: 11px; opacity: 0.75; margin: 12px 0 0; }
+body.no-hud #hud > :not(#crosshair):not(#dialogue):not(#subtitle):not(#message) { display: none; }
