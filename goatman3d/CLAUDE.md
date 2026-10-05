@@ -53,6 +53,10 @@ goatman3d/
       forest.js        level 1: terrain, backdrop, grass, the exit gate and its glimpse of level 2
       trunks.js        the forest's trunks: cylinders and extruded fore.png bark cards, merged
       marks.js         the glowing ground marks and the eyes that watch, blink and move
+      field.js         level 2: sky dome, ring of painted peaks, two cloud layers, red grass, the gate back
+    walkingthing.js    the Walking Thing: swept painted body, two-bone IK stilt legs, its 11-drawing walk,
+                       kneeling, the stomp, carrying a rider
+    squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
     story.js, interact.js   what E does (exits, dialogue, petting) and the endings
     rocks.js           pebbles: right click / G picks one up and throws it
     ambience.js        synthesised sound beds for scenes with no track (the night forest)
@@ -74,7 +78,12 @@ goatman3d/
 - Level content lives in `data/levels.json`, not in JS: positions, spawn and facing, sky/fog colours, prompt and dialogue text, timings, soundscape file, exits and their targets.
 - Sprite sheets come with a `.json` of frame rects (`frameW`, `frameH`, `cols`, `rows`, `frames[]` with `x, y, w, h, src`). Load the JSON, don't hard-code frame sizes.
 - A level builder (`src/worlds/*.js`) returns `{ group, ground, colliders, blockers, actors, update }`: `ground` meshes are what he stands on, `colliders` are circles/rings/paths/boxes he can't walk through, `blockers` are meshes the third-person camera pulls in front of (trunks, walls), `actors` are creatures interactions can name. Optional: `heightAt(x, z)` (needed for pebbles) and `rockTargets`, meshes a pebble can hit that react through `userData.onRock(hit)` (an invisible hit mesh still counts).
-- `heightAt` from `buildTerrain` is the exact surface of the ground mesh (its flat triangles, not the smooth noise), so flat things laid on it don't sink. Use `drape(geometry, heightAt)` for glows and decals that lie on the ground, and `walkPath(points, spacing)` to place things along a level's path.
+- `heightAt` from `buildTerrain` is the exact surface of the ground mesh (its flat triangles, not the smooth noise, on rects and discs alike), so flat things laid on it don't sink. Use `drape(geometry, heightAt)` for glows and decals that lie on the ground, and `walkPath(points, spacing)` to place things along a level's path. Terrain options: `hills`, `flat`, `noise`, `rim` (a disc rising to foothills at its edge) and `mottle` (broad darker patches so a tiled texture repeats less obviously).
+- Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
+- Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
+- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way.
+- Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option.
+- Anything that must go dark in the squash is opaque (cut out with `alphaTest`, `transparent: false`): transparent things draw after the darkening dome and would stay bright.
 - A level with no soundtrack can name a synthesised bed in levels.json (`"ambience": "night"`, built in `ambience.js`). Beds play on the music bus, so they duck and follow the music volume; caption their events with `subtitle()`.
 - Merging geometry (`mergeGeometries`) needs every piece indexed the same way with the same attributes; trunks and grass are merged into a few meshes per level to keep draw calls low.
 - GoatMan's scripted poses come from the paintings: `gm.play('kneel')` (down1-6), `'drink'` (head1-15: the head sinks to the ground on blue strands), `'stand'`, `'pet'`, `'lose'` (head1-15 then backhead1-13, the SQUASHED death). Each returns a promise; kneel, drink and lose hold their last pose until the next one.

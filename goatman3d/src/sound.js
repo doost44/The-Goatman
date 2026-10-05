@@ -354,6 +354,28 @@ export const sfx = {
     synth({ freq: 740, dur: 0.2, type: 'triangle', vol: 0.03, pan, cutoff: 2000, cutoffEnd: 400, echoAmount: 0.5, delay: 0.09 });
   },
   whisper(pan = 0) { noise({ dur: 0.9, filter: 'bandpass', freq: 2200, to: 1400, q: 6, vol: 0.035, attack: 0.35, pan, echoAmount: 0.6 }); },
+  // The Walking Thing: a low, breathy hum when it notices him, two notes falling.
+  call(pan = 0) {
+    synth({ freq: 98, dur: 1.6, type: 'triangle', vol: 0.06, pan, attack: 0.4, cutoff: 900, cutoffEnd: 300, echoAmount: 0.6 });
+    synth({ freq: 73.4, dur: 1.8, type: 'triangle', vol: 0.05, pan, attack: 0.4, cutoff: 700, cutoffEnd: 250, echoAmount: 0.6, delay: 0.9 });
+    noise({ dur: 1.4, filter: 'bandpass', freq: 500, to: 300, q: 3, vol: 0.04, attack: 0.5, pan, echoAmount: 0.5 });
+  },
+  // Its joints as it kneels or gets up: slow, deep groans.
+  groan(pan = 0, vol = 1) {
+    tone({ freq: rnd(60, 75), to: rnd(40, 50), dur: 2.2, type: 'sawtooth', vol: 0.05 * vol, attack: 0.3, pan, echoAmount: 0.4 });
+    tone({ freq: rnd(95, 120), to: rnd(70, 85), dur: 1.6, type: 'sawtooth', vol: 0.03 * vol, attack: 0.5, pan, delay: 0.4, echoAmount: 0.4 });
+  },
+  // Grabbing its leg: a thin, scraping shriek far above.
+  shriek(pan = 0) {
+    tone({ freq: 900, to: 1500, dur: 0.5, type: 'sawtooth', vol: 0.03, attack: 0.05, pan, echoAmount: 0.7 });
+    tone({ freq: 1340, to: 700, dur: 0.9, type: 'sawtooth', vol: 0.025, attack: 0.1, pan, delay: 0.35, echoAmount: 0.7 });
+    noise({ dur: 0.8, filter: 'bandpass', freq: 3000, to: 1800, q: 4, vol: 0.05, attack: 0.05, pan, echoAmount: 0.5 });
+  },
+  // Its foot falling on him.
+  whistle(time = 0.6) {
+    tone({ freq: 1400, to: 260, dur: time, type: 'triangle', vol: 0.06, attack: 0.05 });
+    noise({ dur: time, filter: 'bandpass', freq: 600, to: 2400, q: 1, vol: 0.12, attack: time * 0.8 });
+  },
   // The squash: the foot coming down.
   boom() {
     noise({ dur: 2.2, filter: 'lowpass', freq: 400, to: 60, vol: 0.8 });

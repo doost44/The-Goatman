@@ -5,6 +5,8 @@ import * as THREE from 'three';
 //   { shape: "disc", radius, center, segments: [around, rings] }
 //   hills: [[x, z, radius, height], ...]   noise: amplitude   tile: metres per texture repeat
 //   flat: [[x, z, radius], ...] spots kept level (paths, the pool)
+//   rim: [from, to, height] the ground rises toward the edge of a disc (foothills)
+//   mottle: [amount, scale] broad darker patches, so the tiled texture repeats less obviously
 // heightAt(x, z) gives the height of the mesh's surface there (used to place props).
 
 // Smooth value noise, so the ground has a few soft lumps without any texture lookups.
@@ -36,6 +38,11 @@ export function terrainHeight(t) {
       const d = Math.hypot(x - fx, z - fz);
       if (d < r) h *= THREE.MathUtils.smoothstep(d, r * 0.6, r);
     }
+    if (t.rim) {
+      const [cx, cz] = t.center ?? [0, 0];
+      const [from, to, height] = t.rim;
+      h += height * THREE.MathUtils.smootherstep(Math.hypot(x - cx, z - cz), from, to);
+    }
     return h;
   };
 }
@@ -64,8 +71,20 @@ export function buildTerrain(t, material) {
     uv.setXY(i, x / tile, -z / tile); // world-space UVs: the texture tiles evenly on any shape
   }
   geo.computeVertexNormals();
+  if (t.mottle) {
+    const [amount, scale] = t.mottle;
+    const colors = [];
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) * scale, z = pos.getZ(i) * scale;
+      const n = 0.65 * valueNoise(x + 31.7, z - 17.3) + 0.35 * valueNoise(x * 2.3 - 5.1, z * 2.3 + 8.9);
+      const k = 1 - amount * (0.5 + 0.5 * n);
+      colors.push(k, k, k);
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    material.vertexColors = true;
+  }
   const mesh = new THREE.Mesh(geo, material);
-  const surface = t.shape === 'disc' ? heightAt : gridSurface(t, heightAt);
+  const surface = t.shape === 'disc' ? discSurface(t, heightAt) : gridSurface(t, heightAt);
   mesh.userData.heightAt = surface;
   return { mesh, heightAt: surface };
 }
@@ -87,6 +106,42 @@ function gridSurface(t, heightAt) {
     const a = heightAt(x0, z0), b = heightAt(x0, z0 + sz), c = heightAt(x0 + sx, z0 + sz), e = heightAt(x0 + sx, z0);
     // PlaneGeometry splits each square along the b-e diagonal
     return fu + fv <= 1 ? a + (e - a) * fu + (b - a) * fv : c + (b - c) * (1 - fu) + (e - c) * (1 - fv);
+  };
+}
+
+// The same for a disc. RingGeometry makes rings of quads round the centre, each split
+// into the triangles (a, b, d) and (b, c, d); this finds the quad and the triangle.
+function discSurface(t, heightAt) {
+  const [cx, cz] = t.center ?? [0, 0];
+  const [around, rings] = t.segments ?? [48, 16];
+  const r0 = 0.01, dr = (t.radius - r0) / rings, da = (Math.PI * 2) / around;
+  const corner = (j, i) => {
+    const r = r0 + j * dr;
+    const x = cx + r * Math.cos(i * da), z = cz - r * Math.sin(i * da); // built in XY, then laid flat
+    return [x, z, heightAt(x, z)];
+  };
+  // Height on the plane through three corners, or null if (x, z) is outside the triangle.
+  const onTriangle = (x, z, [ax, az, ah], [bx, bz, bh], [cx2, cz2, ch], always) => {
+    const det = (bz - cz2) * (ax - cx2) + (cx2 - bx) * (az - cz2);
+    if (Math.abs(det) < 1e-9) return always ? ah : null;
+    const wa = ((bz - cz2) * (x - cx2) + (cx2 - bx) * (z - cz2)) / det;
+    const wb = ((cz2 - az) * (x - cx2) + (ax - cx2) * (z - cz2)) / det;
+    const wc = 1 - wa - wb;
+    if (!always && (wa < -1e-6 || wb < -1e-6 || wc < -1e-6)) return null;
+    return wa * ah + wb * bh + wc * ch;
+  };
+  return (x, z) => {
+    let a = Math.atan2(-(z - cz), x - cx);
+    if (a < 0) a += Math.PI * 2;
+    const i = Math.min(around - 1, Math.floor(a / da));
+    const j = THREE.MathUtils.clamp(Math.floor((Math.hypot(x - cx, z - cz) - r0) / dr), 0, rings - 1);
+    // The quads' edges are straight, not arcs, so a point can be in the next ring out.
+    const last = Math.min(j + 1, rings - 1);
+    for (let k = j; k <= last; k++) {
+      const A = corner(k, i), B = corner(k + 1, i), C = corner(k + 1, i + 1), D = corner(k, i + 1);
+      const h = onTriangle(x, z, A, B, D) ?? onTriangle(x, z, B, C, D, k === last);
+      if (h !== null) return h;
+    }
   };
 }
 

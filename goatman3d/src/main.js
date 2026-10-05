@@ -10,6 +10,7 @@ import { createGoatMan } from './goatman.js';
 import { createArms } from './viewmodel.js';
 import { createView } from './view.js';
 import { createRocks } from './rocks.js';
+import { createSquash } from './squash.js';
 import { updateAmbience, stopAmbience } from './ambience.js';
 import { playFMV } from './fmv.js';
 import { startSound, updateSound, stopSoundscape, duck } from './sound.js';
@@ -86,7 +87,8 @@ levels.onEnter = (id, def, world) => {
   view.enter(def, world);
   rocks.place(def, world);
 };
-story = createStory({ levels, player, toTitle });
+const doom = createSquash({ scene, camera, head, player, gm, view, levels });
+story = createStory({ levels, player, gm, squash: doom.squash, toTitle });
 interact = createInteract({ levels, player, head, controls, story });
 titleEl.style.backgroundImage = 'url(assets/video/title-poster.png)';
 
@@ -131,6 +133,7 @@ function toTitle() {
   stopSoundscape(1);
   stopAmbience(1);
   rocks.clear();
+  view.shot = null;
   levels.unload();
   player.mount = null;
   pausedEl.classList.add('hidden');
@@ -156,6 +159,7 @@ renderer.setAnimationLoop(() => {
     player.update(dt);
     levels.update(dt, t);
     interact.update();
+    doom.update(dt);
     view.update(dt);
     rocks.update(dt);
   }

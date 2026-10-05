@@ -58,10 +58,11 @@
 
     "field": {
       "title": "II · THE RED FIELD",
-      "builder": "greybox",
+      "builder": "field",
       "palette": "field",
+      "seed": 5,
       "sky": [[0, "#a87c98"], [0.5, "#cd9bb2"], [1, "#e2b4c4"]],
-      "fog": { "color": "#cfa0b6", "near": 30, "far": 230 },
+      "fog": { "color": "#cfa0b6", "near": 40, "far": 340 },
       "ambient": { "color": "#ffd8e4", "intensity": 1.3 },
       "sun": { "color": "#fff0e0", "intensity": 1.6, "dir": [0.6, 1, 0.4] },
       "grade": [1.2, 1.8, 1.0, 0.0],
@@ -69,24 +70,42 @@
       "speed": 1,
       "soundscape": { "file": "assets/audio/field-loop.m4a", "volume": 1.2 },
       "spawns": {
-        "start": { "at": [0, 0, 110], "yaw": 0 }
+        "start": { "at": [0, 0, 72], "yaw": 0 }
       },
-      "respawn": [0, 0, 110],
+      "respawn": [0, 0, 72],
       "voidY": -70,
+      "bounds": 165,
       "terrain": {
-        "shape": "disc", "radius": 170, "segments": [64, 20],
-        "hills": [[-60, -40, 40, 6], [70, -80, 50, 9], [45, 60, 30, 4], [-90, 70, 45, 7], [0, 150, 40, 5]],
-        "flat": [[0, 0, 45], [0, 116, 14]],
-        "noise": 1.2, "noiseScale": 0.04, "tile": 6, "color": "#c3092d"
+        "shape": "disc", "radius": 330, "segments": [72, 26],
+        "hills": [[-60, -40, 40, 6], [70, -80, 50, 9], [45, 60, 30, 4], [-90, 70, 45, 7], [110, 20, 35, 6], [-30, -120, 40, 5]],
+        "flat": [[0, 0, 45], [0, 74, 14]],
+        "rim": [150, 320, 18],
+        "mottle": [0.3, 0.02],
+        "noise": 1.2, "noiseScale": 0.04, "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
       },
-      "walkingThing": { "home": [0, 0, 0], "wander": 35, "height": 16 },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 600, "repeat": 2 },
+      "peaks": { "texture": "assets/field/peaks.png", "radius": 300, "depth": 60, "height": 80, "ground": 325, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.3)" },
+      "clouds": {
+        "wind": [1, 0.25],
+        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 26, "height": [110, 160], "size": [60, 110], "radius": 480, "speed": 1.5, "tint": "#fff4f0" },
+        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 14, "height": [48, 75], "size": [45, 80], "radius": 320, "speed": 4, "tint": "#ffffff" }
+      },
+      "grass": {
+        "radius": 160, "patch": 60, "tufts": 2600, "tuftSize": [0.45, 1.1], "sprouts": 700, "sproutSize": [0.5, 1],
+        "colors": ["#c3092d", "#d20831", "#8c1b2c", "#b8142b", "#e01a3c"], "sprout": "#16030a"
+      },
+      "gate": { "at": [0, 77], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
+      "walkingThing": {
+        "home": [0, 0, 0], "wander": 30, "height": 22, "speed": 2.5, "frameTime": 0.3,
+        "notice": 32, "lower": 0.15, "shadow": "assets/field/shadow.png", "facing": 0
+      },
       "interactions": [
-        { "type": "exit", "at": [0, 0, 124], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
-        { "type": "talk", "actor": "walkingThing", "radius": 11, "look": 30, "prompt": "PRESS E", "dialogue": "encounter" }
+        { "type": "exit", "at": [0, 0, 77], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
+        { "type": "talk", "actor": "walkingThing", "radius": 14, "look": 35, "prompt": "PRESS E", "dialogue": "encounter" }
       ],
       "dialogue": {
         "encounter": {
-          "text": "THE WALKING THING STOPS.",
+          "text": "THE WALKING THING STOPS AND LOOKS DOWN AT YOU.",
           "choices": [
             { "label": "Grab Their LEG", "outcome": "squash" },
             { "label": "Will you be my mount, Walking Thing?", "outcome": "mount" }
@@ -94,8 +113,12 @@
         }
       },
       "outcomes": {
-        "squash": { "message": "They didn't like that, you were SQUASHED", "hold": 2 },
-        "mount": { "to": "savanna" }
+        "squash": {
+          "grab": 0.6, "darken": 3, "raise": 2.6, "footSize": 7, "drop": 0.55,
+          "flash": { "in": 0.08, "out": 1.4 }, "shot": 4,
+          "message": "They didn't like that, you were SQUASHED", "hold": 2.5
+        },
+        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [-40, 0, -150], "pace": 1.2, "ride": 7, "to": "savanna" }
       }
     },
 

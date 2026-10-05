@@ -179,13 +179,33 @@ export function createPlayer(head, controls, keys) {
     head.position.set(pos.x, pos.y + EYE - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
   }
 
+  // Carried: on the creature's back, turning when it turns. While climbing on, the view
+  // eases round to look out the way it faces.
+  let carried = null; // its heading last frame
+  function ride(dt) {
+    const { heading, look } = player.mount;
+    if (carried !== null) head.rotation.y += Math.atan2(Math.sin(heading - carried), Math.cos(heading - carried));
+    carried = heading;
+    if (look !== undefined) {
+      const k = Math.min(1, dt * 2.5);
+      head.rotation.y += Math.atan2(Math.sin(heading - head.rotation.y), Math.cos(heading - head.rotation.y)) * k;
+      head.rotation.x += (look - head.rotation.x) * k;
+    }
+    player.mount.seat(pos);
+  }
+
   function update(dt) {
     if (!player.level) return;
-    if (player.mount) { // riding: the creature carries him (see walkingthing.js)
+    if (player.mount) { // riding: the creature carries him, kneeling on its back (walkingthing.js)
+      ride(dt);
+      vel.set(0, 0, 0);
       player.speed = 0;
+      player.grounded = true;
       loopsLevel.wind(0);
+      syncHead(dt);
       return;
     }
+    carried = null;
     const wish = wishDir();
     const speed = SPEED * (player.level.speed ?? 1);
 

@@ -137,8 +137,25 @@ export function dialogue(text, choices) {
   });
 }
 
+// --- Screen shake -------------------------------------------------------------------
+// Shakes the 3D view itself, not the HUD (from automation-map's doom.js). Nothing
+// shakes with the screen-shake option off.
+let shaking = 0;
+export function shake(amount) {
+  if (settings.shake) shaking = Math.max(shaking, amount);
+}
+
 // --- Per-frame timers ---------------------------------------------------------------
 export function updateHud(dt) {
+  const view = $('view');
+  if (shaking > 0.01) {
+    shaking *= Math.pow(0.03, dt);
+    const s = shaking * 24;
+    view.style.transform = `translate(${(Math.random() - 0.5) * s}px, ${(Math.random() - 0.5) * s}px)`;
+  } else if (view.style.transform) {
+    shaking = 0;
+    view.style.transform = '';
+  }
   if (messageLeft > 0 && (messageLeft -= dt) <= 0) showMessage(null);
   if (levelNameLeft > 0 && (levelNameLeft -= dt) <= 0) showLevelName(null);
   if (subtitleLeft > 0 && (subtitleLeft -= dt) <= 0) subtitle(null);

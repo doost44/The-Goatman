@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildGreybox } from './worlds/greybox.js';
 import { buildForest } from './worlds/forest.js';
+import { buildField } from './worlds/field.js';
 import { fadeTo, showLevelName } from './hud.js';
 import { playSoundscape, duck } from './sound.js';
 import { playAmbience } from './ambience.js';
@@ -8,11 +9,12 @@ import { gradientTexture } from './textures.js';
 
 // Loads data/levels.json and builds one level at a time. A level's look, spawn
 // points, sound and interactions all come from its entry there; the "builder"
-// names the module that makes its world (grey-box for now, painted later).
+// names the module that makes its world (worlds/*.js).
 
 const BUILDERS = {
   greybox: buildGreybox,
   forest: buildForest,
+  field: buildField,
 };
 
 const fetchJSON = async (url) => {
@@ -74,6 +76,7 @@ export async function createLevels(scene, player, camera) {
     scene.add(world.group);
     levels.world = world;
 
+    player.mount = null; // a new level starts on foot
     player.level = {
       ground: world.ground,
       colliders: world.colliders,

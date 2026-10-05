@@ -8,9 +8,7 @@ import { settings } from './options.js';
 // What the interactions do: the story of the p5 game, step by step.
 // Texts and timings come from the level's "dialogue" and "outcomes" in levels.json.
 
-const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
-
-export function createStory({ levels, player, toTitle }) {
+export function createStory({ levels, player, gm, squash, toTitle }) {
   const story = {
     flags: {}, // petted, ...
     trust: 0, // grows when the Walking Thing is treated kindly (for later polish)
@@ -86,21 +84,34 @@ export function createStory({ levels, player, toTitle }) {
     if (!levels.busy) player.frozen = false;
   };
 
-  // "They didn't like that, you were SQUASHED": fade to black, the line, back to the title.
-  story.outcomes.squash = async (o) => {
+  // "They didn't like that, you were SQUASHED": the foot comes down (squash.js), the line,
+  // then a fade to black and back to the title.
+  story.outcomes.squash = async (o, actor) => {
     story.cutscene = true;
     player.frozen = true;
     setCinematic(true);
-    sfx.boom();
+    freezeLook(true);
+    await squash(o, actor);
     await fadeTo(1, levels.data.fade.out, '#000');
-    showMessage(o.message, 0);
-    await wait(o.hold ?? 2);
     showMessage(null);
     setCinematic(false);
     toTitle({});
   };
 
-  story.outcomes.mount = (o) => goTo(o.to);
+  // "Will you be my mount, Walking Thing?": it kneels, he climbs onto its back, it stands
+  // up with him and carries him off toward the next level.
+  story.outcomes.mount = async (o, actor) => {
+    sfx.chime([0, 4, 7], 147);
+    freezeLook(true); // the view is turned for him while he climbs on
+    await actor.kneel(o.kneel);
+    await actor.climbOn(player, o.climb);
+    freezeLook(false);
+    gm.play('kneel');
+    actor.walkTo(o.rideTo, o.pace); // it turns that way as it gets up
+    await actor.rise(o.rise);
+    await actor.wait(o.ride);
+    return goTo(o.to);
+  };
 
   // scene3.js: "They liked that", once.
   story.actions.pet = async (it) => {
