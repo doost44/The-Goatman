@@ -43,9 +43,13 @@ const RIDE = {
 };
 // In first person his back is straighter, his knees bend a little more and he stands his
 // hooves further forward, so the camera between his eyes is out in front of his chest and
-// looking down finds his legs and hooves. (Taken off the pose, scaled by how far into first
+// looking down finds his legs and hooves; his arms still hang down, a little forward and in,
+// so his hands show beside his knees. (Taken off the pose, scaled by how far into first
 // person the view is; nobody sees him stand like this.)
-const UPRIGHT = { hipY: 0.2, lean: 0.3, hunch: 0.35, neck: -0.15, head: -0.15, foot: -0.65 };
+const UPRIGHT = {
+  hipY: 0.2, lean: 0.3, hunch: 0.35, neck: -0.15, head: -0.15, foot: -0.65,
+  armL: -0.3, armR: -0.3, spreadL: 0.04, spreadR: 0.04,
+};
 // Reaching out to pet the Walking Thing: straightened up, one long arm raised.
 const REACH_UP = { ...STAND, lean: 0.1, hunch: 0.2, neck: 0.25, head: -0.45, armR: 2.3, elbowR: 0.3, spreadR: 0, wristR: -0.3, armL: 0.3 };
 

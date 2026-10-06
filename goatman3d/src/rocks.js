@@ -16,7 +16,7 @@ const THROW_SPEED = 26;
 const GRAVITY = 12;
 const CENTER = new THREE.Vector2(0, 0);
 
-export function createRocks({ camera, controls, player, gm, arms }) {
+export function createRocks({ camera, controls, player, gm }) {
   const mat = new THREE.MeshLambertMaterial({ color: 0x8e93ac, flatShading: true });
   let rocks = [];
   let targets = []; // what a flying pebble can hit
@@ -63,7 +63,7 @@ export function createRocks({ camera, controls, player, gm, arms }) {
 
   function drop() {
     held = null;
-    gm.holding = arms.holding = false;
+    gm.holding = false;
   }
 
   const ray = new THREE.Raycaster();
@@ -76,7 +76,7 @@ export function createRocks({ camera, controls, player, gm, arms }) {
     else if (aimed) {
       held = aimed;
       held.state = 'held';
-      gm.holding = arms.holding = true;
+      gm.holding = true;
       sfx.pickup();
     }
   }
@@ -84,8 +84,7 @@ export function createRocks({ camera, controls, player, gm, arms }) {
   // From his hand toward whatever is under the crosshair, lobbed a little so it lands there.
   function throwRock(rock) {
     const p = rock.mesh.position;
-    if (gm.firstPerson) arms.handPos(p).applyMatrix4(camera.matrixWorld); // where the arms show it
-    else gm.handWorld(p);
+    gm.handWorld(p);
     ray.setFromCamera(CENTER, camera);
     ray.far = 80;
     const hit = ray.intersectObjects(targets, false)[0];
@@ -100,7 +99,6 @@ export function createRocks({ camera, controls, player, gm, arms }) {
     rock.mesh.visible = true;
     drop();
     gm.throwArm();
-    arms.throwArm();
     sfx.throwRock();
   }
 
@@ -204,8 +202,7 @@ export function createRocks({ camera, controls, player, gm, arms }) {
       if (rock.state === 'rest') rock.mesh.visible = rock.mesh.position.distanceToSquared(camera.position) < 40 * 40;
       if (rock.state === 'flying') fly(rock, dt);
       else if (rock === held) {
-        // In first person the arms (viewmodel.js) show it; in third, it is in his hand.
-        rock.mesh.visible = !gm.firstPerson;
+        rock.mesh.visible = true; // in his hand, first person or third
         gm.handWorld(rock.mesh.position);
       }
     }

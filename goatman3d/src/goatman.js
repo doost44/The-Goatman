@@ -145,10 +145,10 @@ export async function createGoatMan() {
   const legL = leg(-1), legR = leg(1);
 
   // In first person the camera is between his eyes: his head and neck are hidden so it never
-  // sees inside them, and his arms are the first-person ones (viewmodel.js). Look down to see
-  // his chest, belly, legs and hooves.
-  const hideInFirstPerson = [neckMesh, head, armL.shoulder, armR.shoulder];
-  const torso = [pelvis, legL.thigh, legR.thigh, bellyMesh, chestMesh]; // hidden too behind a squeezed chase camera
+  // sees inside them. Look down to see his chest, belly, arms, legs and hooves.
+  const hideInFirstPerson = [neckMesh, head];
+  // Hidden too behind a squeezed chase camera.
+  const torso = [pelvis, legL.thigh, legR.thigh, bellyMesh, chestMesh, armL.shoulder, armR.shoulder];
   let firstPerson = false;
 
   // Blue strands between the neck and the head while it is off (head1-15).
@@ -263,7 +263,7 @@ export async function createGoatMan() {
       }
     },
     // on: first person (or the chase camera squeezed up behind him, `squeezed`: then his
-    // torso and thighs would fill the screen, so only his lower legs show).
+    // torso, arms and thighs would fill the screen, so only his lower legs show).
     setFirstPerson(on, squeezed = false) {
       firstPerson = on;
       for (const o of hideInFirstPerson) o.visible = !on;

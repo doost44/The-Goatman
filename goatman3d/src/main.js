@@ -7,7 +7,6 @@ import { createLevels } from './levels.js';
 import { createStory } from './story.js';
 import { createInteract } from './interact.js';
 import { createGoatMan } from './goatman.js';
-import { createArms } from './viewmodel.js';
 import { createView } from './view.js';
 import { createRocks } from './rocks.js';
 import { createSquash } from './squash.js';
@@ -81,9 +80,8 @@ try {
   showError(`Could not load the game: ${err.message}`);
   throw err;
 }
-const arms = createArms(gm.materials);
-const view = createView({ renderer, scene, camera, head, player, gm, arms });
-const rocks = createRocks({ camera, controls, player, gm, arms });
+const view = createView({ renderer, scene, camera, head, player, gm });
+const rocks = createRocks({ camera, controls, player, gm });
 levels.onEnter = (id, def, world) => {
   view.enter(def, world);
   rocks.place(def, world);
@@ -91,7 +89,7 @@ levels.onEnter = (id, def, world) => {
   if (!def.test) writeSave({ level: id }); // the title offers CONTINUE from here
 };
 const doom = createSquash({ scene, camera, head, player, gm, view, levels });
-story = createStory({ levels, player, gm, arms, view, squash: doom.squash, toTitle });
+story = createStory({ levels, player, gm, view, squash: doom.squash, toTitle });
 levels.flag = (name) => !!story.flags[name]; // so a level can change when the story does (the savanna's exit)
 interact = createInteract({ levels, player, head, controls, story });
 const title = createTitle({ renderer, levels, gm });
@@ -99,7 +97,7 @@ const title = createTitle({ renderer, levels, gm });
 // Admin mode (?admin in the address): flying, coordinates, level keys. Not even loaded otherwise.
 const params = new URLSearchParams(location.search);
 const admin = params.has('admin')
-  ? (await import('./admin.js')).createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, playing: () => state === 'play' })
+  ? (await import('./admin.js')).createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, view, story, playing: () => state === 'play' })
   : null;
 
 // --- Start screen, new game -------------------------------------------------------
@@ -201,4 +199,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
-window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, title, admin, get state() { return state; }, newGame, toTitle };
+window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, view, rocks, story, interact, settings, title, admin, get state() { return state; }, newGame, toTitle };
