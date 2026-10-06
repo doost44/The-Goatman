@@ -61,3 +61,32 @@ arrays) and was back at 19 MB at the end, so nothing piles up there either.
 | 174 s | 181 | 121 | 260 | 4199 | 3939 | 35 MB |
 | 235 s | 215 | 212 | 260 | 5565 | 5305 | 33 MB |
 | 250 s | 249 | | | | | 19 MB |
+
+## After section 3 (the vast red field)
+
+Same machine and method, run alternately with section 0's branch (PR #5):
+
+| Level | FPS | Draw calls | Triangles | GPU geometries | GPU textures | JS heap |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 Red field, before (330 m disc) | 44-45 | 59 | 18K | 52 | 26 | 11 MB |
+| 2 Red field, vast (1.8 km of chunks) | 28-29 | 109 | 43K | 92 | 32 | 14-17 MB |
+| Test: the expanse | 24-25 | 92 | 78K | 98 | 7 | 23 MB |
+
+The vast field runs a little faster than the expanse test level and slower than the old small
+field, which drew a quarter of the triangles. Standing in a dip of tall grass it drops to about
+12 fps here: the tall cards fill the whole view, and SwiftShader pays for every pixel of
+each one. Things learnt making it fit:
+
+- SwiftShader draws instanced copies very slowly (700 instanced quads cost about a quarter of
+  the frame, the same quads merged almost nothing), so the field's grass is merged into 48 m
+  tiles built round him (worlds/redgrass.js) rather than a scatter: about twice the frame rate.
+- 256 m chunks with 32, 16 and 8 segments draw the same ground as 128 m chunks with 16, 8 and 4
+  in a third of the draw calls.
+- The near ground shows big flat-coloured patches under SwiftShader (as the expanse and the
+  savanna do): it is how SwiftShader samples the texture on triangles that reach behind the
+  camera, not the geometry (the ground is smooth with the texture off).
+
+A 2-minute flight in a figure of eight over the whole field at about 60 m/s, 20 m up: the
+graphics card's geometries stayed between 148 and 186 (ground chunks and grass tiles built and
+freed the whole way, 294 chunks built and 224 freed, the cache at its limit of 70), and the
+JavaScript heap between 16 and 33 MB.

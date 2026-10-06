@@ -97,7 +97,8 @@
       "palette": "field",
       "seed": 5,
       "sky": [[0, "#a87c98"], [0.5, "#cd9bb2"], [1, "#e2b4c4"]],
-      "fog": { "color": "#cfa0b6", "near": 40, "far": 340 },
+      "fog": { "color": "#cfa0b6", "near": 120, "far": 900 },
+      "view": 4500,
       "ambient": { "color": "#ffd8e4", "intensity": 1.3 },
       "sun": { "color": "#fff0e0", "intensity": 1.6, "dir": [0.6, 1, 0.4] },
       "grade": [1.2, 1.8, 1.0, 0.0],
@@ -106,43 +107,98 @@
       "speed": 1,
       "soundscape": { "file": "assets/audio/field-loop.m4a", "volume": 1.2 },
       "spawns": {
-        "start": { "at": [0, 0, 72], "yaw": 0 }
+        "start": { "at": [0, 0, 560], "yaw": 0 }
       },
-      "respawn": [0, 0, 72],
+      "respawn": [0, 0, 560],
       "voidY": -70,
       "places": [
-        { "name": "arrival", "at": [0, 72], "yaw": 0 },
-        { "name": "Walking Thing's home", "at": [0, 20], "yaw": 0 },
-        { "name": "hill", "at": [70, -80], "yaw": 150, "up": 6 },
-        { "name": "far side", "at": [0, -150], "yaw": 180 }
+        { "name": "arrival", "at": [0, 560], "yaw": 0 },
+        { "name": "lookout hill", "at": [262, 384], "yaw": 30, "up": 2 },
+        { "name": "dip with tall grass", "at": [230, 60], "yaw": 0 },
+        { "name": "ring of flattened grass", "at": [-280, 230], "yaw": 0, "up": 40 },
+        { "name": "Walking Thing's ground", "at": [20, 160], "yaw": 0 },
+        { "name": "lone rock", "at": [380, -115], "yaw": 180 },
+        { "name": "fallen leg", "at": [-70, -420], "yaw": -100, "up": 6 },
+        { "name": "valley under the leg", "at": [-80, -470], "yaw": -95 },
+        { "name": "north foothills", "at": [0, -700], "yaw": 180, "up": 2 },
+        { "name": "west foothills", "at": [-700, 0], "yaw": -90, "up": 2 }
       ],
-      "bounds": 165,
+      "bounds": 730,
       "terrain": {
-        "shape": "disc", "radius": 330, "segments": [72, 26],
-        "hills": [[-60, -40, 40, 6], [70, -80, 50, 9], [45, 60, 30, 4], [-90, 70, 45, 7], [110, 20, 35, 6], [-30, -120, 40, 5]],
-        "flat": [[0, 0, 45], [0, 74, 14]],
-        "rim": [150, 320, 18],
-        "mottle": [0.3, 0.02],
-        "noise": 1.2, "noiseScale": 0.04, "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
+        "shape": "chunks", "size": [1792, 1792], "center": [0, 0], "chunk": 256,
+        "lods": [[220, 32], [520, 16], [1e9, 8]], "view": 1000, "cache": 70, "budget": 2,
+        "hills": [
+          [-380, 260, 260, 16], [320, -260, 280, 20], [-260, -420, 220, 14], [420, 420, 200, 10], [0, 200, 240, -8],
+          [262, 384, 90, 38], [-560, -120, 110, 30],
+          [-160, -470, 50, -16], [-70, -480, 50, -24], [20, -475, 50, -24], [110, -465, 50, -16]
+        ],
+        "flat": [[0, 563, 24]],
+        "noise": 8, "noiseScale": 0.005,
+        "rim": [540, 1000, 170],
+        "mottle": [0.3, 0.01],
+        "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
       },
-      "skyDome": { "texture": "assets/field/sky.png", "radius": 600, "repeat": 2 },
-      "peaks": { "texture": "assets/field/peaks.png", "radius": 300, "depth": 60, "height": 80, "ground": 325, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.3)" },
+      "dips": [
+        { "at": [-170, 300], "radius": 40, "depth": 7 },
+        { "at": [230, 60], "radius": 45, "depth": 8 },
+        { "at": [-320, -160], "radius": 50, "depth": 8 },
+        { "at": [140, -300], "radius": 38, "depth": 6 },
+        { "at": [-80, 120], "radius": 35, "depth": 6 }
+      ],
+      "ring": { "at": [-280, 140], "radius": 70, "width": 12 },
+      "fallenLeg": { "joints": [[-35, -560, 5], [-15, -395, 4.2], [30, -320, 2.8], [48, -292, 1.8]], "pad": 1.9 },
+      "horizon": { "size": 9000, "segments": 80, "color": "#7a2434", "haze": [1, 0.55], "sink": 6 },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 4200, "repeat": 2 },
+      "peaks": { "texture": "assets/field/peaks.png", "radius": 3300, "depth": 300, "height": 700, "ground": 1100, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.55)" },
+      "landmarkLook": { "color": "#3a1822", "swap": 500, "haze": [100, 3600, 0.75] },
+      "landmarks": [
+        { "kind": "peak", "at": [-600, -1400], "size": [380, 560] },
+        { "kind": "peak", "at": [-280, -1480], "size": [260, 330], "seed": 3 },
+        { "kind": "peak", "at": [300, -1650], "size": [480, 700] },
+        { "kind": "peak", "at": [700, -1500], "size": [300, 380], "seed": 5 },
+        { "kind": "peak", "at": [1300, -700], "size": [350, 480] },
+        { "kind": "peak", "at": [1250, -380], "size": [240, 290], "seed": 8 },
+        { "kind": "peak", "at": [1500, 400], "size": [400, 520] },
+        { "kind": "peak", "at": [-1450, -300], "size": [420, 600] },
+        { "kind": "peak", "at": [-1380, -720], "size": [280, 360], "seed": 11 },
+        { "kind": "peak", "at": [-1200, 900], "size": [300, 420] },
+        { "kind": "peak", "at": [700, 1450], "size": [360, 450] },
+        { "kind": "peak", "at": [-250, 1500], "size": [300, 340], "seed": 13 },
+        { "kind": "stone", "at": [-420, 380], "size": [6, 22], "color": "#24121a" },
+        { "kind": "spire", "at": [380, -150], "size": [9, 34], "color": "#24121a" },
+        { "kind": "stone", "at": [-120, -230], "size": [5, 18], "color": "#24121a" },
+        { "kind": "spire", "at": [500, 300], "size": [7, 26], "color": "#24121a" },
+        { "kind": "stone", "at": [-520, -380], "size": [6, 24], "color": "#24121a" },
+        { "kind": "stone", "at": [90, 260], "size": [4, 14], "color": "#24121a" }
+      ],
+      "giants": {
+        "look": { "body": "#efe2dc", "legs": "#e4cfca", "haze": [100, 3600, 0.7] },
+        "walkers": [
+          { "from": [-900, -1100], "to": [-300, -1250], "height": 140, "speed": 3 },
+          { "from": [1100, -200], "to": [1150, 500], "height": 110, "speed": 2.5 },
+          { "from": [-1150, 500], "to": [-1000, 1100], "height": 160, "speed": 3.5 }
+        ]
+      },
       "clouds": {
         "wind": [1, 0.25],
-        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 26, "height": [110, 160], "size": [60, 110], "radius": 480, "speed": 1.5, "tint": "#fff4f0" },
-        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 14, "height": [48, 75], "size": [45, 80], "radius": 320, "speed": 4, "tint": "#ffffff" }
+        "shadows": { "scale": 90, "speed": 6, "dark": 0.28 },
+        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 22, "height": [180, 300], "size": [120, 220], "radius": 1200, "speed": 3, "tint": "#fff4f0" },
+        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 12, "height": [80, 130], "size": [70, 130], "radius": 700, "speed": 6, "tint": "#ffffff" }
       },
       "grass": {
-        "radius": 160, "patch": 60, "tufts": 2600, "tuftSize": [0.45, 1.1], "sprouts": 700, "sproutSize": [0.5, 1],
+        "reach": 140, "tile": 48, "cache": 60, "budget": 2,
+        "tufts": 0.022, "tuftSize": [0.45, 1.1], "sprouts": 0.005, "sproutSize": [0.5, 1],
+        "tall": { "per": 0.45, "size": [2.4, 3.4] }, "flat": 0.5,
         "colors": ["#c3092d", "#d20831", "#8c1b2c", "#b8142b", "#e01a3c"], "sprout": "#16030a"
       },
-      "gate": { "at": [0, 77], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
+      "stones": { "count": 1800, "size": [0.2, 1.6], "reach": 160, "color": "#2e1a20" },
+      "gate": { "at": [0, 565], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
       "walkingThing": {
-        "home": [0, 0, 0], "wander": 30, "height": 22, "speed": 2.5, "frameTime": 0.3,
+        "home": [20, 0, 160], "wander": 280, "roam": 430, "hear": 650, "farLegs": { "color": "#b0283c", "haze": [150, 1400, 0.6] }, "height": 22, "speed": 2.5, "frameTime": 0.3,
         "notice": 32, "lower": 0.15, "shadow": "assets/field/shadow.png", "facing": 0
       },
       "interactions": [
-        { "type": "exit", "at": [0, 0, 77], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
+        { "type": "exit", "at": [0, 0, 565], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
         { "type": "talk", "actor": "walkingThing", "radius": 14, "look": 35, "prompt": "PRESS E", "dialogue": "encounter" }
       ],
       "dialogue": {
@@ -160,7 +216,7 @@
           "flash": { "in": 0.08, "out": 1.4 }, "shot": 4,
           "message": "They didn't like that, you were SQUASHED", "hold": 2.5
         },
-        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [-40, 0, -150], "pace": 1.2, "ride": 7, "to": "savanna" }
+        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [40, 0, -1200], "pace": 1.2, "ride": 7, "to": "savanna" }
       }
     },
 

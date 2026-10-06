@@ -1,54 +1,169 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildTerrain } from '../terrain.js';
+import { createChunkedTerrain } from '../chunks.js';
 import { loadImage, loadTexture, canvas, crunchy, grade, rng } from '../textures.js';
 import { barkTrunks } from './trunks.js';
-import { buildSkyDome, buildSkyline } from './horizon.js';
+import { buildSkyDome, buildSkyline, buildFarLand, haze } from './horizon.js';
+import { buildLandmarks } from './landmarks.js';
+import { buildStones } from './expanse.js';
+import { buildRedGrass } from './redgrass.js';
+import { buildGiants, buildFallenLeg } from './giants.js';
 import { createWalkingThing } from '../walkingthing.js';
 
-// Level 2, the red field, from Charlie's layered painting (WALKYBOY/): its layers pulled
-// apart into real depth. The BACKGROUND pink is the sky dome, GROUND's dark peaks ring the
-// horizon as low-poly mountains, BACKCLOUDS drift slowly far up and frontclouds faster
-// lower down, and the red grass runs off to the peaks under GoatMan, who is small here:
-// the Walking Thing towers over him. Behind him, the two trunks he came through stand
-// alone in the field with the night still between them.
+// Level 2, the red field, from Charlie's layered painting (WALKYBOY/), now Kenshi-sized:
+// about 1.5 km of red grass rolling in long swells (chunks.js), dark mountains far off that
+// take minutes to walk toward (landmarks.js), and the painting's peaks as a last ring on the
+// horizon. The BACKGROUND pink is the sky dome, BACKCLOUDS drift far up and frontclouds faster
+// lower down, and their shadows slide across the grass. The Walking Thing wanders the middle
+// of the field: from the gate you see its long legs over the grass far off and hear its
+// footfalls grow as you close in. On the way: dips where the grass closes over GoatMan's
+// head, lone dark rocks, foothills to climb for a view, a huge ring of flattened grass, a
+// giant's fallen leg across a valley, and the giants themselves pacing the far ridges.
+// Behind him at the start, the two trunks he came through stand alone with the night
+// still between them.
 
 export async function buildField(def, { scene, camera, player }) {
   const group = new THREE.Group();
   const r = rng(def.seed);
+  const fog = new THREE.Color(def.fog.color); // the far things' haze follows the fog (darkening in the squash)
+  const shadow = cloudShadows(def.clouds);
 
-  const floor = await loadTexture(def.terrain.texture, 1);
-  const groundMat = new THREE.MeshLambertMaterial({ map: floor, flatShading: true, color: new THREE.Color(...def.terrain.tint) });
-  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat);
-  group.add(ground);
+  // The dips are hollows in the ground, as well as where the tall grass grows.
+  const t = { ...def.terrain, hills: [...def.terrain.hills, ...def.dips.map((d) => [...d.at, d.radius, -d.depth])] };
+  const floor = await loadTexture(t.texture, 1);
+  const groundMat = new THREE.MeshLambertMaterial({ map: floor, color: new THREE.Color(...t.tint) });
+  groundMat.onBeforeCompile = shadow.patch;
+  groundMat.customProgramCacheKey = () => 'field-ground';
+  const terrain = createChunkedTerrain(t, groundMat, { shade: flattened(def.ring) });
+  const { heightAt } = terrain;
+  const center = t.center ?? [0, 0];
+  const inside = (x, z) => Math.hypot(x - center[0], z - center[1]) < def.bounds;
+  inside.bounds = terrain.bounds;
 
   const sky = await buildSkyDome(def.skyDome, def.fog.color);
+  const far = buildFarLand(def.horizon, terrain.height, { center, cut: t.view - 20, fogColor: fog, sun: def.sun.dir });
+  const peaks = await buildSkyline(def.peaks, terrain.height);
+  const marks = buildLandmarks(def.landmarks, def.landmarkLook, heightAt, fog);
+  const giants = buildGiants(def.giants, terrain.height, fog);
+  const leg = buildFallenLeg(def.fallenLeg, heightAt);
   const clouds = await buildClouds(def.clouds, r);
-  group.add(sky, await buildSkyline(def.peaks, heightAt), clouds.group, ...(await buildGrass(def.grass, heightAt, r)));
+  const grass = buildRedGrass(def.grass, { heightAt, inside, dips: def.dips, ring: def.ring, shadow, seed: def.seed });
+  const stones = buildStones(def.stones, terrain, r);
+  group.add(terrain.group, far, sky, peaks, marks.group, giants.group, clouds.group, ...leg.meshes, grass.group, ...stones.meshes);
 
   const gate = await buildGate(def.gate, heightAt);
   group.add(...gate.meshes);
 
   const thing = await createWalkingThing(def.walkingThing, { heightAt, camera, player });
-  group.add(thing.group);
+  const [hx, , hz] = def.walkingThing.home;
+  thing.avoid = [{ kind: 'ring', x: hx, z: hz, r: def.walkingThing.roam }, ...marks.colliders, ...leg.colliders];
+  const legLines = farLegs(thing, fog, def.walkingThing.farLegs);
+  group.add(thing.group, legLines.lines);
 
+  let now = 0;
   return {
     group,
-    ground: [ground],
-    colliders: [{ kind: 'ring', x: 0, z: 0, r: def.bounds }, ...gate.colliders, ...thing.colliders],
-    blockers: gate.blockers,
+    ground: [terrain.ground, leg.ground],
+    colliders: [{ kind: 'ring', x: center[0], z: center[1], r: def.bounds }, ...marks.colliders, ...leg.colliders, ...gate.colliders, ...thing.colliders],
+    blockers: [...gate.blockers, ...leg.blockers],
     actors: { walkingThing: thing },
     heightAt,
-    update(dt) {
+    chunks: terrain, // the admin box and map show what it has built
+    update(dt, time) {
+      if (scene.fog) fog.copy(scene.fog.color);
       sky.position.copy(camera.position); // always as far away
-      clouds.update(dt);
+      clouds.update(dt, camera.position);
+      shadow.update(dt);
+      giants.update(dt);
       thing.update(dt);
+      legLines.update();
+      now = time;
+    },
+    beforeRender(cam) {
+      terrain.update(cam);
+      grass.update(now, cam);
+      stones.update(cam);
+    },
+    dispose() {
+      terrain.dispose();
+      grass.dispose();
+    },
+  };
+}
+
+// From far off the Walking Thing's legs are thinner than a pixel: a line down each (always a
+// pixel wide however far) keeps them showing over the grass, hazed like the landmarks rather
+// than fogged out. Up close the lines are inside the legs. levels.json walkingThing.farLegs:
+// { color, haze: [from, to, most] }
+function farLegs(thing, fogColor, d) {
+  const per = thing.legs[0].curve.points.length;
+  const pos = new Float32Array(thing.legs.length * (per - 1) * 6);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.LineBasicMaterial({ color: d.color });
+  haze(mat, { color: fogColor, from: d.haze[0], to: d.haze[1], a: 0, b: d.haze[2] });
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.frustumCulled = false;
+  return {
+    lines,
+    update() {
+      let n = 0;
+      for (const leg of thing.legs) {
+        const c = leg.curve.points;
+        for (let i = 0; i < per - 1; i++) { c[i].toArray(pos, n); c[i + 1].toArray(pos, n + 3); n += 6; }
+      }
+      geo.attributes.position.needsUpdate = true;
+    },
+  };
+}
+
+// The huge ring of flattened grass shows on the ground as a paler band (pressed grass
+// catches the light): the ground's shade at (x, z), for createChunkedTerrain.
+function flattened(ring) {
+  return (x, z) => {
+    const off = Math.abs(Math.hypot(x - ring.at[0], z - ring.at[1]) - ring.radius) / (ring.width / 2);
+    const k = 1 + 0.4 * (1 - THREE.MathUtils.smoothstep(off, 0.6, 1.1));
+    return [k, k * 0.9, k * 0.9];
+  };
+}
+
+// The clouds' shadows: soft dark patches of moving noise, drifting downwind, patched into the
+// ground's and the grass's shaders (the world point is worked back from the view-space one,
+// so it works for instanced grass too). levels.json clouds.shadows: { scale, speed, dark }.
+function cloudShadows(d) {
+  const s = d.shadows;
+  const [wx, wz] = d.wind, len = Math.hypot(wx, wz);
+  const drift = { value: new THREE.Vector3(0, 0, s.dark) };
+  return {
+    update(dt) {
+      drift.value.x += (wx / len) * s.speed * dt;
+      drift.value.y += (wz / len) * s.speed * dt;
+    },
+    patch(shader) {
+      shader.uniforms.uCloudDrift = drift;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vCloudAt;')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\nvCloudAt = (transpose(mat3(viewMatrix)) * (mvPosition.xyz - viewMatrix[3].xyz)).xz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+varying vec2 vCloudAt;
+uniform vec3 uCloudDrift;
+float cloudHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float cloudNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(cloudHash(i), cloudHash(i + vec2(1, 0)), f.x), mix(cloudHash(i + vec2(0, 1)), cloudHash(i + vec2(1, 1)), f.x), f.y);
+}`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+  vec2 cloudP = (vCloudAt - uCloudDrift.xy) / ${s.scale.toFixed(1)};
+  float cloud = 0.65 * cloudNoise(cloudP) + 0.35 * cloudNoise(cloudP * 2.3 + 7.1);
+  diffuseColor.rgb *= 1.0 - uCloudDrift.z * smoothstep(0.52, 0.66, cloud);`);
     },
   };
 }
 
 // Two heights of painted cloud cards drifting on the wind: BACKCLOUDS far up and slow,
 // frontclouds lower and faster. Sprites, so they always face him, cut out with alphaTest.
+// They drift in a circle round him, so however far he walks the sky is never empty.
 async function buildClouds(d, r) {
   const group = new THREE.Group();
   const drifting = [];
@@ -74,72 +189,17 @@ async function buildClouds(d, r) {
   const len = Math.hypot(wx, wz);
   return {
     group,
-    update(dt) {
+    update(dt, eye) {
       for (const { cloud, speed, radius } of drifting) {
         const p = cloud.position;
         p.x += (wx / len) * speed * dt;
         p.z += (wz / len) * speed * dt;
-        // gone past the far side: back in on the near side
-        if (Math.hypot(p.x, p.z) > radius && p.x * wx + p.z * wz > 0) { p.x = -p.x; p.z = -p.z; }
+        // too far from him (blown or walked away from): over to the other side of him
+        const dx = p.x - eye.x, dz = p.z - eye.z;
+        if (Math.hypot(dx, dz) > radius) { p.x = eye.x - dx * 0.98; p.z = eye.z - dz * 0.98; }
       }
     },
   };
-}
-
-// Tufts of red grass and the painting's little black sprouts, scattered over the field
-// as crossed cards, merged into one mesh per patch of ground.
-async function buildGrass(d, heightAt, r) {
-  const c = canvas(48, 16);
-  const g = c.getContext('2d');
-  for (let i = 0; i < 22; i++) { // blades, in the field's reds
-    g.strokeStyle = d.colors[Math.floor(r() * d.colors.length)];
-    g.beginPath();
-    const x = 2 + r() * 28;
-    g.moveTo(x, 16);
-    g.lineTo(x + (r() - 0.5) * 9, 1 + r() * 9);
-    g.stroke();
-  }
-  g.strokeStyle = d.sprout; // a sprout: a stem with leaves going up and out
-  g.beginPath();
-  g.moveTo(40, 16);
-  g.lineTo(40, 2);
-  for (const [y, w] of [[5, 3], [9, 4], [13, 3]]) {
-    g.moveTo(40, y + 1);
-    g.lineTo(40 - w, y - 1);
-    g.moveTo(40, y + 1);
-    g.lineTo(40 + w, y - 1);
-  }
-  g.stroke();
-  const tuft = [0, 32 / 48], sprout = [32 / 48, 1];
-
-  const patches = new Map();
-  const card = (x, z, w, h, [u0, u1], turn) => {
-    const geo = new THREE.PlaneGeometry(w, h).translate(0, h / 2 - 0.05, 0).rotateY(turn).translate(x, heightAt(x, z), z);
-    const uv = geo.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + (u1 - u0) * uv.getX(i));
-    const key = `${Math.floor(x / d.patch)},${Math.floor(z / d.patch)}`;
-    if (!patches.has(key)) patches.set(key, []);
-    patches.get(key).push(geo);
-  };
-  const place = (count, size, art) => {
-    for (let i = 0; i < count; i++) {
-      const a = r() * Math.PI * 2, dist = Math.sqrt(r()) * d.radius;
-      const x = Math.cos(a) * dist, z = Math.sin(a) * dist;
-      const s = size[0] + r() * (size[1] - size[0]);
-      const turn = r() * Math.PI;
-      card(x, z, art === tuft ? s * 1.6 : s * 0.55, s, art, turn);
-      card(x, z, art === tuft ? s * 1.6 : s * 0.55, s, art, turn + Math.PI / 2);
-    }
-  };
-  place(d.tufts, d.tuftSize, tuft);
-  place(d.sprouts, d.sproutSize, sprout);
-  const mat = new THREE.MeshLambertMaterial({ map: crunchy(c), alphaTest: 0.5, side: THREE.DoubleSide });
-  const meshes = [];
-  for (const geos of patches.values()) {
-    meshes.push(new THREE.Mesh(mergeGeometries(geos), mat));
-    for (const geo of geos) geo.dispose();
-  }
-  return meshes;
 }
 
 // The way back: the two huge trunks from the end of the forest, standing on their own in

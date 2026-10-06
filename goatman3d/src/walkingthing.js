@@ -17,8 +17,9 @@ import { THIGH, SHIN, PASTERN, createLeg, placeLeg, springLeg } from './walkingt
 // the painted line round the body and down the legs. Its scripted moves (kneeling, the
 // stomp, a rider climbing on and off) are in walkingthing-acts.js.
 //
-// levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, ... }
-// and for riding it: rideSpeed, hurry (Shift: rideSpeed times this), turn (radians a second).
+// levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, hear
+// (metres its footfalls carry, in a big level), ... } and for riding it: rideSpeed, hurry
+// (Shift: rideSpeed times this), turn (radians a second).
 
 const SHEET = 'assets/field/wboy';
 const TALL = 254; // the drawings' height in pixels, top of the head to the feet
@@ -26,6 +27,10 @@ const TALL = 254; // the drawings' height in pixels, top of the head to the feet
 const TIP = [0, 0, 0, 0.02, 0.02, 0, 0, 0.05, 0.14, 0.11, 0.04];
 const SWING = 0.55; // part of a cycle each foot spends in the air: the next lifts just before the other lands
 const KNEEL_HIP = 1.2; // metres above the ground when it kneels
+// Ridden with Shift held on open ground (no water), it settles into a long-distance stride:
+// over LONG_UP seconds it goes LONG times faster than its hurry, its steps getting longer
+// rather than quicker (no more than CADENCE times its walking pace of steps).
+const LONG = 1.7, LONG_UP = 4, CADENCE = 1.3;
 // The tip at a point f (0..11) through the drawings, on a smooth curve through them.
 function tipAt(f) {
   const i = Math.floor(f), w = f - i, at = (n) => TIP[(n + 11) % 11];
@@ -92,6 +97,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
   let rest = rnd(1, 3); // seconds before it sets off again
   const home = new THREE.Vector3(...def.home); // where it wanders round
   let drive = 0, turning = 0, hurry = false; // ridden: his keys (W/S, A/D, Shift)
+  let long = 0; // 0..1, into its long-distance stride
   let cruise = 0; // ridden: seconds it walks on by itself (arriving in a new level)
   const tweens = []; // scripted changes, run in game time
   const colliders = legs.map(() => ({ kind: 'circle', x: 0, z: 0, r: 0.45 * k + 0.1 }));
@@ -132,8 +138,12 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     leg.wobVel -= 0.8 * k * walking;
     leg.squashVel += 8;
     const d = camera.position.distanceTo(leg.at);
-    sfx.thud(clamp(1.4 - d / 45, 0.15, 1.3), pan(leg.at));
+    // Close by, the thud shakes the ground; further off it fades, until `hear` metres away.
+    const faint = def.hear ? 0.3 * Math.max(0, 1 - d / def.hear) ** 1.5 : 0.15;
+    const loud = Math.max(clamp(1.4 - d / 45, 0, 1.3), faint);
+    if (loud > 0.01) sfx.thud(loud, pan(leg.at));
     if (d < 45 && player.mount !== thing) subtitle('[heavy footfalls]', 2, 20);
+    else if (d < (def.hear ?? 0) && !player.mount) subtitle('[distant heavy footfalls]', 2, 30);
     thing.onStep?.(leg.at); // the level's own (a splash in the savanna's bog)
     const riding = player.mount === thing ? 0.35 : 1;
     shake(clamp(0.55 - d / 70, 0, 0.55) * riding * (def.shake ?? 1));
@@ -188,7 +198,9 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     }
     if (mode === 'ridden') { // he steers: W walks on, S stops, A and D turn it
       heading += turning * def.turn * dt;
-      want = drive > 0 || cruise > 0 ? def.rideSpeed * (hurry && drive > 0 ? def.hurry ?? 1.5 : 1) : 0;
+      const open = hurry && drive > 0 && !thing.wet?.(pos.x, pos.z);
+      long = clamp(long + (open ? dt / LONG_UP : -dt), 0, 1);
+      want = drive > 0 || cruise > 0 ? def.rideSpeed * (hurry && drive > 0 ? def.hurry ?? 1.5 : 1) * (1 + (LONG - 1) * ease(long)) : 0;
       cruise = Math.max(0, cruise - dt);
     } else if (mode === 'script') { // kneeling, carrying him off, the squash
       if (target) {
@@ -202,6 +214,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       crouch += ((watching ? def.lower : 0) - crouch) * Math.min(1, dt * 0.8);
     }
 
+    if (mode !== 'ridden') long = 0;
     speed += (want - speed) * Math.min(1, dt * 1.5);
     pos.addScaledVector(fwd, speed * dt);
     pushOut(pos, thing.avoid, 0); // the level's no-go areas: the tree's canopy, the edge
@@ -210,13 +223,17 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     // The stride: a foot sets off at the start of each half of the cycle (at once when it
     // sets off from standing, not gliding off over its feet).
     if (lastSpeed < 0.05 && speed >= 0.05 && legs.every((l) => l.k >= 1 && !l.held)) phase = 0.999;
+    // Steps come quicker with speed, up to CADENCE times its walking pace; faster than
+    // that, the steps get longer instead (the long-distance stride).
+    const steps = Math.min(speed, def.speed * CADENCE);
     const before = phase;
-    phase = (phase + (dt * speed) / (def.speed * cycle)) % 1;
-    const swingTime = (cycle * SWING) / Math.max(1, speed / def.speed); // quicker steps going faster
+    phase = (phase + (dt * steps) / (def.speed * cycle)) % 1;
+    const swingTime = (cycle * SWING) / Math.max(1, steps / def.speed);
     // How far ahead a lifting foot goes: it lands as far in front of the hips as it will be
     // behind them when it lifts again (closer in when going slowly, further setting off).
     const pace = Math.max(speed, want);
-    const ahead = 0.5 * (def.speed * cycle * Math.min(1, pace / def.speed) + pace * swingTime);
+    const stride = def.speed * cycle * Math.max(1, pace / (def.speed * CADENCE)); // metres walked a cycle
+    const ahead = 0.5 * (stride * Math.min(1, pace / def.speed) + pace * swingTime);
     for (const leg of legs) {
       if (leg.held) continue;
       const start = leg.s < 0 ? 0 : 0.5;

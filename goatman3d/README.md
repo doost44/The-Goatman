@@ -22,7 +22,7 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | Shift (held, walking forward) | sprint |
 | Mouse | look |
 | E | interact (enter, talk, pet, ride, get down) |
-| W / S / A / D while riding | walk on / stop / turn (Shift: hurry) |
+| W / S / A / D while riding | walk on / stop / turn (Shift: hurry; held on dry ground it breaks into a long stride) |
 | 1 / 2 or mouse + click | pick a choice |
 | Space | jump |
 | G / right click | pick up or throw a pebble |
@@ -77,7 +77,7 @@ The box in the top right shows the level, the camera's position and yaw, the fly
 GoatMan floating in space on the start screen, then four places, as in the original:
 
 1. **The night forest.** Follow the glowing marks or wander off them: the woods go on in every direction and hide a few paths of their own. The way out is a low gap somewhere in the trees, given away by a faint pink light.
-2. **The red field.** Meet the Walking Thing. What you say to it matters.
+2. **The red field.** A red land a mile and more across, mountains on every side. Somewhere in it wanders the Walking Thing: look for its long legs over the grass and listen for its footfalls. What you say to it matters.
 3. **The savanna.** Wade the bog, be kind to the Walking Thing, then leave toward the horizon.
 4. **The end.**
 
