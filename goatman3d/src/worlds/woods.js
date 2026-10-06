@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { walkPath, valueNoise } from '../terrain.js';
 import { nearestOnPath } from '../player.js';
+import { planFinds } from './finds.js';
 
 // Where everything in the night forest goes (forest.js and trunks.js build it): an open forest
 // spreading out from the main path in every direction, thick along the paths' edges, gathered
@@ -8,7 +9,7 @@ import { nearestOnPath } from '../player.js';
 // lean, a few arch over and some have fallen; the big ones have roots; dark undergrowth and
 // stones lie everywhere; and there are spots for the eyes to look out from, more of them
 // deeper in. Only numbers here: { trunks, logs, arches, roots, growth, stones, spots, near,
-// crowded, wall }.
+// crowded, wall, finds (finds.js: what the hidden paths' ends have besides their place) }.
 //
 // levels.json "woods": { spacing (metres between trunks in the open), gap (the narrowest gap
 //   left to walk through), noise (scale of the clusters and clearings), clearings and clusters
@@ -21,7 +22,7 @@ import { nearestOnPath } from '../player.js';
 //   angle up to `from` metres from it, easing to the second by `to`) }
 // "undergrowth": { count, size }
 // "sidePaths": [{ points, width, mouth: "leaning" | "undergrowth", end: { kind, at, radius (of the
-//   clearing), ring and trunks (a ring's), size and tint (a tree's) } }]
+//   clearing), ring and trunks (a ring's), size and tint (a tree's), find (finds.js) } }]
 
 const lerp = THREE.MathUtils.lerp;
 const CELL = 8; // metres per square of the grid things are sorted into, to find neighbours
@@ -33,6 +34,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
   const paths = [def.path, ...side].map((p) => ({ points: p.points, half: p.width / 2 }));
   const clear = [...keepClear, ...side.filter((p) => p.end).map((p) => [...p.end.at, p.end.radius])];
   const trunks = [], logs = [], arches = [], roots = [], growth = [], stones = [], spots = [];
+  const bare = []; // [x, z, radius] where no undergrowth or stones go (inside the hollow trunk)
   const grid = new Map(); // "ix,iz" -> solid things there: { x, z, room, collider }
   const toCentre = (x, z) => Math.hypot(x - cx, z - cz);
   const onPath = (x, z, room) => paths.some((p) => nearestOnPath(p.points, x, z).d < p.half + room);
@@ -81,6 +83,8 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
 
   for (const t of fixed) { trunks.push(t); remember(t); } // the way out's (gate.js)
   features(def, side, heightAt, r, add, spots);
+  const finds = planFinds(def, heightAt, r, { add, remember, clear, bare, logs });
+  const isBare = (x, z) => bare.some(([bx, bz, br]) => Math.hypot(x - bx, z - bz) < br);
 
   // Rows along both sides of the main path, then closer ones along the side paths.
   const rows = (points, list) => {
@@ -190,7 +194,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
   };
   for (let i = 0; i < U.count; i++) {
     const [x, z] = anywhere();
-    if (!onPath(x, z, 0.4) && !wet(x, z)) clump(x, z);
+    if (!onPath(x, z, 0.4) && !wet(x, z) && !isBare(x, z)) clump(x, z);
   }
   for (const p of side.filter((q) => q.mouth === 'undergrowth')) {
     for (const s of walkPath(p.points, 0.8).slice(0, 8)) {
@@ -199,7 +203,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
   }
   for (let i = 0; i < W.stones; i++) {
     const [x, z] = anywhere();
-    if (onPath(x, z, 0.3) || crowded(x, z, 0.3, 0) || wet(x, z)) continue;
+    if (onPath(x, z, 0.3) || crowded(x, z, 0.3, 0) || wet(x, z) || isBare(x, z)) continue;
     stones.push({ x, z, y: heightAt(x, z), size: 0.15 + r() * r() * 0.5, yaw: r() * Math.PI * 2, tilt: (r() - 0.5) * 0.6 });
   }
   // Where eyes can look out from: beside trunks, low down or up the trunk, more of them the
@@ -227,7 +231,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
     }
     return [...out];
   }
-  return { trunks, logs, arches, roots, growth, stones, spots, near, crowded, wall: { kind: 'ring', x: cx, z: cz, r: W.wall } };
+  return { trunks, logs, arches, roots, growth, stones, spots, near, crowded, finds, wall: { kind: 'ring', x: cx, z: cz, r: W.wall } };
 }
 
 // What the side paths lead to (levels.json "end"): a ring of trunks round a clearing, an old

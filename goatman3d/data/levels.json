@@ -40,15 +40,22 @@
       },
       "sidePaths": [
         { "name": "ring", "width": 2.6, "mouth": "leaning", "points": [[6, -30], [16, -27], [27, -31], [38, -26], [50, -29]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "ring", "at": [60, -28], "radius": 11, "ring": 8, "trunks": 12 } },
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "ring", "at": [60, -28], "radius": 11, "ring": 8, "trunks": 12,
+            "find": { "kind": "stones", "count": 9, "radius": 3.5, "color": "#7f9cff" } } },
         { "name": "tree", "width": 2.4, "mouth": "undergrowth", "points": [[-6, -63], [-18, -59], [-30, -64], [-43, -60], [-55, -65]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "tree", "at": [-66, -67], "radius": 9, "size": 2.2, "tint": 1.2 } },
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "tree", "at": [-66, -67], "radius": 9, "size": 2.2, "tint": 1.2,
+            "find": { "kind": "hollow", "at": [-62, -84], "length": 10, "radius": 2.2 } } },
         { "name": "dell", "width": 2.4, "mouth": "leaning", "points": [[2, -97], [13, -102], [23, -112], [30, -125], [39, -135]],
-          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "eyes", "at": [47, -143], "radius": 9 } },
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "eyes", "at": [47, -143], "radius": 9, "find": { "kind": "hush", "radius": 3 } } },
         { "name": "loop", "width": 2.2, "mouth": "undergrowth", "points": [[-1, -12], [-12, -15], [-21, -25], [-21, -37], [-11, -46], [0, -47]],
           "marks": { "from": 9, "spacing": 6, "glow": 0.45 } },
         { "name": "clearing", "width": 2.6, "mouth": "leaning", "points": [[-3, -113], [-15, -109], [-27, -103], [-39, -98]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "clearing", "at": [-50, -94], "radius": 13 } }
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "clearing", "at": [-50, -94], "radius": 13 } },
+        { "name": "east", "width": 2.4, "mouth": "undergrowth", "points": [[-3, -84], [12, -88], [28, -92], [46, -96], [64, -102], [82, -108], [97, -111]],
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "clearing", "at": [110, -114], "radius": 14 } },
+        { "name": "west", "width": 2.4, "mouth": "leaning", "points": [[-15, -141], [-30, -146], [-50, -151], [-72, -148], [-95, -140], [-118, -132]],
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "clearing", "at": [-130, -129], "radius": 10,
+            "find": { "kind": "high", "from": [-133, -121], "to": [-148, -100], "top": 9, "radius": 0.7 } } }
       ],
       "dome": {
         "wall": "assets/forest/wall.png", "crop": [0, 2, 256, 178], "brightness": 1.5, "weave": "assets/forest/weave.png",
@@ -84,14 +91,16 @@
           { "to": "tree", "from": [-7, -74] },
           { "to": "dell", "from": [-3, -110] },
           { "to": "clearing", "from": [-6, -70] },
-          { "to": "glade", "from": [-3, -86] }
+          { "to": "glade", "from": [-3, -86] },
+          { "to": "far", "from": [-1, -104] }
         ]
       },
       "ponds": {
         "bank": 3, "water": 0.25, "reeds": 30, "stumps": 3, "branches": 3, "mist": 6, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
         "list": [
           { "name": "blackwater", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
-          { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 }
+          { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 },
+          { "name": "far", "at": [110, -114], "radius": 9, "depth": 1.0 }
         ]
       },
       "rocks": { "count": 14, "seed": 9 },

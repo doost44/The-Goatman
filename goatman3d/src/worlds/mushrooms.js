@@ -52,8 +52,9 @@ function nearHim(mat, time, player) {
 }
 
 // places: name -> { x, z, radius }; start: [x, z] (the spawn); path: the main path;
-// blocked(x, z): nowhere to grow (a trunk, the water, the path).
-export function buildMushrooms(def, { places, start, path, heightAt, blocked, scatter, player }) {
+// blocked(x, z): nowhere to grow (a trunk, the water, the path); clumps: [[x, z], ...] more,
+// as bright as at a place (inside the hollow trunk).
+export function buildMushrooms(def, { places, start, path, heightAt, blocked, scatter, player, clumps = [] }) {
   const r = rng(def.seed ?? 6);
   const time = { value: 0 };
   const mat = glowFog(nearHim(new THREE.MeshBasicMaterial({ color: def.color, vertexColors: true }), time, player));
@@ -96,6 +97,8 @@ export function buildMushrooms(def, { places, start, path, heightAt, blocked, sc
       clump(place.x + Math.cos(a) * d, place.z + Math.sin(a) * d, def.glow[1]);
     }
   }
+
+  for (const [x, z] of clumps) clump(x, z, def.glow[1]);
 
   // A soft glow on the ground under each clump.
   const geos = halos.map(([x, z, bright]) => {
