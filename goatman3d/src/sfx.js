@@ -67,6 +67,11 @@ export const sfx = {
   chime(notes = [0, 3, 7], base = 220, vol = 0.04) {
     notes.forEach((n, i) => synth({ freq: base * 2 ** (n / 12), dur: 1.4, type: 'triangle', vol, attack: 0.08, cutoff: 1800, cutoffEnd: 300, echoAmount: 0.6, delay: i * 0.16 }));
   },
+  // Admin mode's night vision: a click, then the tube's whine rising as it comes on, or dying away.
+  goggles(on) {
+    noise({ dur: 0.015, filter: 'highpass', freq: 3500, vol: 0.05 });
+    tone({ freq: on ? 700 : 3800, to: on ? 4200 : 500, dur: on ? 0.55 : 0.25, vol: on ? 0.018 : 0.012, attack: 0.03 });
+  },
   // Choices and prompts.
   blip() { synth({ freq: 440, dur: 0.08, type: 'square', vol: 0.02, cutoff: 2400, cutoffEnd: 800, echoAmount: 0.1 }); },
   enter() {

@@ -14,6 +14,7 @@
       "palette": "forest",
       "sky": [[0, "#010207"], [0.6, "#04071a"], [1, "#0a0816"]],
       "fog": { "color": "#0a1030", "near": 2, "far": 30 },
+      "nightVision": { "gain": 50, "fog": [5, 44], "light": 4, "tint": [0.38, 1, 0.42], "grain": 0.1 },
       "ambient": { "color": "#1a2660", "intensity": 0.3 },
       "sun": { "color": "#9fb6ff", "intensity": 1.5, "dir": [-0.5, 1, 0.35] },
       "grade": [1.8, 0.57, 0.9, 0.45],

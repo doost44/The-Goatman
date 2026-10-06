@@ -4,7 +4,7 @@
 
 export const PHOTO_W = 1600, PHOTO_H = 1200;
 
-export function capturePNG({ renderer, scene, camera, caption = '', beforeRender }) {
+export function capturePNG({ renderer, scene, camera, caption = '', beforeRender, nightVision }) {
   const prevPR = renderer.getPixelRatio();
   const prevW = renderer.domElement.clientWidth;
   const prevH = renderer.domElement.clientHeight;
@@ -15,7 +15,9 @@ export function capturePNG({ renderer, scene, camera, caption = '', beforeRender
   camera.aspect = PHOTO_W / PHOTO_H;
   camera.updateProjectionMatrix();
   beforeRender?.(camera); // the level picks what to draw for the photo's shape
-  renderer.render(scene, camera);
+  const draw = () => renderer.render(scene, camera);
+  if (nightVision) nightVision.render(draw); // through the goggles, if they are on
+  else draw();
 
   const out = document.createElement('canvas');
   out.width = PHOTO_W;

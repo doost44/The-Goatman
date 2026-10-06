@@ -65,6 +65,7 @@ For working on the levels: add `?admin` to the address (for example `.../goatman
 | Y | count the Walking Thing as petted (opens the savanna's way on) |
 | H | hide the HUD and arms, for screenshots (P still saves a photo) |
 | K | copy the camera's position and yaw for levels.json |
+| N | night vision in the forest, flying or walking: everything green and lifted out of the dark, and the fog further off |
 
 The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate and the draw calls.
 
