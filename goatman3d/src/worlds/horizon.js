@@ -148,7 +148,8 @@ export async function buildSkyline(d, heightAt) {
 // far land): the material ignores the scene's fog and is mixed toward `color` by distance
 // instead, from `a` at `from` metres to `b` at `to`. With `cut`, nothing is drawn nearer
 // than that (on the ground plane): the far land leaves the middle to the terrain chunks.
-// color is a THREE.Color the level keeps in step with its fog (it can change, as at dusk).
+// color is a THREE.Color the level keeps in step with its fog (it can change, as at dusk);
+// it is mixed in after the output colour conversion, as fog is, so it is converted too.
 export function haze(material, { color, from, to, a = 0, b = 0.85, cut = 0 }) {
   const uniforms = {
     uHaze: { value: color }, uHazeRamp: { value: new THREE.Vector4(from, to, a, b) }, uHazeCut: { value: cut },
@@ -164,7 +165,7 @@ export function haze(material, { color, from, to, a = 0, b = 0.85, cut = 0 }) {
       .replace('void main() {', 'void main() {\n  if (length(vHazeAt.xz - cameraPosition.xz) < uHazeCut) discard;')
       .replace('#include <fog_fragment>', `#include <fog_fragment>
   float hazeK = smoothstep(uHazeRamp.x, uHazeRamp.y, distance(vHazeAt, cameraPosition));
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, uHaze, mix(uHazeRamp.z, uHazeRamp.w, hazeK));`);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uHaze, 1.0)).rgb, mix(uHazeRamp.z, uHazeRamp.w, hazeK));`);
   };
   material.customProgramCacheKey = () => `haze${cut > 0 ? '-cut' : ''}`;
   return uniforms;

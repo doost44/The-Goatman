@@ -47,8 +47,8 @@ export async function buildExpanse(def, { camera }) {
   };
 }
 
-// Stones lying about, a few kinds of lumpy low-poly rock in a scatter.
-function buildStones(d, terrain, r) {
+// Stones lying about, a few kinds of lumpy low-poly rock in a scatter (the red field has them too).
+export function buildStones(d, terrain, r) {
   const scatter = createScatter({ reach: d.reach });
   const mat = new THREE.MeshLambertMaterial({ color: d.color, flatShading: true });
   const kinds = [0, 1, 2].map((k) => {
