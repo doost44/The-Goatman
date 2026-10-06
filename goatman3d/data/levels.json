@@ -77,10 +77,20 @@
         "at": [-31, -165], "facing": -90, "gap": 2.0, "apex": 3.6, "trunkRadius": 1.0, "reach": 34, "fog": "#3a2340", "tint": 0.4,
         "glimpse": { "sky": "assets/field/sky.png", "cloud": "assets/field/cloud-front2.png", "peaks": "assets/field/peaks.png", "grass": "assets/field/grass.png" }
       },
+      "mushrooms": {
+        "from": 25, "color": "#8af0d0", "glow": [1.0, 2.2], "spacing": [4, 1.5], "size": [0.22, 0.55], "ring": 14, "seed": 6,
+        "trails": [
+          { "to": "ring", "from": [3, -44] },
+          { "to": "tree", "from": [-7, -74] },
+          { "to": "dell", "from": [-3, -110] },
+          { "to": "clearing", "from": [-6, -70] },
+          { "to": "glade", "from": [-3, -86] }
+        ]
+      },
       "ponds": {
         "bank": 3, "water": 0.25, "reeds": 30, "stumps": 3, "branches": 3, "mist": 6, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
         "list": [
-          { "name": "clearing", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
+          { "name": "blackwater", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
           { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 }
         ]
       },

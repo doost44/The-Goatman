@@ -17,14 +17,17 @@ const glow = () => glowTexture([[0, 'rgba(255,190,80,0.55)'], [0.4, 'rgba(255,14
 
 // Glowing things shine further through the fog than the rest (fading out from 20 m past
 // where it starts to 16 m past where it hides everything): the fog's own maths, moved back.
-// Added light fades to nothing instead of to the fog colour.
-function glowFog(mat, added = false) {
-  mat.onBeforeCompile = (shader) => {
+// Added light fades to nothing instead of to the fog colour. Keeps any patch the material
+// already has (the mushrooms').
+export function glowFog(mat, added = false) {
+  const before = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+  mat.onBeforeCompile = (shader, renderer) => {
+    before.call(mat, shader, renderer);
     shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
       gl_FragColor.rgb = mix(gl_FragColor.rgb, ${added ? 'vec3(0.0)' : 'fogColor'}, smoothstep(fogNear + 18.0, fogFar + 16.0, vFogDepth));
     #endif`);
   };
-  mat.customProgramCacheKey = () => `glowfog-${added}`;
+  mat.customProgramCacheKey = () => `${key.call(mat)}-glowfog-${added}`;
   return mat;
 }
 

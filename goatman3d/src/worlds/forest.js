@@ -9,6 +9,7 @@ import { buildUndergrowth, buildGrass } from './undergrowth.js';
 import { buildMarks, buildEyes } from './marks.js';
 import { buildGate } from './gate.js';
 import { pondCourse, buildPonds } from './ponds.js';
+import { buildMushrooms } from './mushrooms.js';
 
 // Level 1, the night forest, from "Background Section 1.jpg" and fore.png: an open forest of
 // dense dark trunks under a dome of blue burlap, the ground rising and dipping, a path of
@@ -44,13 +45,21 @@ export async function buildForest(def, { scene, camera, player }) {
   const scatter = createScatter({ reach: def.woods.reach });
   const wood = await buildTrunks(plan, scatter, gate.blush);
   buildUndergrowth(plan, scatter, def.undergrowth, r);
+  // Glowing mushrooms leading to the places: the side paths' ends and the ponds.
+  const places = {};
+  for (const p of def.sidePaths) if (p.end) places[p.name] = { x: p.end.at[0], z: p.end.at[1], radius: p.end.radius };
+  for (const p of course.list) places[p.name] = { x: p.x, z: p.z, radius: p.bank };
+  const mushrooms = buildMushrooms(def.mushrooms, {
+    places, start: [def.spawns.start.at[0], def.spawns.start.at[2]], path: def.path, heightAt, scatter, player,
+    blocked: (x, z) => plan.crowded(x, z, 0.2, 0.1) || course.wet(x, z, 0.5) || nearestOnPath(def.path.points, x, z).d < def.path.width / 2,
+  });
   const fog = new THREE.Color(def.fog.color);
   const dome = await buildDome(def.dome, fog, r);
   group.add(...scatter.done(), wood.arches, gate.light, dome, buildGrass(def.grass, def.path, heightAt, r));
 
   const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15) || course.wet(x, z, 0.5));
   const eyes = await buildEyes(def.eyes, plan.spots, def.path, camera);
-  group.add(marks.group, eyes.group);
+  group.add(marks.group, eyes.group, mushrooms.group);
 
   // What he can stand on besides the ground: the tops of the fallen trunks.
   const logs = new THREE.Object3D();
@@ -86,6 +95,7 @@ export async function buildForest(def, { scene, camera, player }) {
       marks.update(t);
       eyes.update(dt);
       ponds.update(dt, t);
+      mushrooms.update(t);
       // The pink light seeps into the fog near the way out.
       scene.fog?.color.lerpColors(fogNight, fogPink, gate.near(player.pos) * def.exit.tint);
       fog.copy(scene.fog?.color ?? fogNight);
