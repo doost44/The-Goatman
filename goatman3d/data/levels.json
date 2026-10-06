@@ -124,37 +124,68 @@
 
     "savanna": {
       "title": "III · THE SAVANNA",
-      "builder": "greybox",
+      "builder": "savanna",
       "palette": "savanna",
-      "sky": [[0, "#0d0208"], [0.55, "#3b0914"], [1, "#6a1424"]],
-      "fog": { "color": "#4a0c1a", "near": 18, "far": 150 },
-      "ambient": { "color": "#d890b8", "intensity": 0.9 },
-      "sun": { "color": "#ffb0a0", "intensity": 1.1, "dir": [-0.4, 0.8, -0.6] },
+      "seed": 9,
+      "sky": [[0, "#12030a"], [0.55, "#3b0914"], [1, "#6a1424"]],
+      "fog": { "color": "#4a0d1c", "near": 30, "far": 210 },
+      "ambient": { "color": "#d890b8", "intensity": 1.15 },
+      "sun": { "color": "#ffb0a0", "intensity": 1.3, "dir": [0.35, 0.8, 0.55] },
       "grade": [1.1, 1.0, 1.0, 0.15],
       "surface": "purple",
       "speed": 1,
-      "soundscape": { "file": "assets/audio/savanna-loop.m4a", "volume": 2.2 },
+      "soundscape": { "file": "assets/audio/savanna-long-loop.m4a", "volume": 0.6 },
       "spawns": {
-        "start": { "at": [0, 0, 55], "yaw": 0 }
+        "start": { "at": [8, 0, 62], "yaw": 0, "ride": "walkingThing", "walkOn": 5 }
       },
-      "respawn": [0, 0, 55],
+      "respawn": [8, 0, 40],
       "voidY": -70,
+      "bounds": 130,
+      "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
       "terrain": {
-        "shape": "disc", "radius": 125, "segments": [56, 18],
-        "hills": [[50, 20, 30, 3], [-45, -10, 35, 4], [30, -70, 25, 2.5]],
-        "flat": [[0, -45, 18], [0, 55, 10]],
-        "noise": 0.8, "noiseScale": 0.05, "tile": 5, "color": "#5a4aa8"
+        "shape": "disc", "radius": 220, "segments": [64, 28],
+        "hills": [[60, 30, 40, 4], [-70, -20, 45, 5], [45, -95, 35, 3], [-55, 85, 40, 4]],
+        "flat": [[-6, -34, 22], [8, -24, 9], [8, 62, 14]],
+        "rim": [135, 205, 14],
+        "mottle": [0.35, 0.03],
+        "noise": 0.6, "noiseScale": 0.05, "tile": 4,
+        "texture": "assets/savanna/grass.png", "tint": [1, 0.95, 1.1]
       },
-      "bounds": 100,
-      "tree": [0, -45],
-      "pool": [9, -37],
-      "walkingThing": { "home": [4, 0, 46], "wander": 0, "height": 16 },
+      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 600, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
+      "stars": { "texture": "assets/savanna/stars.png", "radius": 590, "repeat": 1.5 },
+      "treeline": {
+        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 160, "depth": 20, "height": 32, "ground": 215,
+        "columns": 384, "repeat": 12, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -160, 52]]
+      },
+      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "height": 28, "thick": 0.35, "cards": 4, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15 },
+      "pool": { "at": [8, -24], "radius": 3, "texture": "assets/savanna/pool.png" },
+      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126]], "width": 3.4 },
+      "grass": {
+        "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
+        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16, "near": 55
+      },
+      "bushes": {
+        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "height": 4.4, "radius": 2.2,
+        "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6]
+      },
+      "exit": { "at": [0, -126], "gap": [0, -168], "gapSize": [70, 44], "pillarSize": [7, 24] },
+      "rocks": { "seed": 4, "count": 8 },
+      "walkingThing": {
+        "home": [8, 0, 62], "facing": 0, "wander": 6, "height": 22, "speed": 2.5, "rideSpeed": 3.2, "turn": 0.5,
+        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 126
+      },
       "interactions": [
-        { "type": "pet", "actor": "walkingThing", "radius": 9, "look": 35, "prompt": "PRESS E TO PET", "once": "petted" },
-        { "type": "exit", "at": [0, 0, -95], "radius": 5, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
+        { "type": "dismount", "mounted": true },
+        { "type": "pet", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO PET", "once": "petted" },
+        { "type": "ride", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO RIDE" },
+        { "type": "drink", "at": [8, 0, -24], "mounted": false, "radius": 5.4, "look": 50, "prompt": "PRESS E TO DRINK" },
+        { "type": "exit", "at": [0, 0, -126], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
       ],
       "outcomes": {
-        "pet": { "message": "They liked that", "hold": 2 }
+        "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
+        "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
+        "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
+        "drink": { "edge": 3.3, "hold": 2.5, "shot": [4.2, 0.8, 1.4] }
       }
     },
 

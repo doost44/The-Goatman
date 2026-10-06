@@ -383,6 +383,23 @@ export const sfx = {
     noise({ dur: 0.4, filter: 'highpass', freq: 1500, to: 400, vol: 0.18 });
   },
   whoosh(vol = 0.1) { noise({ dur: 0.6, filter: 'bandpass', freq: 400, to: 2400, q: 1, vol, attack: 0.4 }); },
+  // Drinking at the pool: water lapping, and a low, quiet tone (A-flat and E-flat).
+  drink() {
+    noise({ dur: 1.4, filter: 'bandpass', freq: 650, to: 280, q: 2.5, vol: 0.03, attack: 0.3, echoAmount: 0.5 });
+    synth({ freq: 103.8, dur: 3.2, type: 'sine', vol: 0.06, attack: 0.7, cutoff: 900, cutoffEnd: 300, echoAmount: 0.6 });
+    synth({ freq: 155.6, dur: 2.8, type: 'triangle', vol: 0.025, attack: 0.9, cutoff: 1200, cutoffEnd: 300, echoAmount: 0.6, delay: 0.6 });
+  },
+  // The striped creatures: a dry rustle as one shuffles off through the grass...
+  rustle(pan = 0, vol = 1) {
+    for (let i = 0; i < 3; i++) {
+      noise({ dur: rnd(0.12, 0.22), filter: 'bandpass', freq: rnd(1500, 2600), to: 700, q: 0.9, vol: 0.06 * vol, pan, attack: 0.03, delay: i * rnd(0.08, 0.14) });
+    }
+  },
+  // ...and a soft two-note trill when one notices him.
+  trill(pan = 0, vol = 1) {
+    synth({ freq: 622.3, dur: 0.18, type: 'triangle', vol: 0.02 * vol, pan, cutoff: 2600, cutoffEnd: 900, echoAmount: 0.5 });
+    synth({ freq: 830.6, dur: 0.26, type: 'triangle', vol: 0.02 * vol, pan, cutoff: 2600, cutoffEnd: 900, echoAmount: 0.5, delay: 0.12 });
+  },
 };
 
 // Raw building blocks for level ambiences (ambience.js). music() is where a bed plugs in

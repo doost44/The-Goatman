@@ -3,6 +3,7 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadSheet, loadTexture, canvas, crunchy } from './textures.js';
 import { sfx } from './sound.js';
 import { shake, subtitle } from './hud.js';
+import { pushOut } from './player.js';
 
 // The Walking Thing, from WBOY1-11 (WALKYBOY/): a pale small body high up on two very long,
 // thin, red-lined stilt legs. The body is the painted body swept round into a rounded
@@ -13,6 +14,7 @@ import { shake, subtitle } from './hud.js';
 // bigger ("inverted hulls"), like the painted line round the body and down the legs.
 //
 // levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, ... }
+// and for riding it: rideSpeed, turn (radians a second).
 
 const SHEET = 'assets/field/wboy';
 const BODY_ROWS = 56; // in the 256 px drawings its legs start below this row
@@ -232,9 +234,12 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
   let phase = 0;
   let crouch = 0; // 0 standing .. 1 kneeling
   let rear = 0; // rearing back, head up (the squash)
-  let mode = 'wander'; // wander | watch | script
+  let mode = 'wander'; // wander | watch | script | ridden
   let target = null; // where it is walking to
   let rest = rnd(1, 3); // seconds before it sets off again
+  const home = new THREE.Vector3(...def.home); // where it wanders round
+  let drive = 0, turning = 0; // ridden: his keys (W/S, A/D)
+  let cruise = 0; // ridden: seconds it walks on by itself (arriving in a new level)
   const tweens = []; // scripted changes, run in game time
   const colliders = legs.map(() => ({ kind: 'circle', x: 0, z: 0, r: 0.45 * k + 0.1 }));
   const belly = { kind: 'circle', x: 0, z: 0, r: depth, off: true }; // only when it kneels
@@ -328,7 +333,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       rest -= dt;
       if (rest <= 0) {
         const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * def.wander;
-        target = new THREE.Vector3(def.home[0] + Math.cos(a) * r, 0, def.home[2] + Math.sin(a) * r);
+        target = new THREE.Vector3(home.x + Math.cos(a) * r, 0, home.z + Math.sin(a) * r);
         rest = rnd(3, 8);
       }
       return 0;
@@ -361,7 +366,11 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     } else if (mode === 'watch' && near > def.notice * 1.4) {
       mode = 'wander';
     }
-    if (mode === 'script') { // kneeling, carrying him, the squash
+    if (mode === 'ridden') { // he steers: W walks on, S stops, A and D turn it
+      heading += turning * def.turn * dt;
+      want = drive > 0 || cruise > 0 ? def.rideSpeed : 0;
+      cruise = Math.max(0, cruise - dt);
+    } else if (mode === 'script') { // kneeling, carrying him off, the squash
       if (target) {
         const facing = turnToward(target, dt, 0.5);
         want = crouch > 0.2 ? 0 : def.speed * (facing ? thing.pace : 0.3); // still getting up: it turns on the spot
@@ -375,6 +384,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
 
     speed += (want - speed) * Math.min(1, dt * 1.5);
     pos.addScaledVector(fwd, speed * dt);
+    pushOut(pos, thing.avoid, 0); // the level's no-go areas: the tree's canopy, the pool, the edge
     pos.y = heightAt(pos.x, pos.z);
 
     // The stride: a foot sets off at the start of each half of the cycle.
@@ -429,12 +439,14 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
   const thing = {
     group,
     colliders,
+    avoid: [], // colliders it keeps out of (set by the level)
     talkPoint: new THREE.Vector3(),
     stopped: false, // talking: it stands and looks at him
     pace: 1,
     update,
     get heading() { return heading; },
     get body() { return body; },
+    get sway() { return body.rotation.z; }, // rolling from foot to foot (the rider's view rolls too)
     // Where a rider kneels: on top of its back, just in front of the pale block.
     seat(out) { return body.localToWorld(out.set(0, backTop - 2 * m, 2 * m)); },
     // Scripted: down onto its knees, back up, and off somewhere.
@@ -512,6 +524,53 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
         },
       };
       return tween(time, (now) => { t = now; }).then(() => { rider.mount = thing; });
+    },
+    // Climbing down: from its back to `ahead` metres in front of it, turning round on the
+    // way to face it.
+    climbOff(rider, ahead, time) {
+      const start = thing.seat(new THREE.Vector3());
+      const end = pos.clone().addScaledVector(fwd, ahead);
+      end.y = heightAt(end.x, end.z);
+      let t = 0;
+      rider.mount = {
+        heading: heading + Math.PI,
+        look: 0.1,
+        seat(out) {
+          out.lerpVectors(start, end, ease(t));
+          out.y += Math.sin(Math.PI * t) * 1.5;
+          return out;
+        },
+      };
+      return tween(time, (now) => { t = now; }).then(() => { rider.mount = null; });
+    },
+    // Carrying him where he steers it (player.js calls steer() with his keys every frame).
+    carry(rider, walkOn = 0) {
+      mode = 'ridden';
+      target = null;
+      cruise = walkOn;
+      if (walkOn) speed = def.rideSpeed; // arriving mid-stride
+      rider.mount = thing;
+    },
+    steer(forward, turn) {
+      drive = forward;
+      turning = turn;
+      if (forward < 0) cruise = 0;
+    },
+    // Left to itself: it stays about here, watching him when he is near.
+    settle() {
+      mode = 'wander';
+      target = null;
+      home.copy(pos);
+    },
+    // Petted: it kneels and lowers its head to him, stays a moment, then gets up again.
+    async nuzzle(time) {
+      mode = 'script';
+      target = null;
+      const from = crouch;
+      await tween(time * 0.4, (t) => { crouch = from + (1 - from) * ease(t); rear = -0.8 * ease(t); });
+      await tween(time * 0.2, () => {});
+      await tween(time * 0.4, (t) => { crouch = 1 - ease(t); rear = -0.8 * (1 - ease(t)); });
+      thing.settle();
     },
   };
   // Start standing, feet planted.

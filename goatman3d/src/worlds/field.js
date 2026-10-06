@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTerrain } from '../terrain.js';
-import { loadImage, loadTexture, toCanvas, canvas, crunchy, grade, rng } from '../textures.js';
+import { loadImage, loadTexture, canvas, crunchy, grade, rng } from '../textures.js';
 import { buildTrunks } from './trunks.js';
+import { buildSkyDome, buildSkyline } from './horizon.js';
 import { createWalkingThing } from '../walkingthing.js';
 
 // Level 2, the red field, from Charlie's layered painting (WALKYBOY/): its layers pulled
@@ -21,9 +22,9 @@ export async function buildField(def, { scene, camera, player }) {
   const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat);
   group.add(ground);
 
-  const sky = await buildSky(def.skyDome, def.fog.color);
+  const sky = await buildSkyDome(def.skyDome, def.fog.color);
   const clouds = await buildClouds(def.clouds, r);
-  group.add(sky, await buildPeaks(def.peaks, heightAt), clouds.group, ...(await buildGrass(def.grass, heightAt, r)));
+  group.add(sky, await buildSkyline(def.peaks, heightAt), clouds.group, ...(await buildGrass(def.grass, heightAt, r)));
 
   const gate = await buildGate(def.gate, heightAt);
   group.add(...gate.meshes);
@@ -44,95 +45,6 @@ export async function buildField(def, { scene, camera, player }) {
       thing.update(dt);
     },
   };
-}
-
-// BACKGROUND.png as a dome over everything, melting into the fog colour at the horizon.
-async function buildSky(d, fogColor) {
-  const c = toCanvas(await loadImage(d.texture));
-  const g = c.getContext('2d');
-  const fade = g.createLinearGradient(0, 0, 0, c.height);
-  fade.addColorStop(0, `${fogColor}00`);
-  fade.addColorStop(0.55, `${fogColor}00`);
-  fade.addColorStop(0.92, fogColor);
-  fade.addColorStop(1, fogColor);
-  g.fillStyle = fade;
-  g.fillRect(0, 0, c.width, c.height);
-  const tex = crunchy(c);
-  tex.wrapS = THREE.MirroredRepeatWrapping;
-  tex.repeat.x = d.repeat;
-  // the top half of a sphere, and a little below the horizon
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(d.radius, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2 + 0.15),
-    new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false }),
-  );
-  dome.renderOrder = -10; // drawn first, behind everything
-  return dome;
-}
-
-// The dark peaks from GROUND.png all round the horizon. The strip's skyline (its top
-// painted pixel in each column) becomes the ridge of a ring of mountains: a front and a
-// back slope, so the sun picks out their faces. Mirrored round the ring so there is no seam.
-async function buildPeaks(d, heightAt) {
-  const img = await loadImage(d.texture);
-  const c = toCanvas(img);
-  const g = c.getContext('2d');
-  const pixels = g.getImageData(0, 0, c.width, c.height);
-  const data = pixels.data;
-  // Under the skyline the strip has see-through gaps: fill each column down with its paint.
-  for (let x = 0; x < c.width; x++) {
-    let last = -1;
-    for (let y = 0; y < c.height; y++) {
-      const i = (y * c.width + x) * 4;
-      if (data[i + 3] > 127) last = i;
-      else if (last >= 0) { data.copyWithin(i, last, last + 3); data[i + 3] = 254; }
-    }
-  }
-  g.putImageData(pixels, 0, 0);
-  // The highest paint in the strip between two u's (0..1 across it).
-  const skyline = (u0, u1) => {
-    let top = 0;
-    const x0 = Math.floor(Math.min(u0, u1) * (c.width - 1)), x1 = Math.ceil(Math.max(u0, u1) * (c.width - 1));
-    for (let x = x0; x <= x1; x++) {
-      for (let y = 0; y < c.height; y++) if (data[(y * c.width + x) * 4 + 3] > 127) { top = Math.max(top, 1 - y / c.height); break; }
-    }
-    return top;
-  };
-  const n = d.columns;
-  const strip = (i) => { // where column i is in the strip, mirrored every other time (an even number of times)
-    const s = ((((i % n) + n) % n) / n) * d.repeat;
-    return Math.floor(s) % 2 ? 1 - (s % 1) : s % 1;
-  };
-  const pos = [], uv = [], index = [];
-  for (let i = 0; i <= n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const u = strip(i);
-    // The ridge clears all the paint on either side of it; the sky above the paint is cut out.
-    const top = Math.max(0.04, skyline(strip(i - 1), u), skyline(u, strip(i + 1)));
-    const cos = Math.cos(a), sin = Math.sin(a);
-    const base = (rad) => heightAt(cos * Math.min(rad, d.ground), sin * Math.min(rad, d.ground)) - 2;
-    // front foot, ridge, back foot
-    pos.push(cos * (d.radius - d.depth), base(d.radius - d.depth), sin * (d.radius - d.depth));
-    pos.push(cos * d.radius, base(d.radius) + top * d.height, sin * d.radius);
-    pos.push(cos * (d.radius + d.depth), base(d.radius + d.depth), sin * (d.radius + d.depth));
-    uv.push(u, 0, u, top, u, 0);
-    if (i < n) {
-      const k = i * 3;
-      index.push(k, k + 3, k + 4, k, k + 4, k + 1); // front slope, facing the middle
-      index.push(k + 1, k + 4, k + 5, k + 1, k + 5, k + 2); // back slope
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setIndex(index);
-  geo.computeVertexNormals();
-  // Painted rock, hazed a little toward the sky by hand (fog would wash them out entirely).
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = d.haze;
-  g.fillRect(0, 0, c.width, c.height);
-  const tex = crunchy(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, flatShading: true, fog: false, side: THREE.DoubleSide }));
 }
 
 // Two heights of painted cloud cards drifting on the wind: BACKCLOUDS far up and slow,

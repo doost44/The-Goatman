@@ -13,6 +13,7 @@ const SHOULDERS = 1.45;
 const SWITCH = 0.5; // seconds to ease between first and third person
 const LEGS_AHEAD = 0.2; // first person: his legs sit a little in front, so looking down finds them
 const SWING_UP = 0.25; // looking up further than this, the chase camera stops swinging down and only tilts
+const RIDE_ROLL = 1.5; // first person on the Walking Thing: the view rolls with its sway, a bit more
 
 const clamp01 = (k) => Math.min(1, Math.max(0, k));
 const ease = (k) => k * k * (3 - 2 * k);
@@ -26,6 +27,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
   const ray = new THREE.Raycaster();
   const orbit = new THREE.Euler(0, 0, 0, 'YXZ');
   let blockers = []; // what the chase camera can't see through
+  let lights = null; // the level's ambient and sun, for the arms
   let blend = settings.camera === 'third' ? 1 : 0; // 0 first person .. 1 third person
   let reach = DIST; // chase distance, shortened when something is in the way
   let yaw = 0; // which way his body faces
@@ -71,7 +73,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       api.shot = null;
       gm.reset();
       gm.setGrade(def.grade);
-      arms.light(def);
+      lights = world.lights;
       blockers = [...(world.blockers ?? []), ...world.ground];
       yaw = head.rotation.y;
       reach = DIST;
@@ -93,11 +95,13 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       });
       camera.position.lerpVectors(head.position, chase(dt), e);
       camera.quaternion.copy(head.quaternion);
+      if (player.mount?.sway) camera.rotateZ(player.mount.sway * RIDE_ROLL * (1 - e));
       if (api.shot) {
         gm.setFirstPerson(false);
         camera.position.copy(api.shot.from);
         camera.lookAt(api.shot.to);
       }
+      if (lights) arms.light(lights);
       arms.update(dt, {
         stride: player.stride, speed: player.speed, grounded: player.grounded,
         pitch: head.rotation.x, lower: e, fov: camera.fov, aspect: camera.aspect,

@@ -49,14 +49,18 @@ goatman3d/
     view.js            first/third-person camera, chase-camera pull-in, which way his body faces, rendering
     levels.js          loads levels.json, runs a level's builder (worlds/*.js), sky, fog, lights
     worlds/            one builder per level, plus their parts:
-      greybox.js       placeholder levels still waiting for their real builder
       forest.js        level 1: terrain, backdrop, grass, the exit gate and its glimpse of level 2
       trunks.js        the forest's trunks: cylinders and extruded fore.png bark cards, merged
       marks.js         the glowing ground marks and the eyes that watch, blink and move
       field.js         level 2: sky dome, ring of painted peaks, two cloud layers, red grass, the gate back
+      savanna.js       level 3: dusk falling to stars, the pool, the path and the light at its end
+      horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees
+      tealtree.js      the savanna's teal tree: cut-out canopy cards, trunk and branches
+      clumps.js        the savanna's swaying grass clumps (instanced crossed cards)
     walkingthing.js    the Walking Thing: swept painted body, two-bone IK stilt legs, its 11-drawing walk,
                        kneeling, the stomp, carrying a rider
     squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
+    bushes.js          the savanna's striped creatures: painted cards that drift, watch and run off
     story.js, interact.js   what E does (exits, dialogue, petting) and the endings
     rocks.js           pebbles: right click / G picks one up and throws it
     ambience.js        synthesised sound beds for scenes with no track (the night forest)
@@ -77,11 +81,13 @@ goatman3d/
 ## Conventions
 - Level content lives in `data/levels.json`, not in JS: positions, spawn and facing, sky/fog colours, prompt and dialogue text, timings, soundscape file, exits and their targets.
 - Sprite sheets come with a `.json` of frame rects (`frameW`, `frameH`, `cols`, `rows`, `frames[]` with `x, y, w, h, src`). Load the JSON, don't hard-code frame sizes.
-- A level builder (`src/worlds/*.js`) returns `{ group, ground, colliders, blockers, actors, update }`: `ground` meshes are what he stands on, `colliders` are circles/rings/paths/boxes he can't walk through, `blockers` are meshes the third-person camera pulls in front of (trunks, walls), `actors` are creatures interactions can name. Optional: `heightAt(x, z)` (needed for pebbles) and `rockTargets`, meshes a pebble can hit that react through `userData.onRock(hit)` (an invisible hit mesh still counts).
+- A level builder (`src/worlds/*.js`) gets `(def, { palettes, scene, camera, player, lights, flag })` and returns `{ group, ground, colliders, blockers, actors, update }`: `ground` meshes are what he stands on, `colliders` are circles/rings/paths/boxes he can't walk through, `blockers` are meshes the third-person camera pulls in front of (trunks, walls), `actors` are creatures interactions can name. Optional: `heightAt(x, z)` (needed for pebbles) and `rockTargets`, meshes a pebble can hit that react through `userData.onRock(hit)` (an invisible hit mesh still counts). `lights` is the level's `{ ambient, sun }`, which a builder may change as time passes (the savanna's dusk; the first-person arms follow), and `flag(name)` reads a story flag (the savanna's way on lights up once petted).
 - `heightAt` from `buildTerrain` is the exact surface of the ground mesh (its flat triangles, not the smooth noise, on rects and discs alike), so flat things laid on it don't sink. Use `drape(geometry, heightAt)` for glows and decals that lie on the ground, and `walkPath(points, spacing)` to place things along a level's path. Terrain options: `hills`, `flat`, `noise`, `rim` (a disc rising to foothills at its edge) and `mottle` (broad darker patches so a tiled texture repeats less obviously).
 - Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
 - Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
-- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way.
+- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn)` WASD drives it (the savanna). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
+- Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
+- `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists.
 - Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option.
 - Anything that must go dark in the squash is opaque (cut out with `alphaTest`, `transparent: false`): transparent things draw after the darkening dome and would stay bright.
 - A level with no soundtrack can name a synthesised bed in levels.json (`"ambience": "night"`, built in `ambience.js`). Beds play on the music bus, so they duck and follow the music volume; caption their events with `subtitle()`.

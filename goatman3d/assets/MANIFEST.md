@@ -58,6 +58,7 @@ Total: 28M
 | `field/wboy.png` | 60 KB | 564x512 | WALKYBOY/WBOY1-11.png | the Walking Thing's 11-frame walk (+ .json) |
 | `field/shadow.png` | 4 KB | 128x67 | WALKYBOY/shadow.png | the Walking Thing's shadow |
 | `savanna/stars.png` | 20 KB | 256x148 | the savannahg/nsky.png | starry sky for the dome |
+| `savanna/sky.png` | 12 KB | 256x176 | the savannahg/ground1.mp4 (frame at 90 s) | crimson sky with dark cloud streaks for the dome |
 | `savanna/treeline.png` | 32 KB | 256x255 | the savannahg/trreeline.png | dark teal treeline card |
 | `savanna/tree.png` | 20 KB | 205x256 | the savannahg/tree.png | the teal tree card |
 | `savanna/grass.png` | 12 KB | 128x128 | the savannahg/ground1.png | seamless purple grass tile |
@@ -76,7 +77,7 @@ Total: 28M
 | `audio/finale.m4a` | 4424 KB | - | assets/images/Savana scene trigger.mp4 | finale soundtrack (113.6 s) |
 | `audio/field-loop.m4a` | 2352 KB | - | audio/field.m4a | seamless loop (3 s crossfade), the one the game plays |
 | `audio/savanna-loop.m4a` | 752 KB | - | audio/savanna.m4a | seamless loop (3 s crossfade), the one the game plays |
-| `audio/savanna-long-loop.m4a` | 2584 KB | - | audio/savanna-long.m4a | seamless loop (3 s crossfade), the one the game plays |
+| `audio/savanna-long-loop.m4a` | 2584 KB | - | audio/savanna-long.m4a | seamless loop (3 s crossfade, loudness evened), the one the game plays |
 | `video/title.mp4` | 3428 KB | 640x590 | assets/images/Goatman Title Screen.mp4 | intro cutscene (640 px FMV) |
 | `video/finale.mp4` | 2064 KB | 640x360 | assets/images/Savana scene trigger.mp4 | finale cutscene (640 px FMV) |
 | `video/title-poster.png` | 56 KB | 320x296 | video/title.mp4 | first frame, the title backdrop before START |
@@ -94,4 +95,4 @@ Mean loudness of the first and last half second of each track (very different le
 | finale.m4a | 113.6 s | start -44.8 dB, end -40.8 dB |
 | field-loop.m4a | 143.6 s | 3 s crossfade, seamless |
 | savanna-loop.m4a | 47.1 s | 3 s crossfade, seamless |
-| savanna-long-loop.m4a | 160.3 s | 3 s crossfade, seamless |
+| savanna-long-loop.m4a | 160.3 s | 3 s crossfade, seamless, loudness evened |

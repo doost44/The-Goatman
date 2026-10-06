@@ -392,13 +392,14 @@ export async function createGoatMan() {
     holding: false, // carrying a pebble (rocks.js)
     throwArm() { fling = 0; },
     handWorld: (v) => armR.grip.getWorldPosition(v),
-    // Play one of the ACTIONS; the promise resolves when it is done.
-    play(name) {
+    // Play one of the ACTIONS; the promise resolves when it is done. `skip` goes straight
+    // to its end (arriving in a level already kneeling).
+    play(name, skip = false) {
       action?.resolve();
       if (name === 'drink') headTo = HEAD_DRINK;
       if (name === 'lose') headTo = HEAD_LOST;
       return new Promise((resolve) => {
-        action = { name, k: 0, from: { ...J }, off: detach, resolve };
+        action = { name, k: skip ? 1 : 0, from: { ...J }, off: detach, resolve };
       });
     },
     // Straight back to normal (a new game, a level change).

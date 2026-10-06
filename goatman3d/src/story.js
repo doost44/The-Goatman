@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { dialogue, fadeTo, showMessage, setCinematic } from './hud.js';
 import { sfx, duck, stopSoundscape } from './sound.js';
 import { stopAmbience } from './ambience.js';
@@ -8,16 +9,20 @@ import { settings } from './options.js';
 // What the interactions do: the story of the p5 game, step by step.
 // Texts and timings come from the level's "dialogue" and "outcomes" in levels.json.
 
-export function createStory({ levels, player, gm, squash, toTitle }) {
+const wait = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+const newTrust = () => ({ level: 0, petted: false, rides: 0 });
+
+export function createStory({ levels, player, gm, arms, view, squash, toTitle }) {
   const story = {
-    flags: {}, // petted, ...
-    trust: 0, // grows when the Walking Thing is treated kindly (for later polish)
+    flags: {}, // petted, drank, ...
+    // How the Walking Thing feels about him: kindness raises it (for later polish).
+    trust: newTrust(),
     busy: false,
     cutscene: false, // the squash or the ending is playing: no pause screen
     run,
     promptFor: (it) => it.prompt,
     can: () => true,
-    reset() { story.flags = {}; story.trust = 0; story.busy = false; story.cutscene = false; },
+    reset() { story.flags = {}; story.trust = newTrust(); story.busy = false; story.cutscene = false; },
     actions: {},
     outcomes: {},
   };
@@ -101,6 +106,8 @@ export function createStory({ levels, player, gm, squash, toTitle }) {
   // "Will you be my mount, Walking Thing?": it kneels, he climbs onto its back, it stands
   // up with him and carries him off toward the next level.
   story.outcomes.mount = async (o, actor) => {
+    story.trust.level += 1;
+    story.trust.rides += 1;
     sfx.chime([0, 4, 7], 147);
     freezeLook(true); // the view is turned for him while he climbs on
     await actor.kneel(o.kneel);
@@ -113,13 +120,79 @@ export function createStory({ levels, player, gm, squash, toTitle }) {
     return goTo(o.to);
   };
 
-  // scene3.js: "They liked that", once.
+  // Riding it (the savanna): E gets down. It kneels and he climbs down in front of it,
+  // turning round to face it, then it stands up again and waits there.
+  story.actions.dismount = async () => {
+    const o = outcome('dismount');
+    const thing = player.mount;
+    player.frozen = true;
+    await thing.kneel(o.kneel);
+    await thing.climbOff(player, o.ahead, o.climb);
+    gm.play('stand');
+    player.frozen = false;
+    await thing.rise(o.rise);
+    thing.settle();
+  };
+
+  // And back on: it kneels for him again.
+  story.actions.ride = async (it) => {
+    const o = outcome('ride');
+    const thing = levels.world.actors[it.actor];
+    player.frozen = true;
+    freezeLook(true);
+    await thing.kneel(o.kneel);
+    await thing.climbOn(player, o.climb);
+    freezeLook(false);
+    gm.play('kneel');
+    await thing.rise(o.rise);
+    thing.carry(player);
+    story.trust.rides += 1;
+    player.frozen = false;
+  };
+
+  // scene3.js: "They liked that", once. He reaches up and pats it; it kneels and lowers its
+  // head to him.
   story.actions.pet = async (it) => {
     const o = outcome('pet');
+    const thing = levels.world?.actors?.[it.actor];
     story.flags[it.once ?? 'petted'] = true;
-    story.trust += 1;
+    story.trust.petted = true;
+    story.trust.level += 1;
+    player.frozen = true;
+    gm.play('pet');
+    arms.pat();
     sfx.chime([0, 4, 7, 12], 196);
     showMessage(o.message, o.hold ?? 2);
+    await thing?.nuzzle?.(o.nuzzle ?? 4);
+    player.frozen = false;
+  };
+
+  // The pool: he kneels at the edge and his head sinks into the water on its blue strands
+  // (down1-6, head1-15), seen from the side, then comes back up.
+  story.actions.drink = async (it) => {
+    const o = outcome('drink');
+    const [px, , pz] = it.at;
+    const dx = player.pos.x - px, dz = player.pos.z - pz;
+    const len = Math.hypot(dx, dz) || 1;
+    const yaw = Math.atan2(dx, dz); // facing the middle of the pool
+    player.frozen = true;
+    freezeLook(true);
+    player.place([px + (dx / len) * o.edge, 0, pz + (dz / len) * o.edge], THREE.MathUtils.radToDeg(yaw));
+    const at = player.pos;
+    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), ahead = new THREE.Vector3(-dx / len, 0, -dz / len);
+    view.shot = {
+      from: at.clone().addScaledVector(side, o.shot[0]).addScaledVector(ahead, o.shot[1]).setY(at.y + o.shot[2]),
+      to: at.clone().addScaledVector(ahead, 0.6).setY(at.y + 0.6),
+      yaw,
+    };
+    await gm.play('drink');
+    sfx.drink();
+    await wait(o.hold);
+    await gm.play('stand');
+    view.shot = null;
+    freezeLook(false);
+    player.frozen = false;
+    story.flags.drank = true;
   };
 
   return story;

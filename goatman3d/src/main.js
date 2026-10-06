@@ -86,9 +86,11 @@ const rocks = createRocks({ camera, controls, player, gm, arms });
 levels.onEnter = (id, def, world) => {
   view.enter(def, world);
   rocks.place(def, world);
+  if (player.mount) gm.play('kneel', true); // arriving on the Walking Thing's back
 };
 const doom = createSquash({ scene, camera, head, player, gm, view, levels });
-story = createStory({ levels, player, gm, squash: doom.squash, toTitle });
+story = createStory({ levels, player, gm, arms, view, squash: doom.squash, toTitle });
+levels.flag = (name) => !!story.flags[name]; // so a level can change when the story does (the savanna's exit)
 interact = createInteract({ levels, player, head, controls, story });
 titleEl.style.backgroundImage = 'url(assets/video/title-poster.png)';
 

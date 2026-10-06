@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { sfx, loopsLevel, duck } from './sound.js';
+import { showHint } from './hud.js';
 
 // GoatMan's body: walking, jumping, falling into the void and dropping back in.
 // Ported from automation-map/src/player.js; the circular island is replaced by the
@@ -9,6 +10,7 @@ import { sfx, loopsLevel, duck } from './sound.js';
 // EYE above it and the camera module decides where the camera goes from there.
 
 export const EYE = 1.7;
+const RIDE_EYE = 1.2; // kneeling on the Walking Thing's back
 const SPEED = 3.6; // he is stooped and slow
 const GRAVITY = 20;
 const MAX_FALL = 40; // terminal velocity
@@ -24,6 +26,7 @@ export const STRIDE = 1; // metres per footstep (goatman.js times his stride to 
 const BOB = 0.05;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const RIDE_HINT = 'RIDING · W WALK · S STOP · A/D TURN · E GET DOWN';
 
 // Nearest point to (x, z) on a polyline of [x, z] points, and how far away it is.
 export function nearestOnPath(points, x, z) {
@@ -40,6 +43,49 @@ export function nearestOnPath(points, x, z) {
     along += Math.sqrt(len2);
   }
   return best;
+}
+
+// Colliders push a body standing at p (his hooves, a creature's feet) out sideways: circles
+// (trunks, legs), boxes, corridors along a path and rings that keep it inside. `body` is its
+// radius and `tall` its height, for colliders that only reach so high (y0..y1).
+export function pushOut(p, colliders, body = BODY, tall = EYE) {
+  for (const c of colliders) {
+    if (c.off) continue;
+    if (c.y0 !== undefined && (p.y > c.y1 || p.y + tall < c.y0)) continue;
+    if (c.kind === 'circle') {
+      const dx = p.x - c.x, dz = p.z - c.z;
+      const d = Math.hypot(dx, dz);
+      const min = c.r + body;
+      if (d < min && d > 1e-4) { p.x += (dx / d) * (min - d); p.z += (dz / d) * (min - d); }
+    } else if (c.kind === 'ring') {
+      const dx = p.x - c.x, dz = p.z - c.z;
+      const d = Math.hypot(dx, dz);
+      const max = c.r - body;
+      if (d > max) { p.x = c.x + (dx / d) * max; p.z = c.z + (dz / d) * max; }
+    } else if (c.kind === 'path') {
+      // A corridor along a line of points: stay within half its width of the line.
+      const near = nearestOnPath(c.points, p.x, p.z);
+      const max = c.width / 2 - body;
+      if (near.d > max) {
+        p.x = near.x + ((p.x - near.x) / near.d) * max;
+        p.z = near.z + ((p.z - near.z) / near.d) * max;
+      }
+    } else if (c.kind === 'box') {
+      const nx = THREE.MathUtils.clamp(p.x, c.minX, c.maxX);
+      const nz = THREE.MathUtils.clamp(p.z, c.minZ, c.maxZ);
+      const dx = p.x - nx, dz = p.z - nz;
+      const d = Math.hypot(dx, dz);
+      if (d < body) {
+        if (d > 1e-4) { p.x += (dx / d) * (body - d); p.z += (dz / d) * (body - d); }
+        else { // inside: leave by the nearest side
+          const sides = [p.x - c.minX, c.maxX - p.x, p.z - c.minZ, c.maxZ - p.z];
+          const i = sides.indexOf(Math.min(...sides));
+          if (i === 0) p.x = c.minX - body; else if (i === 1) p.x = c.maxX + body;
+          else if (i === 2) p.z = c.minZ - body; else p.z = c.maxZ + body;
+        }
+      }
+    }
+  }
 }
 
 export function createPlayer(head, controls, keys) {
@@ -117,45 +163,8 @@ export function createPlayer(head, controls, keys) {
     player.wrapped = false;
   }
 
-  // Colliders push him out sideways: circles (trunks, legs), boxes, and rings that keep him inside.
   function collide() {
-    for (const c of player.level.colliders) {
-      if (c.off) continue;
-      if (c.y0 !== undefined && (pos.y > c.y1 || pos.y + EYE < c.y0)) continue;
-      if (c.kind === 'circle') {
-        const dx = pos.x - c.x, dz = pos.z - c.z;
-        const d = Math.hypot(dx, dz);
-        const min = c.r + BODY;
-        if (d < min && d > 1e-4) { pos.x += (dx / d) * (min - d); pos.z += (dz / d) * (min - d); }
-      } else if (c.kind === 'ring') {
-        const dx = pos.x - c.x, dz = pos.z - c.z;
-        const d = Math.hypot(dx, dz);
-        const max = c.r - BODY;
-        if (d > max) { pos.x = c.x + (dx / d) * max; pos.z = c.z + (dz / d) * max; }
-      } else if (c.kind === 'path') {
-        // A corridor along a line of points: stay within half its width of the line.
-        const near = nearestOnPath(c.points, pos.x, pos.z);
-        const max = c.width / 2 - BODY;
-        if (near.d > max) {
-          pos.x = near.x + ((pos.x - near.x) / near.d) * max;
-          pos.z = near.z + ((pos.z - near.z) / near.d) * max;
-        }
-      } else if (c.kind === 'box') {
-        const nx = THREE.MathUtils.clamp(pos.x, c.minX, c.maxX);
-        const nz = THREE.MathUtils.clamp(pos.z, c.minZ, c.maxZ);
-        const dx = pos.x - nx, dz = pos.z - nz;
-        const d = Math.hypot(dx, dz);
-        if (d < BODY) {
-          if (d > 1e-4) { pos.x += (dx / d) * (BODY - d); pos.z += (dz / d) * (BODY - d); }
-          else { // inside: leave by the nearest side
-            const sides = [pos.x - c.minX, c.maxX - pos.x, pos.z - c.minZ, c.maxZ - pos.z];
-            const i = sides.indexOf(Math.min(...sides));
-            if (i === 0) pos.x = c.minX - BODY; else if (i === 1) pos.x = c.maxX + BODY;
-            else if (i === 2) pos.z = c.minZ - BODY; else pos.z = c.maxZ + BODY;
-          }
-        }
-      }
-    }
+    pushOut(pos, player.level.colliders);
   }
 
   // WASD as a direction on the ground plane, relative to where the head faces.
@@ -176,14 +185,22 @@ export function createPlayer(head, controls, keys) {
     if (dip < 1) dip = Math.min(1, dip + dt / DIP_TIME);
     // The view dips as each hoof lands.
     player.bob = player.grounded ? (Math.abs(Math.sin(player.stride * Math.PI / STRIDE)) - 0.5) * BOB * player.speed : 0;
-    head.position.set(pos.x, pos.y + EYE - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
+    const eye = player.mount ? RIDE_EYE : EYE;
+    head.position.set(pos.x, pos.y + eye - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
   }
 
-  // Carried: on the creature's back, turning when it turns. While climbing on, the view
-  // eases round to look out the way it faces.
+  // Carried: on the creature's back, turning when it turns. While climbing on or off, the
+  // view eases round to look the way the stand-in faces. A mount that can be steered gets
+  // his keys: W/S and A/D.
   let carried = null; // its heading last frame
+  let ridden = null; // what carried him last frame
+  let hinted = false;
+  const key = (...codes) => (codes.some((c) => keys[c]) ? 1 : 0);
   function ride(dt) {
-    const { heading, look } = player.mount;
+    const mount = player.mount;
+    if (mount !== ridden) carried = null; // on or off: a different heading, not a turn
+    ridden = mount;
+    const { heading, look } = mount;
     if (carried !== null) head.rotation.y += Math.atan2(Math.sin(heading - carried), Math.cos(heading - carried));
     carried = heading;
     if (look !== undefined) {
@@ -191,7 +208,17 @@ export function createPlayer(head, controls, keys) {
       head.rotation.y += Math.atan2(Math.sin(heading - head.rotation.y), Math.cos(heading - head.rotation.y)) * k;
       head.rotation.x += (look - head.rotation.x) * k;
     }
-    player.mount.seat(pos);
+    const steering = !!mount.steer && !player.frozen;
+    if (mount.steer) {
+      const on = steering && controls.isLocked;
+      mount.steer(on ? key('KeyW', 'ArrowUp') - key('KeyS', 'ArrowDown') : 0, on ? key('KeyA', 'ArrowLeft') - key('KeyD', 'ArrowRight') : 0);
+    }
+    hint(steering);
+    mount.seat(pos);
+  }
+  function hint(on) {
+    if (on !== hinted) showHint(on ? RIDE_HINT : null, 'ride');
+    hinted = on;
   }
 
   function update(dt) {
@@ -205,7 +232,8 @@ export function createPlayer(head, controls, keys) {
       syncHead(dt);
       return;
     }
-    carried = null;
+    carried = ridden = null;
+    hint(false);
     const wish = wishDir();
     const speed = SPEED * (player.level.speed ?? 1);
 

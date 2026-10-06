@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { buildGreybox } from './worlds/greybox.js';
 import { buildForest } from './worlds/forest.js';
 import { buildField } from './worlds/field.js';
+import { buildSavanna } from './worlds/savanna.js';
 import { fadeTo, showLevelName } from './hud.js';
 import { playSoundscape, duck } from './sound.js';
 import { playAmbience } from './ambience.js';
@@ -12,9 +12,9 @@ import { gradientTexture } from './textures.js';
 // names the module that makes its world (worlds/*.js).
 
 const BUILDERS = {
-  greybox: buildGreybox,
   forest: buildForest,
   field: buildField,
+  savanna: buildSavanna,
 };
 
 const fetchJSON = async (url) => {
@@ -35,6 +35,7 @@ export async function createLevels(scene, player, camera) {
     world: null, // what its builder made: { group, ground, colliders, blockers, actors, update }
     busy: false, // a transition is running
     onEnter: null, // called after a level is built, before it fades in
+    flag: () => false, // is a story flag set (main.js points it at the story)
     load,
     go,
     unload,
@@ -66,13 +67,17 @@ export async function createLevels(scene, player, camera) {
     const build = BUILDERS[def.builder];
     if (!build) return; // a cutscene level has no world of its own
 
-    const world = await build(def, { palettes, scene, camera, player });
+    // The lights are made first, so a builder can change them as the level goes on (dusk).
+    const ambient = new THREE.AmbientLight(def.ambient.color, def.ambient.intensity);
+    const sun = new THREE.DirectionalLight(def.sun.color, def.sun.intensity);
+    sun.position.fromArray(def.sun.dir).multiplyScalar(50);
+    const lights = { ambient, sun };
+    const world = await build(def, { palettes, scene, camera, player, lights, flag: (name) => levels.flag(name) });
     if (scene.background?.isTexture) scene.background.dispose();
     scene.background = gradientTexture(def.sky);
     scene.fog = new THREE.Fog(def.fog.color, def.fog.near, def.fog.far);
-    const sun = new THREE.DirectionalLight(def.sun.color, def.sun.intensity);
-    sun.position.fromArray(def.sun.dir).multiplyScalar(50);
-    world.group.add(new THREE.AmbientLight(def.ambient.color, def.ambient.intensity), sun);
+    world.lights = lights;
+    world.group.add(ambient, sun);
     scene.add(world.group);
     levels.world = world;
 
@@ -87,6 +92,7 @@ export async function createLevels(scene, player, camera) {
     };
     const spawn = def.spawns[spawnName] ?? def.spawns.start;
     player.place(spawn.at, spawn.yaw);
+    if (spawn.ride) world.actors[spawn.ride].carry(player, spawn.walkOn); // arriving on its back
     playSoundscape(def.soundscape?.file ?? null, def.soundscape?.volume ?? 1);
     playAmbience(def.ambience ?? null); // synthesised beds for scenes with no track
     levels.onEnter?.(id, def, world);

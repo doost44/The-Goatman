@@ -232,6 +232,10 @@ card "$WB/shadow.png" "$OUT/field/shadow.png" 128 auto 8; note "$OUT/field/shado
 # --- 4. Savanna ------------------------------------------------------------------------
 echo "Savanna..."
 card "$SV/nsky.png" "$OUT/savanna/stars.png" 256 "" 16;          note "$OUT/savanna/stars.png" "the savannahg/nsky.png" "starry sky for the dome"
+# The painting has no sky layer: the crimson sky comes from the video, right of the tree
+# and above the striped creature.
+"${FF[@]}" -ss 90 -i "$SV/ground1.mp4" -frames:v 1 "$TMP/frame.png"
+card "$TMP/frame.png" "$OUT/savanna/sky.png" 256 "crop=495:340:645:0" 32; note "$OUT/savanna/sky.png" "the savannahg/ground1.mp4 (frame at 90 s)" "crimson sky with dark cloud streaks for the dome"
 card "$SV/trreeline.png" "$OUT/savanna/treeline.png" 256 auto 24;  note "$OUT/savanna/treeline.png" "the savannahg/trreeline.png" "dark teal treeline card"
 card "$SV/tree.png" "$OUT/savanna/tree.png" 256 auto 32;           note "$OUT/savanna/tree.png" "the savannahg/tree.png" "the teal tree card"
 tile "$SV/ground1.png" "$OUT/savanna/grass.png" 128 "$(frac 0.35 0.73 0.55 0.82)"; note "$OUT/savanna/grass.png" "the savannahg/ground1.png" "seamless purple grass tile"
@@ -261,22 +265,26 @@ extract() {
   echo "| $name.m4a | ${d} s | start ${s} dB, end ${e} dB |" >> "$AUDIO_REPORT"
   note "$OUT/audio/$name.m4a" "${src#"$ROOT"/}" "$why (${d} s)"
 }
-# A seamless loop: the last X seconds are crossfaded into the first X, so the end flows into the start.
+# A seamless loop: the last X seconds are crossfaded into the first X, so the end flows into
+# the start. An optional filter is applied first (evening out a track's loudness).
 loopify() {
-  local name=$1 x=${2:-3} d
-  d=$(dur "$OUT/audio/$name.m4a")
+  local name=$1 x=${2:-3} pre=${3:+$3,}
   "${FF[@]}" -i "$OUT/audio/$name.m4a" -i "$OUT/audio/$name.m4a" -filter_complex \
-    "[0:a]atrim=start=$x,asetpts=PTS-STARTPTS[rest];[1:a]atrim=end=$x,asetpts=PTS-STARTPTS[head];[rest][head]acrossfade=d=$x:c1=tri:c2=tri" \
+    "[0:a]${pre}atrim=start=$x,asetpts=PTS-STARTPTS[rest];[1:a]${pre}atrim=end=$x,asetpts=PTS-STARTPTS[head];[rest][head]acrossfade=d=$x:c1=tri:c2=tri" \
     -c:a aac -b:a 128k "$OUT/audio/$name-loop.m4a"
-  echo "| $name-loop.m4a | $(dur "$OUT/audio/$name-loop.m4a") s | ${x} s crossfade, seamless |" >> "$AUDIO_REPORT"
-  note "$OUT/audio/$name-loop.m4a" "audio/$name.m4a" "seamless loop (${x} s crossfade), the one the game plays"
+  echo "| $name-loop.m4a | $(dur "$OUT/audio/$name-loop.m4a") s | ${x} s crossfade, seamless${3:+, loudness evened} |" >> "$AUDIO_REPORT"
+  note "$OUT/audio/$name-loop.m4a" "audio/$name.m4a" "seamless loop (${x} s crossfade${3:+, loudness evened}), the one the game plays"
 }
 extract title "$IMG/Goatman Title Screen.mp4" "title video soundtrack"
 extract field "$IMG/GROUND.mp4" "red field soundscape"
 extract savanna "$IMG/savanaScene.mp4" "savanna soundscape (short)"
 extract savanna-long "$SV/ground1.mp4" "savanna soundscape (long)"
 extract finale "$IMG/Savana scene trigger.mp4" "finale soundtrack"
-for n in field savanna savanna-long; do loopify $n 3; done
+loopify field 3
+loopify savanna 3
+# The long savanna track is much louder in the middle: evened out (about 5 LU of range
+# instead of 16) so it can sit under the game without riding the volume.
+loopify savanna-long 3 "loudnorm=I=-22:LRA=3:TP=-3,aresample=48000"
 
 # --- 6. Cutscene video ---------------------------------------------------------------------
 echo "Video..."

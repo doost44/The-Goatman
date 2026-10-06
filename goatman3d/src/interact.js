@@ -6,7 +6,9 @@ import { showPrompt } from './hud.js';
 // prompt, and runs it when E is pressed. An interaction is available when:
 //   - the player is within its radius (of "at", or of the named actor),
 //   - "look" (degrees) is set: the view points that close to it,
-//   - "requires" names a story flag that is set, and "once" names one that isn't.
+//   - "requires" names a story flag that is set, and "once" names one that isn't,
+//   - "mounted" is set: he is (true) or isn't (false) riding something.
+// One with no "at" or actor works anywhere, when nothing nearer is available.
 
 const toward = new THREE.Vector3();
 const facing = new THREE.Vector3();
@@ -25,7 +27,9 @@ export function createInteract({ levels, player, head, controls, story }) {
   function available(it) {
     if (it.requires && !story.flags[it.requires]) return false;
     if (it.once && story.flags[it.once]) return false;
+    if (it.mounted !== undefined && it.mounted !== !!player.mount) return false;
     if (it.when && !story.can(it)) return false;
+    if (!it.at && !it.actor) return 1e6;
     const p = where(it);
     if (!p) return false;
     const dx = p.x - player.pos.x, dz = p.z - player.pos.z;

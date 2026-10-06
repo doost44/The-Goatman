@@ -13,6 +13,7 @@ const ELBOW = 0.3;
 const WRIST = -0.8; // the hands droop
 const UPPER = 0.46, FORE = 0.46;
 const HOLD = { shoulder: 1.1, elbow: 0.8, wrist: -0.3, inward: 0.1 }; // right arm carrying a pebble
+const PAT = { shoulder: 2.3, elbow: 0.2, wrist: 0.3, time: 2.4 }; // right arm reaching up to pet
 
 export function createArms(materials) {
   const scene = new THREE.Scene();
@@ -52,6 +53,7 @@ export function createArms(materials) {
   let t = 0;
   let hold = 0; // 0..1 raising the right hand with a pebble in it
   let fling = 1; // a throw, 0..1 (1 = done)
+  let patting = 1; // petting, 0..1 (1 = done)
 
   const api = {
     scene,
@@ -59,14 +61,15 @@ export function createArms(materials) {
     visible: true,
     holding: false, // carrying a pebble (rocks.js)
     throwArm() { fling = 0; },
+    pat() { patting = 0; },
     // Where the pebble in his hand is, in camera space.
     handPos: (v) => pebble.getWorldPosition(v),
-    // Same mood as the level: copy its ambient and sun.
-    light(def) {
-      ambient.color.set(def.ambient.color);
-      ambient.intensity = def.ambient.intensity;
-      sun.color.set(def.sun.color);
-      sun.intensity = def.sun.intensity;
+    // Same mood as the level: copy its ambient and sun lights (every frame, as they can change).
+    light(level) {
+      ambient.color.copy(level.ambient.color);
+      ambient.intensity = level.ambient.intensity;
+      sun.color.copy(level.sun.color);
+      sun.intensity = level.sun.intensity;
     },
     // pitch: where the view points (negative looking down). lower: 0..1 slides the arms
     // out of sight while the camera moves out to third person.
@@ -81,6 +84,9 @@ export function createArms(materials) {
       hold += ((api.holding ? 1 : 0) - hold) * Math.min(1, dt * 8);
       fling = Math.min(1, fling + dt / 0.3);
       const whip = Math.sin(Math.PI * fling);
+      patting = Math.min(1, patting + dt / PAT.time);
+      const reach = Math.sin(Math.PI * patting) ** 0.5; // up, held there, down
+      const tap = Math.sin(patting * Math.PI * 8) * 0.12 * reach;
       for (const a of arms) {
         const swing = Math.cos(ph) * a.side * 0.18 * speed + 0.03 * Math.sin(t * 1.1 + a.side);
         a.shoulder.rotation.set(hang + swing + (grounded ? 0 : -0.3), 0, -INWARD * a.side);
@@ -91,6 +97,9 @@ export function createArms(materials) {
           a.shoulder.rotation.z -= HOLD.inward * hold;
           a.elbow.rotation.x += (HOLD.elbow - a.elbow.rotation.x) * hold - whip * 0.5;
           a.wrist.rotation.x += (HOLD.wrist - a.wrist.rotation.x) * hold;
+          a.shoulder.rotation.x += (PAT.shoulder - a.shoulder.rotation.x) * reach + tap;
+          a.elbow.rotation.x += (PAT.elbow - a.elbow.rotation.x) * reach;
+          a.wrist.rotation.x += (PAT.wrist - a.wrist.rotation.x) * reach - tap;
         }
       }
       pebble.visible = api.holding;
