@@ -4,6 +4,7 @@ import { sfx } from './sfx.js';
 import { subtitle } from './hud.js';
 import { pushOut } from './player.js';
 import { creatureParts } from './bushes-body.js';
+import { showFrame } from './bushes-paint.js';
 
 // The striped creatures with eyes (the "bushes" of savanaScene.mp4): lumpy heaps wearing
 // their painting (bushes-body.js), each with a few babies. They breathe, creep through the
@@ -11,12 +12,15 @@ import { creatureParts } from './bushes-body.js';
 // him) and shuffle off if he comes at them too fast or a pebble hits one. The babies,
 // smaller, rounder and paler, trail behind in a loose line, potter about when it stops,
 // hurry wobbling to catch up and run off with it; a pebble on a baby makes the grown one
-// turn on GoatMan. The grown ones murmur and purr, the babies chirp.
+// turn on GoatMan. The grown ones murmur and purr, the babies chirp. Deep in the night they
+// settle down to sleep, the babies curled up against their sides, until he comes too close.
 //
 // levels.json "bushes": { at: [[x, z], ...], roam, length, radius, speed, notice, wary,
 //   closing (m/s toward one that makes it run), personal, flee: [speed, seconds],
 //   babies: [min, max], babyScale: [min, max], follow (metres apart in the line),
-//   catchUp (a baby's hurrying speed) }
+//   catchUp (a baby's hurrying speed), sleep (how deep the night gets before they sleep,
+//   0..1), seen (metres off they are still drawn) }. Grown ones close together keep together
+//   as a herd, each with its babies.
 
 const TURN = 1.2; // radians a second at most
 const LOOK = 0.55; // how far the head turns to watch
@@ -45,14 +49,14 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
   const group = new THREE.Group();
   const right = new THREE.Vector3(), v = new THREE.Vector3();
   const r = rng(7);
+  let night = 0; // how deep the night is (update sets it)
 
   // One creature (grown, or a baby: smaller, rounder and paler).
   function make(x, z, heading, scale, baby) {
     const u = { uWave: { value: 0 }, uBreath: { value: 0 }, uCreep: { value: 0 } };
-    const map = parts.texture.clone();
+    const map = (baby ? parts.babyTexture : parts.texture).clone(); // its own frame of the shared paint
     // A little of their own colour unlit, so the stripes stay bright in the dusk.
     const skin = alive(new THREE.MeshLambertMaterial({ map, emissiveMap: map, emissive: 0x8a8a8a, flatShading: true }), u);
-    if (baby) skin.color.setRGB(1.3, 1.22, 1.22);
     const ink = alive(new THREE.MeshBasicMaterial({ color: 0x2a0c1e, side: THREE.BackSide }), u);
     const back = new THREE.Mesh(parts.back, skin), face = new THREE.Mesh(parts.head, skin);
     const eyes = new THREE.Mesh(parts.eyes, new THREE.MeshBasicMaterial({ map: parts.eyeMap }));
@@ -63,12 +67,13 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
       group: new THREE.Group(), head, eyes, u, map, skin, baby, scale,
       pos: new THREE.Vector3(x, heightAt(x, z), z), heading, speed: 0, look: 0,
       size: (baby ? 0.5 : 0.45) * d.length * scale, // how far its middle keeps from things
-      frame: Math.random() * 4, rolled: 0, breath: Math.random() * 6, puff: 1.3,
+      frame: Math.random() * 4, rolled: 0, breath: Math.random() * 6, puff: 1.3, sleepy: 0,
       blink: rnd(1, 6), shut: 0, wobble: 0,
       near: null, closing: 0, sound: rnd(4, 12),
     };
     c.group.add(back, new THREE.Mesh(parts.backLine, ink), head);
     c.group.scale.set(scale * (baby ? 1.12 : 1), scale * (baby ? 1.1 : 1), scale * (baby ? 0.88 : 1));
+    c.tall = c.group.scale.y;
     for (const mesh of [back, face]) mesh.userData.onRock = (hit) => hitBy(c, hit.point);
     group.add(c.group);
     return c;
@@ -155,6 +160,13 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     if (b.near !== null) b.closing += ((b.near - near) / dt - b.closing) * Math.min(1, dt * 4);
     b.near = near;
     b.look = 0;
+    // Asleep: only him coming close (or the night lifting) wakes it.
+    if (b.mode === 'sleep') {
+      if (near > d.notice * 0.4 && night >= d.sleep) return 0;
+      b.mode = 'watch';
+      sfx.murmur(pan(b.pos), loud(b));
+      subtitle('[a striped creature wakes with a start]', 2.5, 20);
+    }
     if (b.mode === 'watch' && near > d.notice * 1.3) b.mode = 'drift';
     const rushed = near < d.personal || (near < d.wary && b.closing > d.closing);
     if (b.mode !== 'flee' && b.mode !== 'guard' && rushed) flee(b, player.pos);
@@ -184,6 +196,15 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
       } else if (Math.abs(angle(to - b.heading)) > LOOK) turn(b, to, dt, TURN * 0.5); // shuffles round to keep him in view
       return 0;
     }
+    // Deep in the night, left alone, it settles down to sleep where it is.
+    if (night >= d.sleep && b.rest > 0 && !b.target) {
+      b.mode = 'sleep';
+      if (near < 60) {
+        sfx.murmur(pan(b.pos), loud(b) * 0.4);
+        subtitle('[the striped creatures settle down to sleep]', 3, 60);
+      }
+      return 0;
+    }
     // Drifting about, now and then a murmur to itself.
     b.sound -= dt;
     if (b.sound <= 0) {
@@ -208,6 +229,11 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     }
     const gap = (lead.baby ? 0 : d.length * 0.5) + d.follow;
     v.set(Math.sin(lead.heading), 0, Math.cos(lead.heading)).multiplyScalar(gap).add(lead.pos).add(k.wander);
+    if (b.mode === 'sleep') { // curled up against its side
+      const side = (b.babies.indexOf(k) % 2 ? 1 : -1) * (parts.width * 0.5 + d.radius * k.scale);
+      const back = (Math.floor(b.babies.indexOf(k) / 2) - 0.3) * d.length * 0.3;
+      v.set(Math.cos(b.heading) * side + Math.sin(b.heading) * back, 0, -Math.sin(b.heading) * side + Math.cos(b.heading) * back).add(b.pos);
+    }
     if (k.scared > 0) { k.scared -= dt; v.copy(b.pos); } // straight to it
     const dist = Math.hypot(v.x - k.pos.x, v.z - k.pos.z);
     const hurry = b.mode === 'flee' || k.scared > 0;
@@ -238,11 +264,13 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     c.rolled += c.speed * dt;
   }
 
-  // Into place: breathing (faster after running), the creeping wave, the head turning to
-  // look, blinking, the painting boiling, a hurrying baby's waddle.
+  // Into place: breathing (faster after running, slower asleep), the creeping wave, the head
+  // turning to look, blinking, the painting boiling, a hurrying baby's waddle, and asleep:
+  // sunk down flatter, the head lowered and the eyes shut.
   function pose(c, dt, dim) {
-    const pace = c.speed / d.speed, fleeing = (c.baby ? c.parent : c).mode === 'flee';
-    c.puff += ((fleeing ? 3.5 : c.baby ? 2.2 : 1.3) - c.puff) * Math.min(1, dt * 0.5);
+    const pace = c.speed / d.speed, mode = (c.baby ? c.parent : c).mode, fleeing = mode === 'flee';
+    c.sleepy += ((mode === 'sleep' && c.speed < 0.3 ? 1 : 0) - c.sleepy) * Math.min(1, dt * 0.6);
+    c.puff += ((fleeing ? 3.5 : c.baby ? 2.2 : 1.3) * (1 - 0.5 * c.sleepy) - c.puff) * Math.min(1, dt * 0.5);
     c.breath += dt * c.puff;
     c.u.uBreath.value = (c.baby ? 0.035 : 0.025) * Math.sin(c.breath);
     c.u.uCreep.value = Math.min(1.5, pace);
@@ -250,13 +278,17 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     c.head.rotation.y += (c.look - c.head.rotation.y) * Math.min(1, dt * 3);
     if ((c.blink -= dt) <= 0) { c.blink = rnd(2.5, 7); c.shut = 0.14; }
     c.shut -= dt;
-    c.eyes.scale.y = c.shut > 0 ? 0.12 : 1;
+    const shut = c.shut > 0 || c.sleepy > 0.6;
+    c.head.rotation.x = c.sleepy * 0.3;
+    c.eyes.material.map = shut ? parts.lidMap : parts.eyeMap; // the dark lids close over them
+    c.eyes.scale.y = shut ? 0.85 : 1;
     c.eyes.material.color.setScalar(dim);
     c.skin.emissiveIntensity = dim;
     c.frame += dt * (fleeing ? 10 : c.speed > 0.2 ? 5 : 1.5);
-    c.map.offset.x = (Math.floor(c.frame) % 4) * 0.25;
+    showFrame(c.map, Math.floor(c.frame) % 4);
     const waddle = Math.sin(c.rolled * 7 / c.scale);
-    c.group.position.set(c.pos.x, c.pos.y + c.wobble * Math.abs(waddle) * 0.25 * c.scale, c.pos.z);
+    c.group.position.set(c.pos.x, c.pos.y + (c.wobble * Math.abs(waddle) * 0.25 - c.sleepy * 0.3) * c.scale, c.pos.z);
+    c.group.scale.y = c.tall * (1 - 0.18 * c.sleepy);
     c.group.rotation.set(0, c.heading, c.wobble * waddle * 0.14, 'YXZ');
   }
 
@@ -264,8 +296,10 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     group,
     colliders,
     targets: [...adults, ...babies].flatMap((c) => [c.group.children[0], c.head.children[0]]), // pebbles hit them
-    // dim: how much the dusk has darkened the level (1 = not at all).
-    update(dt, dim = 1) {
+    // dim: how much the dusk has darkened the level (1 = not at all); deep: 0..1 how deep the
+    // night has got (past `sleep` they settle down to sleep).
+    update(dt, dim = 1, deep = 0) {
+      night = deep;
       for (const b of adults) {
         move(b, think(b, dt), dt, [...avoid, ...adults.filter((o) => o !== b).flatMap((o) => o.colliders)]);
         [parts.backZ, parts.headZ].forEach((z, i) => {
@@ -278,7 +312,10 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
         k.collider.x = k.pos.x;
         k.collider.z = k.pos.z;
       }
-      for (const c of [...adults, ...babies]) pose(c, dt, dim);
+      for (const c of [...adults, ...babies]) {
+        c.group.visible = Math.hypot(camera.position.x - c.pos.x, camera.position.z - c.pos.z) < d.seen; // specks in the fog past that
+        if (c.group.visible) pose(c, dt, dim);
+      }
     },
   };
 }

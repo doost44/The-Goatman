@@ -61,3 +61,20 @@ arrays) and was back at 19 MB at the end, so nothing piles up there either.
 | 174 s | 181 | 121 | 260 | 4199 | 3939 | 35 MB |
 | 235 s | 215 | 212 | 260 | 5565 | 5305 | 33 MB |
 | 250 s | 249 | | | | | 19 MB |
+
+## After section 4 (the vast savanna)
+
+The savanna is now 1.5 km of chunked land with the marsh, the swamp, the bays and about
+500 trees. Same machine, measured at the arrival point (frames counted over 8 seconds):
+
+| Level | FPS | Draw calls | Triangles |
+| --- | --- | --- | --- |
+| 3 Savanna | 9.6 | 132 | 122K |
+
+More triangles and calls than before, but faster: the old savanna drew its whole 49K-triangle
+ground and every grass clump each frame, and the chunks and the grass grown round the camera
+draw only what is near and in view. Tried and dropped: 256 m chunks (32 calls instead of
+101 for the ground, but 141K triangles and 8.7 FPS, since big chunks are rarely off screen).
+
+Screenshots: `savanna-places.png` (the 15 places in admin mode), `savanna-night.png` (deep
+night, a herd asleep), `savanna-creatures.png`, `savanna-willow.png`.

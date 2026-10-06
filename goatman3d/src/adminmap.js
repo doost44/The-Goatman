@@ -84,6 +84,7 @@ export function createMap(hud) {
     if (def.path?.points) line(def.path.points, AMBER);
     for (const p of def.sidePaths ?? []) line(p.points, AMBER, [4, 3]);
     if (def.river?.points) line(def.river.points, 'rgba(120,190,255,0.8)', [2, 2]);
+    for (const c of def.creeks ?? []) line(c.points, 'rgba(120,190,255,0.6)', [1, 3]);
     s.lineWidth = 2;
 
     const label = (x, z, text, color = AMBER) => {
