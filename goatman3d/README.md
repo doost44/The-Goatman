@@ -4,7 +4,7 @@ A first-person 3D version of THE GOATMAN, Charlie Cilla's p5.js game, built from
 
 ## Play
 
-Online: https://doost44.github.io/ccilla_sidequestt_W3/goatman3d/
+Online: https://doost44.github.io/The-Goatman/goatman3d/
 
 Locally, from the root of this repository:
 
@@ -87,7 +87,7 @@ GitHub Pages serves the game from this repository: each push to the branch it se
 3. In the **Actions** tab, wait for the **pages build and deployment** run to finish with a green tick.
 4. Only then delete the build branch, if you want to: Pages would have nothing to serve while it still points at a deleted branch.
 
-The address stays the same, and the 2D original stays at https://doost44.github.io/ccilla_sidequestt_W3/.
+The address stays the same, and the 2D original stays at https://doost44.github.io/The-Goatman/.
 
 ## How it is made
 
