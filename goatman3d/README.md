@@ -21,7 +21,7 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | WASD / arrow keys | walk |
 | Shift (held, walking forward) | sprint |
 | Mouse | look |
-| E | interact (enter, talk, pet, drink, ride, get down) |
+| E | interact (enter, talk, pet, ride, get down) |
 | W / S / A / D while riding | walk on / stop / turn (Shift: hurry) |
 | 1 / 2 or mouse + click | pick a choice |
 | Space | jump |
@@ -58,7 +58,7 @@ GoatMan floating in space on the start screen, then four places, as in the origi
 
 1. **The night forest.** Find your way through the trunks to the gap and enter.
 2. **The red field.** Meet the Walking Thing. What you say to it matters.
-3. **The savanna.** Be kind to the Walking Thing, then leave toward the horizon.
+3. **The savanna.** Wade the bog, be kind to the Walking Thing, then leave toward the horizon.
 4. **The end.**
 
 ## How it is made

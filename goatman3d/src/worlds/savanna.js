@@ -1,18 +1,21 @@
 import * as THREE from 'three';
-import { buildTerrain, walkPath, drape } from '../terrain.js';
+import { buildTerrain, terrainHeight, walkPath, drape } from '../terrain.js';
 import { loadTexture, canvas, crunchy, glowTexture, rng } from '../textures.js';
 import { buildSkyDome, buildStars, buildSkyline } from './horizon.js';
 import { buildTealTree } from './tealtree.js';
 import { buildClumps } from './clumps.js';
+import { riverCourse, buildRiver } from './river.js';
+import { buildBog } from './bog.js';
 import { createBushes } from '../bushes.js';
 import { createWalkingThing } from '../walkingthing.js';
 
 // Level 3, the savanna, from Charlie's layered painting (the savannahg/) and its videos:
 // long purple grass swaying under a crimson sky that slowly darkens until nsky's stars come
-// through, a dark treeline all round, the teal tree with the pool near it, and the striped
-// creatures drifting through the grass. GoatMan arrives on the Walking Thing's back. The
-// way on is the path from under the tree to a gap in the treeline, and it only lights up
-// once the Walking Thing has been petted. At the very end it all dissolves into the light.
+// through, a dark treeline all round, the teal tree as a weeping willow, a low boggy river
+// winding past it, and the striped creatures and their babies drifting through the grass.
+// GoatMan arrives on the Walking Thing's back. The way on is the path from under the tree
+// (across the river) to a gap in the treeline, and it only lights up once the Walking Thing
+// has been petted. At the very end it all dissolves into the light.
 
 const WHITE = new THREE.Color(1, 1, 1);
 
@@ -22,24 +25,28 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
 
   const floor = await loadTexture(def.terrain.texture, 1);
   const groundMat = new THREE.MeshLambertMaterial({ map: floor, color: new THREE.Color(...def.terrain.tint) });
-  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat);
+  const river = riverCourse(def.river, terrainHeight(def.terrain)); // its channel is carved into the ground
+  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat, river);
+  const wet = (x, z, margin = 1) => (river.nearest(x, z)?.d ?? Infinity) < river.edge + margin; // in the water, or about to be
 
   const sky = await buildSkyDome(def.skyDome, def.fog.color);
   const stars = await buildStars(def.stars);
   const treeline = await buildSkyline(def.treeline, heightAt);
   const tree = await buildTealTree(def.tree, heightAt);
-  const pool = await buildPool(def.pool, heightAt);
   const path = await buildPath(def.path, heightAt);
   const exit = buildExit(def.exit, heightAt);
-  const [tx, tz] = def.tree.at, [px, pz] = def.pool.at;
-  const grass = await buildClumps(def.grass, heightAt, r, [[tx, tz, 2], [px, pz, def.pool.radius + 1]], def.path);
-  group.add(ground, sky, stars, treeline, ...tree.meshes, pool.mesh, path, exit.group, ...grass.meshes);
+  const [tx, tz] = def.tree.at;
+  const grass = await buildClumps(def.grass, heightAt, r, [[tx, tz, 2]], def.path, (x, z) => wet(x, z, 3)); // muddy banks: reeds only
+  const water = buildRiver(def.river, river, camera);
+  const bog = await buildBog(def.river.bog, river, heightAt);
+  group.add(ground, sky, stars, treeline, ...tree.meshes, path, exit.group, ...grass.meshes, water.group, ...bog.meshes);
 
   const edge = { kind: 'ring', x: 0, z: 0, r: def.bounds };
-  const poolCollider = { kind: 'circle', x: px, z: pz, r: def.pool.radius - 0.5 };
-  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: [edge, ...tree.colliders, poolCollider] });
+  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: [edge, ...tree.colliders], wet });
   const thing = await createWalkingThing(def.walkingThing, { heightAt, camera, player });
-  thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, tree.keepOut, { ...poolCollider, r: def.pool.radius + 3 }];
+  thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, tree.keepOut];
+  thing.wet = wet;
+  thing.onStep = (foot) => water.splash(foot.x, foot.z, 1.5); // only where there is water
   group.add(bushes.group, thing.group);
 
   // The ending's white-out: a white dome just inside the sky, over the sky and the stars.
@@ -53,14 +60,23 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
 
   const fog = new THREE.Color(def.fog.color);
   let opened = 0;
+  const pushers = [];
   const world = {
     group,
     ground: [ground],
-    colliders: [edge, ...tree.colliders, poolCollider, ...bushes.colliders, ...thing.colliders],
+    colliders: [edge, ...tree.colliders, ...bushes.colliders, ...thing.colliders],
     blockers: tree.blockers,
-    rockTargets: bushes.targets,
+    rockTargets: [...bushes.targets, water.water],
     actors: { walkingThing: thing },
     heightAt,
+    wet, // no pebbles are put there
+    waterDepth: river.depth, // (x, z, y): how deep the water is over ground at y (wading)
+    splash: water.splash, // (x, z, size, sound)
+    // Where the bog's sounds come from (ambience.js): the nearest stretch of the river.
+    soundAt(p) {
+      const near = river.closest(p.x, p.z);
+      return { x: near.x, y: near.level - def.river.water, z: near.z };
+    },
     time: 0, // seconds in the level: over def.dusk.time the sky, light and fog darken and the stars come out
     white: 0, // the ending: 0 .. 1 dissolved into the light
     // Dissolves everything into white over `time` seconds (the prelude to the last video).
@@ -98,33 +114,19 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
       stars.rotation.y = world.time * 0.004; // the night sky turning, very slowly
 
       grass.update(t, camera.position);
+      water.update(dt, t, dim);
+      bog.update(dt, t, dim, k);
+      // GoatMan and the Walking Thing's feet push through the willow's tendrils.
+      pushers[0] = { x: player.pos.x, y: player.pos.y, z: player.pos.z, r: 1, tall: 2.4 };
+      thing.feet.forEach((foot, i) => { pushers[i + 1] = { x: foot.x, y: foot.y, z: foot.z, r: 1.6, tall: thing.hips - foot.y }; });
+      tree.update(t, pushers);
       bushes.update(dt, dim);
       thing.update(dt);
-      pool.update(t, dim);
       opened = flag('petted') ? Math.min(1, opened + dt / 3) : 0; // the way on lights up
       exit.update(t, opened);
     },
   };
   return world;
-}
-
-// thepool.png as a small round pool near the tree: the painting's rings are an ellipse seen
-// from the side, so laid flat they become round. They shimmer and turn very slowly.
-async function buildPool(d, heightAt) {
-  const map = await loadTexture(d.texture);
-  map.center.set(0.5, 0.5);
-  const [x, z] = d.at;
-  const mesh = new THREE.Mesh(
-    drape(new THREE.CircleGeometry(d.radius, 20).rotateX(-Math.PI / 2).translate(x, 0, z), heightAt, 0.06),
-    new THREE.MeshBasicMaterial({ map, alphaTest: 0.5 }),
-  );
-  return {
-    mesh,
-    update(t, dim) {
-      map.rotation = t * 0.04;
-      mesh.material.color.setScalar((0.85 + 0.1 * Math.sin(t * 1.3)) * (0.5 + 0.5 * dim));
-    },
-  };
 }
 
 // The path from under the tree to the gap in the treeline: a strip of dark red earth, like

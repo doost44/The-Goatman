@@ -12,12 +12,13 @@ import { nearestOnPath } from '../player.js';
 const dummy = new THREE.Object3D();
 dummy.rotation.order = 'ZYX'; // turned about its stem first, then tipped by the wind (it blows along x)
 
-// keepClear: [[x, z, radius], ...] spots with no grass; path: { points, width } likewise.
-export async function buildClumps(d, heightAt, r, keepClear, path) {
+// keepClear: [[x, z, radius], ...] spots with no grass; path: { points, width } likewise;
+// skip(x, z): anywhere else with none (the river).
+export async function buildClumps(d, heightAt, r, keepClear, path, skip = () => false) {
   const meshes = [];
   const clumps = []; // { mesh, i, x, y, z, yaw, size, phase }
   const clear = (x, z) => keepClear.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr)
-    || nearestOnPath(path.points, x, z).d < path.width / 2 + 0.3;
+    || nearestOnPath(path.points, x, z).d < path.width / 2 + 0.3 || skip(x, z);
 
   for (let art = 1; art <= d.cards; art++) {
     const map = await loadTexture(`${d.art}${art}.png`);

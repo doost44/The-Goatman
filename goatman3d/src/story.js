@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { dialogue, fadeTo, showMessage, setCinematic } from './hud.js';
-import { sfx, duck, stopSoundscape } from './sound.js';
+import { duck, stopSoundscape } from './sound.js';
+import { sfx } from './sfx.js';
 import { stopAmbience } from './ambience.js';
 import { freezeLook } from './mouse.js';
 import { playFMV } from './fmv.js';

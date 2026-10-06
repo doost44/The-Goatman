@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { sfx, loopsLevel, duck } from './sound.js';
+import { loopsLevel, duck } from './sound.js';
+import { sfx } from './sfx.js';
 import { showHint } from './hud.js';
 import { settings } from './options.js';
 
@@ -30,6 +31,8 @@ const BODY = 0.4; // his radius, for colliders
 const STEP_UP = 0.6; // highest ledge he walks straight up
 export const STRIDE = 1.1; // metres per footstep walking (goatman-poses.js times his stride to it)
 const BOB = 0.05;
+const WADE_SLOW = 0.4; // wading (the savanna's bog): this much slower, and no sprinting
+const WADE_DIP = 0.25; // how far the view sinks, his hooves in the mud
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const RIDE_HINT = 'RIDING · W WALK · SHIFT HURRY · S STOP · A/D TURN · E GET DOWN';
@@ -108,7 +111,7 @@ export function createPlayer(head, controls, keys) {
   const player = {
     pos,
     vel,
-    level: null, // set by levels.js: { ground, colliders, voidY, respawn, surface }
+    level: null, // set by levels.js: { ground, colliders, voidY, respawn, surface, water, splash }
     grounded: true,
     wrapped: false, // falling back in from above
     frozen: false, // cutscenes and dialogue: no walking
@@ -116,6 +119,7 @@ export function createPlayer(head, controls, keys) {
     stride: 0, // footsteps taken, times STRIDE: drives the walk animation and view bob
     speed: 0, // current ground speed: 1 is a walk, SPRINT a full sprint
     sprint: 0, // 0..1, easing in and out with Shift
+    wade: 0, // 0..1, how much he is wading
     bob: 0,
     update,
     place,
@@ -123,14 +127,23 @@ export function createPlayer(head, controls, keys) {
     groundAt,
   };
 
-  // Height of the ground under (x, z) within reach of y, or null if there is none.
+  // Height of the ground under (x, z) within reach of y, or null if there is none. Terrain
+  // knows its own height (userData.surface); anything else is found with a ray straight down.
   function groundAt(x, z, y, above = STEP_UP, below = STEP_UP) {
     if (!player.level) return null;
+    let best = null;
+    const rest = [];
+    for (const o of player.level.ground) {
+      if (!o.userData.surface) { rest.push(o); continue; }
+      const h = o.userData.surface(x, z);
+      if (h !== null && h <= y + above && h >= y - below && (best === null || h > best)) best = h;
+    }
+    if (!rest.length) return best;
     from.set(x, y + above, z);
     ray.set(from, DOWN);
     ray.far = above + below;
-    const hit = ray.intersectObjects(player.level.ground, false)[0];
-    return hit ? hit.point.y : null;
+    const hit = ray.intersectObjects(rest, false)[0];
+    return hit && (best === null || hit.point.y > best) ? hit.point.y : best;
   }
 
   // Put him somewhere (a spawn point), standing on whatever is below.
@@ -142,7 +155,7 @@ export function createPlayer(head, controls, keys) {
     head.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0, 'YXZ');
     player.grounded = true;
     player.wrapped = false;
-    player.sprint = ramp = 0;
+    player.sprint = ramp = player.wade = 0;
     dip = 1;
     syncHead(0);
   }
@@ -162,8 +175,15 @@ export function createPlayer(head, controls, keys) {
     player.wrapped = true;
   }
 
+  // What his hooves are in: the level's ground, or water (the savanna's bog), where they
+  // splash (the sound is the footstep's own, except landing).
+  const wet = (y) => (player.level.water?.(pos.x, pos.z, y) ?? 0) > 0.12;
+  const underfoot = (y = pos.y) => (wet(y) ? 'water' : player.level.surface);
+  function splash(size, y = pos.y, sound = false) { if (wet(y)) player.level.splash?.(pos.x, pos.z, size, sound); }
+
   function land(y) {
-    sfx.land(-vel.y / 25, player.level.surface);
+    sfx.land(-vel.y / 25, underfoot(y));
+    splash(0.8, y, true);
     dipDepth = DIP * Math.min(1, -vel.y / SOFT_FALL);
     dip = dipDepth > 0.05 ? 0 : 1;
     pos.y = y;
@@ -199,9 +219,9 @@ export function createPlayer(head, controls, keys) {
   function syncHead(dt) {
     if (dip < 1) dip = Math.min(1, dip + dt / DIP_TIME);
     // The view dips as each hoof lands, harder sprinting (unless screen shake is off).
-    const bob = Math.min(player.speed, settings.shake ? SPRINT : 1);
+    const bob = Math.min(player.speed, settings.shake ? SPRINT : 1) * (1 + player.wade); // heavier, wading
     player.bob = player.grounded ? (Math.abs(Math.sin(player.stride * Math.PI / STRIDE)) - 0.5) * BOB * bob : 0;
-    const eye = player.mount ? RIDE_EYE : EYE;
+    const eye = player.mount ? RIDE_EYE : EYE - WADE_DIP * player.wade;
     head.position.set(pos.x, pos.y + eye - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
   }
 
@@ -242,7 +262,7 @@ export function createPlayer(head, controls, keys) {
     if (player.mount) { // riding: the creature carries him, kneeling on its back (walkingthing.js)
       ride(dt);
       vel.set(0, 0, 0);
-      player.speed = player.sprint = ramp = 0;
+      player.speed = player.sprint = ramp = player.wade = 0;
       player.grounded = true;
       loopsLevel.wind(0);
       syncHead(dt);
@@ -251,10 +271,16 @@ export function createPlayer(head, controls, keys) {
     carried = ridden = null;
     hint(false);
     const wish = wishDir();
+    // Wading: how deep the water is over his hooves, eased so the view sinks smoothly.
+    if (player.grounded) {
+      const deep = player.level.water?.(pos.x, pos.z, pos.y) ?? 0;
+      player.wade += (THREE.MathUtils.smoothstep(deep, 0.05, 0.35) - player.wade) * Math.min(1, dt * 4);
+    }
     // Sprinting eases in and out; in the air it stays as it was, so a jump carries the speed.
-    if (player.grounded) ramp = THREE.MathUtils.clamp(ramp + (sprinting() ? dt / SPRINT_UP : -dt / SPRINT_DOWN), 0, 1);
+    const run = sprinting() && player.wade < 0.3;
+    if (player.grounded) ramp = THREE.MathUtils.clamp(ramp + (run ? dt / SPRINT_UP : -dt / SPRINT_DOWN), 0, 1);
     const sprint = player.sprint = THREE.MathUtils.smoothstep(ramp, 0, 1);
-    const speed = SPEED * (player.level.speed ?? 1) * (1 + (SPRINT - 1) * sprint);
+    const speed = SPEED * (player.level.speed ?? 1) * (1 + (SPRINT - 1) * sprint) * (1 - WADE_SLOW * player.wade);
 
     if (player.grounded) {
       loopsLevel.wind(0);
@@ -276,10 +302,14 @@ export function createPlayer(head, controls, keys) {
       // Sprinting, each footstep is longer (and heavier).
       const steps = Math.floor(player.stride / STRIDE);
       player.stride += walked / (1 + (SPRINT_STEP - 1) * sprint);
-      if (player.grounded && Math.floor(player.stride / STRIDE) > steps) sfx.step(player.level.surface, 1 + 0.3 * sprint, sprint);
+      if (player.grounded && Math.floor(player.stride / STRIDE) > steps) {
+        sfx.step(underfoot(), 1 + 0.3 * sprint, sprint);
+        splash(0.4);
+      }
 
       if (player.grounded && keys.Space && controls.isLocked && !player.frozen) {
-        sfx.jump(player.level.surface);
+        sfx.jump(underfoot());
+        splash(0.6);
         vel.y = JUMP;
         dip = 1;
         player.grounded = false;

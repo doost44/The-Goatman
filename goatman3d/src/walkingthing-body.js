@@ -98,8 +98,8 @@ export function bodyGeometry(sheet, m, depth) {
 }
 
 // See-through pixels take the average colour of the painted ones, so the edges of the
-// painting don't show up dark on the model.
-function fillEdges(p) {
+// painting don't show up dark on the model (the striped creatures use it too).
+export function fillEdges(p) {
   let r = 0, g = 0, b = 0, n = 0;
   for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 127) { r += p[i]; g += p[i + 1]; b += p[i + 2]; n++; }
   for (let i = 0; i < p.length; i += 4) {

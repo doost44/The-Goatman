@@ -89,13 +89,15 @@ export async function createLevels(scene, player, camera) {
       respawn: def.respawn,
       surface: def.surface,
       speed: def.speed,
+      water: world.waterDepth, // (x, z, y): how deep any water is over ground at y (the savanna's bog)
+      splash: world.splash, // (x, z, size, sound): his hooves splashing in it
     };
     tuneWind(def.wind);
     const spawn = def.spawns[spawnName] ?? def.spawns.start;
     player.place(spawn.at, spawn.yaw);
     if (spawn.ride) world.actors[spawn.ride].carry(player, spawn.walkOn); // arriving on its back
     playSoundscape(def.soundscape?.file ?? null, def.soundscape?.volume ?? 1);
-    playAmbience(def.ambience ?? null); // synthesised beds for scenes with no track
+    playAmbience(def.ambience ?? null, 2, world.soundAt); // synthesised beds (soundAt: where a bed's sound comes from)
     levels.onEnter?.(id, def, world);
     if (def.title) showLevelName(def.title);
   }

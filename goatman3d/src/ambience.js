@@ -1,18 +1,21 @@
 import { synthKit as kit } from './sound.js';
 import { subtitle } from './hud.js';
 
-// Synthesised beds for scenes that had no sound in the original (the night forest).
-// They play on the music bus, so they duck and follow the music volume like Charlie's
-// tracks. Like automation-map's bass line, one part goes through an HRTF panner that
-// circles the listener: here, something moving round you in the trees.
+// Synthesised beds for scenes that had no sound in the original: the night forest, and
+// the savanna's bog under its soundtrack. They play on the music bus, so they duck and
+// follow the music volume like Charlie's tracks. Like automation-map's bass line, sounds
+// are placed round the listener with an HRTF panner: in the forest something circling you
+// in the trees, in the savanna the river, wherever its nearest stretch is.
 
-const BEDS = { night };
+const BEDS = { night, bog };
 let wanted = null; // the bed the level asked for
+let source = null; // where its sound comes from, if the level says: (camera position) => point
 let bed = null; // the one playing: { name, update, stop }
 let fadeOut = 2;
 
-export function playAmbience(name, fade = 2) {
+export function playAmbience(name, fade = 2, from = null) {
   wanted = BEDS[name] ? name : null;
+  source = from;
   fadeOut = fade;
 }
 export const stopAmbience = (fade = 1.5) => playAmbience(null, fade);
@@ -22,13 +25,54 @@ export function updateAmbience(dt, camera) {
   if (!kit.ready()) return;
   if ((bed?.name ?? null) !== wanted) {
     bed?.stop(fadeOut);
-    bed = wanted ? BEDS[wanted]() : null;
+    bed = wanted ? BEDS[wanted](source) : null;
   }
   bed?.update(dt, camera);
 }
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const LEVEL = 0.45; // about as loud as Charlie's tracks in the other levels
+
+// A bed's one-off sounds: a gain that rises, holds and dies away, and a burst of filtered noise.
+function helpers(ctx) {
+  const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const d = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  function envelope(t, vol, attack, hold, release) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + attack);
+    g.gain.setValueAtTime(vol, t + attack + hold);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+    return g;
+  }
+  function burst(dest, t, { filter, freq, q = 1, vol, attack = 0.005, hold = 0, release }) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const f = ctx.createBiquadFilter();
+    f.type = filter;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = envelope(t, vol, attack, hold, release);
+    src.connect(f);
+    f.connect(g);
+    g.connect(dest);
+    src.start(t, Math.random() * 0.5);
+    src.stop(t + attack + hold + release + 0.05);
+  }
+  return { envelope, burst };
+}
+
+// Move a panner to a point, smoothly.
+function moveTo(ctx, panner, { x, y, z }) {
+  if (panner.positionX) {
+    panner.positionX.setTargetAtTime(x, ctx.currentTime, 0.05);
+    panner.positionY.setTargetAtTime(y, ctx.currentTime, 0.05);
+    panner.positionZ.setTargetAtTime(z, ctx.currentTime, 0.05);
+  } else {
+    panner.setPosition(x, y, z);
+  }
+}
 
 // --- The night forest ---------------------------------------------------------------------
 // Low wind through the trunks, a creak now and then, soft knocking far off, and
@@ -81,31 +125,7 @@ function night() {
     p.connect(send);
     send.connect(echo);
   }
-  function envelope(t, vol, attack, hold, release) {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(vol, t + attack);
-    g.gain.setValueAtTime(vol, t + attack + hold);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
-    return g;
-  }
-  function burst(dest, t, { filter, freq, q = 1, vol, attack = 0.005, hold = 0, release }) {
-    const src = ctx.createBufferSource();
-    src.buffer = noiseBuffer;
-    const f = ctx.createBiquadFilter();
-    f.type = filter;
-    f.frequency.value = freq;
-    f.Q.value = q;
-    const g = envelope(t, vol, attack, hold, release);
-    src.connect(f);
-    f.connect(g);
-    g.connect(dest);
-    src.start(t, Math.random() * 0.5);
-    src.stop(t + attack + hold + release + 0.05);
-  }
-  const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-  const d = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const { envelope, burst } = helpers(ctx);
 
   // Wood groaning: a slow buzz (stick and slip) whose rate rises and falls, through a
   // narrow band.
@@ -196,14 +216,7 @@ function night() {
         if (circler.step <= 0) { footstep(); circler.step = rnd(0.45, 0.75); }
       }
       const r = 8 + 3 * Math.sin(circler.t * 0.07);
-      const x = p.x + Math.cos(circler.a) * r, y = p.y - 1.2, z = p.z + Math.sin(circler.a) * r;
-      if (panner.positionX) {
-        panner.positionX.setTargetAtTime(x, ctx.currentTime, 0.05);
-        panner.positionY.setTargetAtTime(y, ctx.currentTime, 0.05);
-        panner.positionZ.setTargetAtTime(z, ctx.currentTime, 0.05);
-      } else {
-        panner.setPosition(x, y, z);
-      }
+      moveTo(ctx, panner, { x: p.x + Math.cos(circler.a) * r, y: p.y - 1.2, z: p.z + Math.sin(circler.a) * r });
 
       creakIn -= dt;
       if (creakIn <= 0) { creak(); creakIn = rnd(6, 14); }
@@ -216,6 +229,126 @@ function night() {
         for (const s of running) s.stop();
         out.disconnect();
         echo.disconnect();
+      }, fade * 1000 + 300);
+    },
+  };
+}
+
+// --- The bog ---------------------------------------------------------------------------
+// By the savanna's river, under its soundtrack: the murky water moving, insects whirring in
+// the reeds, frogs, slow drips and gurgles. It all comes from the nearest stretch of the
+// river (source(camera position) gives the point), so it is loudest on its banks and fades
+// away over the grass.
+function bog(source) {
+  const ctx = kit.ctx();
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0, ctx.currentTime);
+  out.gain.setTargetAtTime(LEVEL * 0.8, ctx.currentTime, 1.5);
+  out.connect(kit.music());
+  const { envelope, burst } = helpers(ctx);
+  const running = [];
+  const keep = (node) => { running.push(node.source ?? node); return node; };
+  const panner = new PannerNode(ctx, { panningModel: 'HRTF', distanceModel: 'linear', refDistance: 6, maxDistance: 80 });
+  panner.connect(out);
+
+  // The water: a low, slow murmur of moving murk.
+  const water = ctx.createGain();
+  water.gain.value = 0.6;
+  water.connect(panner);
+  keep(kit.wobble(water.gain, 0.07, 0.25));
+  const murk = keep(kit.noiseInto(water, 'lowpass', 240, 0.8));
+  keep(kit.wobble(murk.frequency, 0.05, 80));
+
+  // Insects: two dry trills in the reeds, swelling and fading.
+  for (const [freq, rate, vol] of [[4600, 27, 0.05], [6900, 13, 0.03]]) {
+    const level = ctx.createGain();
+    level.gain.value = vol;
+    level.connect(panner);
+    keep(kit.wobble(level.gain, rnd(0.08, 0.2), vol * 0.8));
+    const trill = ctx.createGain();
+    trill.gain.value = 0.5;
+    trill.connect(level);
+    keep(kit.wobble(trill.gain, rate, 0.5));
+    keep(kit.noiseInto(trill, 'bandpass', freq, 7));
+  }
+
+  // A frog: a few rough, nasal pulses (rib-bit), sometimes answered by another lower down.
+  function croak(t, rate, n) {
+    for (let i = 0; i < n; i++) {
+      const at = t + i * rnd(0.14, 0.22), dur = rnd(0.06, 0.12);
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(rate, at);
+      o.frequency.linearRampToValueAtTime(rate * 0.8, at + dur);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = rnd(500, 850);
+      f.Q.value = 5;
+      const g = envelope(at, 0.35, 0.01, dur, 0.05);
+      o.connect(f);
+      f.connect(g);
+      g.connect(panner);
+      o.start(at);
+      o.stop(at + dur + 0.1);
+    }
+  }
+  // A drip: a small plink, rising.
+  function drip(t) {
+    const o = ctx.createOscillator(), f = rnd(900, 1600);
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.06);
+    const g = envelope(t, 0.12, 0.002, 0, 0.12);
+    o.connect(g);
+    g.connect(panner);
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+  // A gurgle: bubbles coming up in a quick run, and a soft glug under them.
+  function gurgle(t) {
+    for (let i = 0, n = 3 + Math.floor(Math.random() * 4); i < n; i++) {
+      const at = t + i * rnd(0.05, 0.13), o = ctx.createOscillator(), f = rnd(140, 380);
+      o.frequency.setValueAtTime(f, at);
+      o.frequency.exponentialRampToValueAtTime(f * rnd(1.6, 2.4), at + 0.05);
+      const g = envelope(at, 0.18, 0.004, 0, 0.07);
+      o.connect(g);
+      g.connect(panner);
+      o.start(at);
+      o.stop(at + 0.15);
+    }
+    burst(panner, t, { filter: 'lowpass', freq: 220, vol: 0.4, attack: 0.03, release: 0.25 });
+  }
+
+  let frogIn = rnd(2, 6), dripIn = rnd(1, 3), gurgleIn = rnd(5, 10), quiet = 0;
+  // Some of it is captioned, when he is near the water (quiet: seconds before the next one).
+  const caption = (text, near) => {
+    if (near && quiet <= 0 && Math.random() < 0.5) { subtitle(text, 2.5); quiet = 25; }
+  };
+  return {
+    name: 'bog',
+    update(dt, camera) {
+      const at = source?.(camera.position);
+      if (at) moveTo(ctx, panner, at);
+      const near = !!at && Math.hypot(at.x - camera.position.x, at.z - camera.position.z) < 30;
+      const t = ctx.currentTime;
+      quiet -= dt;
+      if ((frogIn -= dt) <= 0) {
+        croak(t, rnd(30, 45), 2 + Math.floor(Math.random() * 2));
+        if (Math.random() < 0.4) croak(t + rnd(0.6, 1.2), rnd(20, 28), 2); // another answers, lower
+        caption('[frogs croak in the bog]', near);
+        frogIn = rnd(3, 9);
+      }
+      if ((dripIn -= dt) <= 0) { drip(t); dripIn = rnd(0.8, 3.5); }
+      if ((gurgleIn -= dt) <= 0) {
+        gurgle(t);
+        caption('[the bog gurgles]', near);
+        gurgleIn = rnd(6, 14);
+      }
+    },
+    stop(fade) {
+      out.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
+      setTimeout(() => {
+        for (const s of running) s.stop();
+        out.disconnect();
       }, fade * 1000 + 300);
     },
   };

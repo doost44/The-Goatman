@@ -143,6 +143,7 @@
       "wind": { "volume": 1.1, "pitch": 0.95 },
       "speed": 1,
       "soundscape": { "file": "assets/audio/savanna-long-loop.m4a", "volume": 0.6 },
+      "ambience": "bog",
       "spawns": {
         "start": { "at": [8, 0, 62], "yaw": 0, "ride": "walkingThing", "walkOn": 5 }
       },
@@ -151,9 +152,9 @@
       "bounds": 130,
       "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
       "terrain": {
-        "shape": "disc", "radius": 220, "segments": [64, 28],
-        "hills": [[60, 30, 40, 4], [-70, -20, 45, 5], [45, -95, 35, 3], [-55, 85, 40, 4]],
-        "flat": [[-6, -34, 22], [8, -24, 9], [8, 62, 14]],
+        "shape": "disc", "radius": 220, "segments": [256, 96],
+        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4]],
+        "flat": [[-6, -34, 22], [8, 62, 14]],
         "rim": [135, 205, 14],
         "mottle": [0.35, 0.03],
         "noise": 0.6, "noiseScale": 0.05, "tile": 4,
@@ -165,16 +166,25 @@
         "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 160, "depth": 20, "height": 32, "ground": 215,
         "columns": 384, "repeat": 12, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -160, 52]]
       },
-      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "height": 28, "thick": 0.35, "cards": 4, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15 },
-      "pool": { "at": [8, -24], "radius": 3, "texture": "assets/savanna/pool.png" },
+      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
       "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126]], "width": 3.4 },
+      "river": {
+        "points": [[172, 30], [136, 22], [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40],
+          [-34, -58], [-16, -68], [6, -70], [28, -76], [48, -92], [62, -114], [70, -140], [78, -168]],
+        "width": 18, "depth": 1, "water": 0.4, "margin": 6, "flow": 0.35, "sky": "#3a1220", "seed": 3,
+        "bog": {
+          "reeds": 400, "tussocks": 140, "tussock": "assets/savanna/blades2.png", "scum": 50,
+          "branches": 12, "stumps": 9, "mist": 26, "reach": 135, "seed": 8
+        }
+      },
       "grass": {
         "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
         "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16, "near": 55
       },
       "bushes": {
-        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "height": 4.4, "radius": 2.2,
-        "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6]
+        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "length": 5, "radius": 1.4,
+        "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6],
+        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4
       },
       "exit": { "at": [0, -126], "gap": [0, -168], "gapSize": [70, 44], "pillarSize": [7, 24] },
       "rocks": { "seed": 4, "count": 8 },
@@ -186,14 +196,12 @@
         { "type": "dismount", "mounted": true },
         { "type": "pet", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO PET", "once": "petted" },
         { "type": "ride", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO RIDE" },
-        { "type": "drink", "at": [8, 0, -24], "mounted": false, "radius": 5.4, "look": 50, "prompt": "PRESS E TO DRINK" },
         { "type": "exit", "at": [0, 0, -126], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
       ],
       "outcomes": {
         "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
         "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
         "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
-        "drink": { "edge": 3.3, "hold": 2.5, "shot": [4.2, 0.8, 1.4] },
         "ending": { "ride": "walkingThing", "toward": [0, 0, -168], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
       }
     },

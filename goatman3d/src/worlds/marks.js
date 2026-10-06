@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadSheet, loadTexture, canvas, crunchy, glowTexture, rng } from '../textures.js';
 import { walkPath, drape } from '../terrain.js';
-import { sfx } from '../sound.js';
+import { sfx } from '../sfx.js';
 import { subtitle } from '../hud.js';
 
 // The yellow marks along the bottom of "Background Section 1": small glowing shapes in

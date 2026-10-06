@@ -4,10 +4,14 @@ import * as THREE from 'three';
 //   { shape: "rect", size: [w, d], center: [x, z], segments: [nx, nz] }  or
 //   { shape: "disc", radius, center, segments: [around, rings] }
 //   hills: [[x, z, radius, height], ...]   noise: amplitude   tile: metres per texture repeat
-//   flat: [[x, z, radius], ...] spots kept level (paths, the pool)
+//   flat: [[x, z, radius], ...] spots kept level (under trees, where a level starts)
 //   rim: [from, to, height] the ground rises toward the edge of a disc (foothills)
 //   mottle: [amount, scale] broad darker patches, so the tiled texture repeats less obviously
-// heightAt(x, z) gives the height of the mesh's surface there (used to place props).
+// heightAt(x, z) gives the height of the mesh's surface there (used to place props), and
+// the mesh's userData.surface(x, z) the same, or null off its edge.
+// A level can also pass { reshape(x, z, h), shade(x, z) } to buildTerrain: reshape changes
+// the height (the savanna's river carves its channel), shade tints the ground ([r, g, b]:
+// the river's mud).
 
 // Smooth value noise, so the ground has a few soft lumps without any texture lookups.
 function hash(x, z) {
@@ -47,7 +51,7 @@ export function terrainHeight(t) {
   };
 }
 
-export function buildTerrain(t, material) {
+export function buildTerrain(t, material, { reshape, shade } = {}) {
   const [cx, cz] = t.center ?? [0, 0];
   let geo;
   if (t.shape === 'disc') {
@@ -61,7 +65,8 @@ export function buildTerrain(t, material) {
   geo.rotateX(-Math.PI / 2);
   geo.translate(cx, 0, cz);
 
-  const heightAt = terrainHeight(t);
+  const natural = terrainHeight(t);
+  const heightAt = reshape ? (x, z) => reshape(x, z, natural(x, z)) : natural;
   const pos = geo.attributes.position;
   const uv = geo.attributes.uv;
   const tile = t.tile ?? 8;
@@ -71,39 +76,46 @@ export function buildTerrain(t, material) {
     uv.setXY(i, x / tile, -z / tile); // world-space UVs: the texture tiles evenly on any shape
   }
   geo.computeVertexNormals();
-  if (t.mottle) {
-    const [amount, scale] = t.mottle;
+  if (t.mottle || shade) {
+    const [amount, scale] = t.mottle ?? [0, 1];
     const colors = [];
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i) * scale, z = pos.getZ(i) * scale;
       const n = 0.65 * valueNoise(x + 31.7, z - 17.3) + 0.35 * valueNoise(x * 2.3 - 5.1, z * 2.3 + 8.9);
       const k = 1 - amount * (0.5 + 0.5 * n);
-      colors.push(k, k, k);
+      const [r, g, b] = shade ? shade(pos.getX(i), pos.getZ(i)) : [1, 1, 1];
+      colors.push(k * r, k * g, k * b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     material.vertexColors = true;
   }
   const mesh = new THREE.Mesh(geo, material);
-  const surface = t.shape === 'disc' ? discSurface(t, heightAt) : gridSurface(t, heightAt);
-  mesh.userData.heightAt = surface;
+  const surface = t.shape === 'disc' ? discSurface(t, heightAt) : gridSurface(t, pos);
+  // What player.js stands him on: the height where there is ground, null off its edge
+  // (quicker than raycasting thousands of triangles every frame).
+  const inside = t.shape === 'disc'
+    ? (x, z) => Math.hypot(x - cx, z - cz) <= t.radius
+    : (x, z) => Math.abs(x - cx) <= t.size[0] / 2 && Math.abs(z - cz) <= t.size[1] / 2;
+  mesh.userData.surface = (x, z) => (inside(x, z) ? surface(x, z) : null);
   return { mesh, heightAt: surface };
 }
 
 // On a rect the ground between the vertices is flat triangles, which can sit a little
 // above or below the smooth height: this gives the triangles' own height, so small
-// things (marks, pebbles) sit exactly on it instead of sinking in.
-function gridSurface(t, heightAt) {
+// things (marks, pebbles) sit exactly on it instead of sinking in. The corners' heights
+// are read back from the mesh (row by row along z), so it is quick enough to call often.
+function gridSurface(t, pos) {
   const [cx, cz] = t.center ?? [0, 0];
   const [w, d] = t.size;
   const [nx, nz] = t.segments ?? [Math.ceil(w / 4), Math.ceil(d / 4)];
   const sx = w / nx, sz = d / nz;
+  const corner = (ix, iz) => pos.getY(iz * (nx + 1) + ix);
   return (x, z) => {
     const u = THREE.MathUtils.clamp((x - cx + w / 2) / sx, 0, nx - 1e-6);
     const v = THREE.MathUtils.clamp((z - cz + d / 2) / sz, 0, nz - 1e-6);
     const ix = Math.floor(u), iz = Math.floor(v);
     const fu = u - ix, fv = v - iz;
-    const x0 = cx - w / 2 + ix * sx, z0 = cz - d / 2 + iz * sz;
-    const a = heightAt(x0, z0), b = heightAt(x0, z0 + sz), c = heightAt(x0 + sx, z0 + sz), e = heightAt(x0 + sx, z0);
+    const a = corner(ix, iz), b = corner(ix, iz + 1), c = corner(ix + 1, iz + 1), e = corner(ix + 1, iz);
     // PlaneGeometry splits each square along the b-e diagonal
     return fu + fv <= 1 ? a + (e - a) * fu + (b - a) * fv : c + (b - c) * (1 - fu) + (e - c) * (1 - fv);
   };

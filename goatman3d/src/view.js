@@ -28,6 +28,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
   const ray = new THREE.Raycaster();
   const orbit = new THREE.Euler(0, 0, 0, 'YXZ');
   let blockers = []; // what the chase camera can't see through
+  let terrain = []; // ground that knows its own height (userData.surface), checked along the way
   let lights = null; // the level's ambient and sun, for the arms
   let blend = settings.camera === 'third' ? 1 : 0; // 0 first person .. 1 third person
   let reach = DIST; // chase distance, shortened when something is in the way
@@ -58,7 +59,15 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
     ray.set(follow, dir.divideScalar(len));
     ray.far = len;
     const hit = ray.intersectObjects(blockers, false)[0];
-    const want = hit ? Math.max(0.5, hit.distance - 0.3) : len;
+    let want = hit ? Math.max(0.5, hit.distance - 0.3) : len;
+    // The terrain: a few points along the way, quicker than a ray through its triangles.
+    for (let d = 0.5; d < want; d += 0.25) {
+      chasePos.copy(follow).addScaledVector(dir, d);
+      if (terrain.some((o) => (o.userData.surface(chasePos.x, chasePos.z) ?? -Infinity) > chasePos.y - 0.2)) {
+        want = Math.max(0.5, d - 0.3);
+        break;
+      }
+    }
     // Pull in at once, ease back out.
     reach = want < reach ? want : reach + (want - reach) * (1 - Math.exp(-dt * 3));
     return chasePos.copy(follow).addScaledVector(dir, reach);
@@ -76,7 +85,8 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       gm.reset();
       gm.setGrade(def.grade);
       lights = world.lights;
-      blockers = [...(world.blockers ?? []), ...world.ground];
+      terrain = world.ground.filter((o) => o.userData.surface);
+      blockers = [...(world.blockers ?? []), ...world.ground.filter((o) => !o.userData.surface)];
       yaw = head.rotation.y;
       reach = DIST;
     },

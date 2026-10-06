@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { glowTexture } from './textures.js';
-import { sfx, loopsLevel } from './sound.js';
+import { loopsLevel } from './sound.js';
+import { sfx } from './sfx.js';
 import { fadeTo, shake, showMessage, subtitle } from './hud.js';
 import { settings } from './options.js';
 

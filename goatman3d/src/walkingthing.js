@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { loadSheet, loadTexture } from './textures.js';
-import { sfx } from './sound.js';
+import { sfx } from './sfx.js';
 import { shake, subtitle } from './hud.js';
 import { pushOut } from './player.js';
+import { addActions } from './walkingthing-acts.js';
 import { BODY_ROWS, bodyGeometry, legTexture, hull, createShadow } from './walkingthing-body.js';
 import { THIGH, SHIN, PASTERN, createLeg, placeLeg, springLeg } from './walkingthing-legs.js';
 
@@ -13,7 +14,8 @@ import { THIGH, SHIN, PASTERN, createLeg, placeLeg, springLeg } from './walkingt
 // ground and lift. The walk keeps the painting's rhythm: one stride cycle is its 11
 // drawings, and the body tips the way it does in them; it dips and sways onto each foot as
 // it lands. The dark outlines are back faces drawn a little bigger ("inverted hulls"), like
-// the painted line round the body and down the legs.
+// the painted line round the body and down the legs. Its scripted moves (kneeling, the
+// stomp, a rider climbing on and off) are in walkingthing-acts.js.
 //
 // levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, ... }
 // and for riding it: rideSpeed, hurry (Shift: rideSpeed times this), turn (radians a second).
@@ -131,6 +133,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     leg.squashVel += 8;
     const d = camera.position.distanceTo(leg.at);
     sfx.thud(clamp(1.4 - d / 45, 0.15, 1.3), pan(leg.at));
+    thing.onStep?.(leg.at); // the level's own (a splash in the savanna's bog)
     const riding = player.mount === thing ? 0.35 : 1;
     shake(clamp(0.55 - d / 70, 0, 0.55) * riding * (def.shake ?? 1));
   }
@@ -149,8 +152,8 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       rest -= dt;
       if (rest <= 0) {
         const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * def.wander;
-        target = new THREE.Vector3(home.x + Math.cos(a) * r, 0, home.z + Math.sin(a) * r);
-        rest = rnd(3, 8);
+        const x = home.x + Math.cos(a) * r, z = home.z + Math.sin(a) * r;
+        if (!thing.wet?.(x, z)) { target = new THREE.Vector3(x, 0, z); rest = rnd(3, 8); } // not into the water
       }
       return 0;
     }
@@ -200,7 +203,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
 
     speed += (want - speed) * Math.min(1, dt * 1.5);
     pos.addScaledVector(fwd, speed * dt);
-    pushOut(pos, thing.avoid, 0); // the level's no-go areas: the tree's canopy, the pool, the edge
+    pushOut(pos, thing.avoid, 0); // the level's no-go areas: the tree's canopy, the edge
     pos.y = heightAt(pos.x, pos.z);
 
     // The stride: a foot sets off at the start of each half of the cycle (at once when it
@@ -272,6 +275,8 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     group,
     colliders,
     avoid: [], // colliders it keeps out of (set by the level)
+    wet: null, // (x, z): is there water there, so it doesn't wander into it (set by the level)
+    onStep: null, // (foot): a foot has come down (set by the level)
     talkPoint: new THREE.Vector3(),
     stopped: false, // talking: it stands and looks at him
     pace: 1,
@@ -279,102 +284,10 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     get heading() { return heading; },
     get body() { return body; },
     get sway() { return body.rotation.z; }, // rolling from foot to foot (the rider's view rolls too)
+    feet: legs.map((leg) => leg.at), // where its feet are (the willow's tendrils part round them)
+    get hips() { return body.position.y; },
     // Where a rider kneels: on top of its back, just in front of the pale block.
     seat(out) { return body.localToWorld(out.set(0, backTop - 2 * m, 2 * m)); },
-    // Scripted: down onto its knees, back up, and off somewhere.
-    kneel(time) {
-      mode = 'script';
-      target = null;
-      const from = crouch;
-      sfx.groan(pan(body.position));
-      subtitle('[the Walking Thing kneels, creaking]', 3);
-      return tween(time, (t) => { crouch = from + (1 - from) * ease(t); });
-    },
-    rise(time) {
-      const from = crouch;
-      sfx.groan(pan(body.position), 0.8);
-      return tween(time, (t) => { crouch = from * (1 - ease(t)); });
-    },
-    walkTo(point, pace = 1) {
-      mode = 'script';
-      target = new THREE.Vector3(...point);
-      thing.pace = pace;
-    },
-    wait: (time) => tween(time, () => {}), // seconds of game time
-    // The squash: it rears back and lifts the leg nearest him high over his head, its foot
-    // swelling, then brings it down on him.
-    async raiseFoot(over, time, size) {
-      mode = 'script';
-      target = null;
-      const leg = legs.reduce((a, b) => (a.at.distanceTo(over) < b.at.distanceTo(over) ? a : b));
-      const from = leg.at.clone();
-      const top = over.clone().add(v.copy(over).sub(pos).setY(0).normalize().multiplyScalar(-1.5)).setY(over.y + 9 * k);
-      leg.held = leg.at.clone();
-      thing.stomping = leg;
-      return tween(time, (t) => {
-        const e = ease(t);
-        leg.held.lerpVectors(from, top, e);
-        leg.held.y += Math.sin(Math.PI * e) * 3 * k;
-        leg.grow = 1 + (size - 1) * e;
-        rear = e;
-      });
-    },
-    dropFoot(onto, time) {
-      const leg = thing.stomping;
-      const from = leg.held.clone();
-      sfx.whistle(time);
-      return tween(time, (t) => {
-        leg.held.lerpVectors(from, onto, t * t); // falling faster and faster
-        rear = 1 - t * 0.7;
-      });
-    },
-    // After: the foot slowly lifting off him again, still huge.
-    liftFoot(at, time) {
-      const leg = thing.stomping;
-      const y = heightAt(at.x, at.z);
-      return tween(time, (t) => {
-        leg.held.set(at.x, y + 0.5 + 4.5 * k * ease(t), at.z);
-        rear = 0.3 * (1 - t);
-      });
-    },
-    nearestFoot(p) {
-      return legs.reduce((a, b) => (a.at.distanceTo(p) < b.at.distanceTo(p) ? a : b)).at.clone();
-    },
-    // Climbing on: up from where he stands to its back, turning to look out over its head,
-    // then it carries him (player.mount).
-    climbOn(rider, time) {
-      const start = rider.pos.clone(), end = new THREE.Vector3();
-      let t = 0;
-      rider.mount = {
-        heading: thing.heading,
-        look: -0.3, // the view eases round to its heading, looking down a little (player.js)
-        seat(out) {
-          thing.seat(end);
-          out.lerpVectors(start, end, ease(t));
-          out.y += Math.sin(Math.PI * t) * 2;
-          return out;
-        },
-      };
-      return tween(time, (now) => { t = now; }).then(() => { rider.mount = thing; });
-    },
-    // Climbing down: from its back to `ahead` metres in front of it, turning round on the
-    // way to face it.
-    climbOff(rider, ahead, time) {
-      const start = thing.seat(new THREE.Vector3());
-      const end = pos.clone().addScaledVector(fwd, ahead);
-      end.y = heightAt(end.x, end.z);
-      let t = 0;
-      rider.mount = {
-        heading: heading + Math.PI,
-        look: 0.1,
-        seat(out) {
-          out.lerpVectors(start, end, ease(t));
-          out.y += Math.sin(Math.PI * t) * 1.5;
-          return out;
-        },
-      };
-      return tween(time, (now) => { t = now; }).then(() => { rider.mount = null; });
-    },
     // Carrying him where he steers it (player.js calls steer() with his keys every frame).
     carry(rider, walkOn = 0) {
       mode = 'ridden';
@@ -404,17 +317,14 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       target = null;
       home.copy(pos);
     },
-    // Petted: it kneels and lowers its head to him, stays a moment, then gets up again.
-    async nuzzle(time) {
-      mode = 'script';
-      target = null;
-      const from = crouch;
-      await tween(time * 0.4, (t) => { crouch = from + (1 - from) * ease(t); rear = -0.8 * ease(t); });
-      await tween(time * 0.2, () => {});
-      await tween(time * 0.4, (t) => { crouch = 1 - ease(t); rear = -0.8 * (1 - ease(t)); });
-      thing.settle();
-    },
+    // Its insides, for the scripted moves (walkingthing-acts.js).
+    get mode() { return mode; }, set mode(x) { mode = x; },
+    get target() { return target; }, set target(p) { target = p; },
+    get crouch() { return crouch; }, set crouch(x) { crouch = x; },
+    get rear() { return rear; }, set rear(x) { rear = x; },
+    legs, pos, fwd, pan, tween,
   };
+  addActions(thing, { heightAt, k });
   // Start standing, feet planted.
   axes();
   for (const leg of legs) stance(leg, 0, leg.at);
