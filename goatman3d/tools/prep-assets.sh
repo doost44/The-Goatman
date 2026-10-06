@@ -257,34 +257,32 @@ dur() { ffprobe -v error -show_entries format=duration -of csv=p=0 "$1" | awk '{
 edge() { "${FF[@]/error/info}" -ss "$2" -t 0.5 -i "$1" -af volumedetect -f null - 2>&1 | grep -o 'mean_volume: [-0-9.]*' | cut -d' ' -f2; }
 AUDIO_REPORT="$TMP/audio.md"
 : > "$AUDIO_REPORT"
+# The raw tracks are only cut out to be measured and looped; the game plays the loops
+# (the cutscene videos carry their own sound).
 extract() {
-  local name=$1 src=$2 why=$3
-  "${FF[@]}" -i "$src" -map 0:a:0 -vn -c:a copy "$OUT/audio/$name.m4a"
+  local name=$1 src=$2
+  "${FF[@]}" -i "$src" -map 0:a:0 -vn -c:a copy "$TMP/$name.m4a"
   local d s e
-  d=$(dur "$OUT/audio/$name.m4a"); s=$(edge "$OUT/audio/$name.m4a" 0); e=$(edge "$OUT/audio/$name.m4a" "$(awk -v d="$d" 'BEGIN{print d-0.5}')")
+  d=$(dur "$TMP/$name.m4a"); s=$(edge "$TMP/$name.m4a" 0); e=$(edge "$TMP/$name.m4a" "$(awk -v d="$d" 'BEGIN{print d-0.5}')")
   echo "| $name.m4a | ${d} s | start ${s} dB, end ${e} dB |" >> "$AUDIO_REPORT"
-  note "$OUT/audio/$name.m4a" "${src#"$ROOT"/}" "$why (${d} s)"
 }
 # A seamless loop: the last X seconds are crossfaded into the first X, so the end flows into
 # the start. An optional filter is applied first (evening out a track's loudness).
 loopify() {
-  local name=$1 x=${2:-3} pre=${3:+$3,}
-  "${FF[@]}" -i "$OUT/audio/$name.m4a" -i "$OUT/audio/$name.m4a" -filter_complex \
+  local name=$1 src=$2 why=$3 x=${4:-3} pre=${5:+$5,}
+  extract "$name" "$src"
+  "${FF[@]}" -i "$TMP/$name.m4a" -i "$TMP/$name.m4a" -filter_complex \
     "[0:a]${pre}atrim=start=$x,asetpts=PTS-STARTPTS[rest];[1:a]${pre}atrim=end=$x,asetpts=PTS-STARTPTS[head];[rest][head]acrossfade=d=$x:c1=tri:c2=tri" \
     -c:a aac -b:a 128k "$OUT/audio/$name-loop.m4a"
-  echo "| $name-loop.m4a | $(dur "$OUT/audio/$name-loop.m4a") s | ${x} s crossfade, seamless${3:+, loudness evened} |" >> "$AUDIO_REPORT"
-  note "$OUT/audio/$name-loop.m4a" "audio/$name.m4a" "seamless loop (${x} s crossfade${3:+, loudness evened}), the one the game plays"
+  local d; d=$(dur "$OUT/audio/$name-loop.m4a")
+  echo "| $name-loop.m4a | ${d} s | ${x} s crossfade, seamless${5:+, loudness evened} |" >> "$AUDIO_REPORT"
+  note "$OUT/audio/$name-loop.m4a" "${src#"$ROOT"/}" "$why: seamless loop (${x} s crossfade${5:+, loudness evened}, ${d} s)"
 }
-extract title "$IMG/Goatman Title Screen.mp4" "title video soundtrack"
-extract field "$IMG/GROUND.mp4" "red field soundscape"
-extract savanna "$IMG/savanaScene.mp4" "savanna soundscape (short)"
-extract savanna-long "$SV/ground1.mp4" "savanna soundscape (long)"
-extract finale "$IMG/Savana scene trigger.mp4" "finale soundtrack"
-loopify field 3
-loopify savanna 3
+loopify field "$IMG/GROUND.mp4" "red field soundscape"
+loopify savanna "$IMG/savanaScene.mp4" "savanna soundscape, short (not used; the other choice)"
 # The long savanna track is much louder in the middle: evened out (about 5 LU of range
 # instead of 16) so it can sit under the game without riding the volume.
-loopify savanna-long 3 "loudnorm=I=-22:LRA=3:TP=-3,aresample=48000"
+loopify savanna-long "$SV/ground1.mp4" "savanna soundscape, long (the one the game plays)" 3 "loudnorm=I=-22:LRA=3:TP=-3,aresample=48000"
 
 # --- 6. Cutscene video ---------------------------------------------------------------------
 echo "Video..."
