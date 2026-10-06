@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EYE } from './player.js';
 import { showMessage, showPrompt, showHint } from './hud.js';
+import { createNightVision } from './nightvision.js';
 
 // Admin mode, for working on the levels. main.js only loads this module when the page's
 // address has ?admin, so the public game never sees it. ` (backquote) turns it on and off.
@@ -9,6 +10,7 @@ import { showMessage, showPrompt, showHint } from './hud.js';
 //   W/S fly along the view, A/D sideways, Space up, C or Q down, Shift 4x, wheel: speed
 //   1 2 3 forest, field, savanna · 4 the finale · F fog · T night (savanna) · Y petted
 //   H hide the HUD and arms · K copy the position
+// N night vision (the forest), flying or not.
 
 const SPEEDS = [2, 5, 10, 20, 40]; // metres a second, picked with the mouse wheel
 const LEVELS = { Digit1: 'forest', Digit2: 'field', Digit3: 'savanna' };
@@ -22,6 +24,7 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
   box.className = 'box hidden';
   document.getElementById('hud').append(box);
   renderer.info.autoReset = false; // the world and the arms are two renders: count both
+  const nightVision = createNightVision({ renderer, scene, levels });
 
   let on = false;
   let speed = 2; // index into SPEEDS
@@ -100,6 +103,7 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
       if (on) stop(); else start();
       return;
     }
+    if (e.code === 'KeyN') nightVision.toggle();
     if (!on) return;
     if (LEVELS[e.code]) { night = null; levels.go(LEVELS[e.code]); }
     else if (e.code === 'Digit4') { stop(); story.run({ type: 'exit', to: 'finale' }); }
@@ -115,6 +119,7 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
 
   return {
     get on() { return on; },
+    nightVision, // main.js draws the frame through it
     // Instead of player.update while it is on: fly where he looks.
     fly(dt) {
       if (player.mount && !levels.busy) liftOff(); // a level that starts on the Walking Thing's back
@@ -137,6 +142,7 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
     },
     // Every frame: the readout, and the fog kept off.
     update(dt) {
+      nightVision.update(dt);
       calls = renderer.info.render.calls;
       renderer.info.reset();
       if (on && !playing()) { on = false; view.forceFirst = false; setClean(false); fogOff = false; } // the story ended
@@ -153,7 +159,7 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
         `FLY ${SPEEDS[speed]} M/S${fogOff ? ' · NO FOG' : ''}${night !== null ? ' · NIGHT' : ''}`,
         `${Math.round(fps)} FPS · ${calls} DRAW CALLS`,
         '1 2 3 LEVELS · 4 FINALE · F FOG · T NIGHT',
-        'Y PETTED · H HIDE · K COPY · ` OFF',
+        `Y PETTED · H HIDE · K COPY${nightVision.here ? ' · N NIGHT VISION' : ''} · \` OFF`,
       ].join('\n');
     },
   };

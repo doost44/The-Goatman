@@ -170,7 +170,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && controls.isLocked) controls.unlock();
   if (state !== 'play') return;
   if (e.code === 'KeyV') options.toggleCamera();
-  if (e.code === 'KeyP') capturePNG({ renderer, scene, camera, caption: levels.def?.title ?? '', beforeRender: levels.world?.beforeRender });
+  if (e.code === 'KeyP') capturePNG({ renderer, scene, camera, caption: levels.def?.title ?? '', beforeRender: levels.world?.beforeRender, nightVision: admin?.nightVision });
 });
 
 // --- The loop ----------------------------------------------------------------------
@@ -194,7 +194,8 @@ renderer.setAnimationLoop(() => {
   updateHud(dt);
   if (state === 'play') {
     levels.world?.beforeRender?.(camera); // the camera is placed: big levels pick what is in view (the woods, the grass)
-    view.render();
+    if (admin) admin.nightVision.render(() => view.render()); // through night vision, if it is on
+    else view.render();
   }
   if (state !== 'play') title.update(dt); // the start screen, still turning while it fades out
 });

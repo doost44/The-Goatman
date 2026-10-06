@@ -82,7 +82,9 @@ export async function buildForest(def, { scene, camera, player }) {
     // Once the camera is placed for the frame: only the wood it can see is drawn.
     beforeRender() {
       dome.position.copy(camera.position); // always the same far away
-      scatter.reach = scene.fog?.far > 1e3 ? 300 : def.woods.reach; // the whole forest with the fog off (admin mode)
+      // As far as the fog lets him see: further with night vision, the whole forest with the fog off (admin mode).
+      const far = scene.fog?.far ?? def.fog.far;
+      scatter.reach = far > 1e3 ? 300 : def.woods.reach * Math.max(1, far / def.fog.far);
       scatter.update(camera);
     },
   };
