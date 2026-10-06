@@ -83,6 +83,9 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
     dissolve(time) {
       return new Promise((resolve) => { dissolving = { rate: 1 / time, resolve }; });
     },
+    beforeRender(camera) {
+      grass.scatter.update(camera);
+    },
     update(dt, t) {
       world.time += dt;
       const k = THREE.MathUtils.smoothstep(world.time, 0, def.dusk.time);
@@ -90,6 +93,7 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
       sky.material.color.setScalar(dim);
       treeline.material.color.setScalar(dim);
       stars.material.opacity = k * def.dusk.stars;
+      stars.visible = stars.material.opacity > 0.005; // see-through things cost as much to draw as solid ones
       scene.fog?.color.copy(fog).multiplyScalar(dim);
       lights.ambient.intensity = def.ambient.intensity * (0.4 + 0.6 * dim);
       lights.sun.intensity = def.sun.intensity * dim;
@@ -108,12 +112,13 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
       }
       treeline.material.emissive.setScalar(white);
       veil.material.opacity = white ** 1.3;
+      veil.visible = white > 0;
       sky.position.copy(camera.position); // always as far away
       stars.position.copy(camera.position);
       veil.position.copy(camera.position);
       stars.rotation.y = world.time * 0.004; // the night sky turning, very slowly
 
-      grass.update(t, camera.position);
+      grass.update(t);
       water.update(dt, t, dim);
       bog.update(dt, t, dim, k);
       // GoatMan and the Walking Thing's feet push through the willow's tendrils.

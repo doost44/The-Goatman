@@ -29,7 +29,7 @@
       "respawn": [0, 0, 2],
       "voidY": -50,
       "terrain": {
-        "shape": "rect", "size": [580, 580], "center": [-6, -70], "segments": [116, 116],
+        "shape": "rect", "size": [580, 580], "center": [-6, -70], "segments": [80, 80],
         "noise": 0.6, "noiseScale": 0.08, "rolling": [2.4, 0.022], "hills": [[47, -143, 13, -2.2], [-66, -67, 11, 1.4]],
         "tile": 5, "texture": "assets/forest/floor.png", "tint": [1.15, 0.75, 0.7]
       },
@@ -199,7 +199,7 @@
       },
       "grass": {
         "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
-        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16, "near": 55
+        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16
       },
       "bushes": {
         "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "length": 5, "radius": 1.4,

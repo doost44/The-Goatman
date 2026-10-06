@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
 // Thousands of copies of a few things spread over a big level (the forest's trunks, roots,
-// fallen trunks, undergrowth and stones), drawn only where the camera can see them. Each kind
-// of thing is one InstancedMesh, refilled whenever the camera moves or turns with the copies
-// within `reach` (the fog hides everything further) that are in its view, so the whole forest
-// is a draw call per kind with a few hundred copies in each.
+// fallen trunks, undergrowth and stones, the savanna's grass), drawn only where the camera can
+// see them. Each kind of thing is one InstancedMesh, refilled whenever the camera moves or
+// turns with the copies within `reach` (the fog hides everything further) that are in its
+// view, so the whole forest is a draw call per kind with a few hundred copies in each.
 //
 // kind(geometry, material) adds a kind of thing and returns its number; add(kind, matrix,
 // color?) puts a copy in (matrix: its place in the world, color: a THREE.Color tint);
@@ -16,8 +16,8 @@ const MARGIN = 0.5; // metres added round each copy when testing whether it is i
 
 export function createScatter({ reach = 45 } = {}) {
   const kinds = []; // { geometry, material, matrices, colors, mesh }
-  // "ix,iz" -> per copy: kind, number, x, z (where it stands), and the middle and radius of
-  // a ball round it (x, y, z, r)
+  // "ix,iz" -> { x, z, copies }: the middle of a square of the grid and, per copy in it: kind,
+  // number, x, z (where it stands), and the middle and radius of a ball round it (x, y, z, r)
   const grid = new Map();
   const meshes = [];
   const frustum = new THREE.Frustum(), ball = new THREE.Sphere(), seen = new THREE.Matrix4(), p = new THREE.Vector3();
@@ -35,12 +35,12 @@ export function createScatter({ reach = 45 } = {}) {
     matrices.push(...matrix.elements);
     colors.push(color?.r ?? 1, color?.g ?? 1, color?.b ?? 1);
     const x = matrix.elements[12], z = matrix.elements[14];
-    const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
-    if (!grid.has(key)) grid.set(key, []);
+    const ix = Math.floor(x / CELL), iz = Math.floor(z / CELL), key = `${ix},${iz}`;
+    if (!grid.has(key)) grid.set(key, { x: (ix + 0.5) * CELL, z: (iz + 0.5) * CELL, copies: [] });
     const { geometry } = kinds[k];
     if (!geometry.boundingSphere) geometry.computeBoundingSphere();
     ball.copy(geometry.boundingSphere).applyMatrix4(matrix);
-    grid.get(key).push(k, copy, x, z, ball.center.x, ball.center.y, ball.center.z, ball.radius);
+    grid.get(key).copies.push(k, copy, x, z, ball.center.x, ball.center.y, ball.center.z, ball.radius);
   }
 
   function done() {
@@ -66,13 +66,10 @@ export function createScatter({ reach = 45 } = {}) {
     for (const K of kinds) K.mesh.count = 0;
     // The squares nearest the camera first, so the nearest copies are drawn first and the
     // graphics card can skip the parts of the ones behind that they hide.
-    const n = Math.ceil(reach / CELL), cx = Math.floor(p.x / CELL), cz = Math.floor(p.z / CELL);
     const cells = [];
-    for (let ix = cx - n; ix <= cx + n; ix++) {
-      for (let iz = cz - n; iz <= cz + n; iz++) {
-        const cell = grid.get(`${ix},${iz}`);
-        if (cell) cells.push([((ix + 0.5) * CELL - p.x) ** 2 + ((iz + 0.5) * CELL - p.z) ** 2, cell]);
-      }
+    for (const cell of grid.values()) {
+      const d2 = (cell.x - p.x) ** 2 + (cell.z - p.z) ** 2;
+      if (d2 < (reach + CELL) ** 2) cells.push([d2, cell.copies]);
     }
     cells.sort((a, b) => a[0] - b[0]);
     for (const [, cell] of cells) {
@@ -103,7 +100,7 @@ export function createScatter({ reach = 45 } = {}) {
 
   const scatter = {
     meshes,
-    reach, // can be changed (admin mode draws the whole forest with the fog off)
+    reach, // can be changed (admin mode draws the whole forest with the fog off); Infinity: all of it
     kind,
     add,
     done,

@@ -193,7 +193,7 @@ renderer.setAnimationLoop(() => {
   updateAmbience(dt, camera);
   updateHud(dt);
   if (state === 'play') {
-    levels.world?.beforeRender?.(camera); // the camera is placed: the forest picks what it can see
+    levels.world?.beforeRender?.(camera); // the camera is placed: big levels pick what is in view (the woods, the grass)
     view.render();
   }
   if (state !== 'play') title.update(dt); // the start screen, still turning while it fades out
