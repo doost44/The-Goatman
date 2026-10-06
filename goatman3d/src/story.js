@@ -86,7 +86,7 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
       await fadeTo(1, 0.5, '#fff');
       thing.moveTo([player.pos.x, 0, player.pos.z], Math.atan2(-(tx - player.pos.x), -(tz - player.pos.z)));
       thing.carry(player);
-      gm.play('kneel', true);
+      gm.play('ride', true);
     }
     thing.avoid = []; // on past the edge of the savanna
     thing.look = o.look; // the view eases round to look where it is going
@@ -170,7 +170,7 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
     await actor.kneel(o.kneel);
     await actor.climbOn(player, o.climb);
     freezeLook(false);
-    gm.play('kneel');
+    gm.play('ride');
     actor.walkTo(o.rideTo, o.pace); // it turns that way as it gets up
     await actor.rise(o.rise);
     await actor.wait(o.ride);
@@ -200,7 +200,7 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
     await thing.kneel(o.kneel);
     await thing.climbOn(player, o.climb);
     freezeLook(false);
-    gm.play('kneel');
+    gm.play('ride');
     await thing.rise(o.rise);
     thing.carry(player);
     story.trust.rides += 1;
