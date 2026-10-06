@@ -17,14 +17,17 @@ const glow = () => glowTexture([[0, 'rgba(255,190,80,0.55)'], [0.4, 'rgba(255,14
 
 // Glowing things shine further through the fog than the rest (fading out from 20 m past
 // where it starts to 16 m past where it hides everything): the fog's own maths, moved back.
-// Added light fades to nothing instead of to the fog colour.
-function glowFog(mat, added = false) {
-  mat.onBeforeCompile = (shader) => {
+// Added light fades to nothing instead of to the fog colour. Keeps any patch the material
+// already has (the mushrooms').
+export function glowFog(mat, added = false) {
+  const before = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+  mat.onBeforeCompile = (shader, renderer) => {
+    before.call(mat, shader, renderer);
     shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
       gl_FragColor.rgb = mix(gl_FragColor.rgb, ${added ? 'vec3(0.0)' : 'fogColor'}, smoothstep(fogNear + 18.0, fogFar + 16.0, vFogDepth));
     #endif`);
   };
-  mat.customProgramCacheKey = () => `glowfog-${added}`;
+  mat.customProgramCacheKey = () => `${key.call(mat)}-glowfog-${added}`;
   return mat;
 }
 
@@ -127,8 +130,9 @@ function eyeTexture(sheet) {
 // in, and a ring of them round the dell where they gather): a few by the path, more the further
 // he strays, all of them in the dell. Each pair is two copies of an instanced eye and one of
 // a glow, so all the eyes draw in two goes.
+// hush: { x, z, radius } where they all shut at once when he gets there, and open again together.
 // levels.json "eyes": { count, want: [by the path, deep in], far, blink, away, shy, range }
-export async function buildEyes(def, spots, path, camera) {
+export async function buildEyes(def, spots, path, camera, hush = null) {
   const sheet = await loadSheet(def.sheet);
   const r = rng(def.seed);
   const mat = glowFog(new THREE.MeshBasicMaterial({ map: eyeTexture(sheet), alphaTest: 0.5, side: THREE.DoubleSide }));
@@ -151,6 +155,7 @@ export async function buildEyes(def, spots, path, camera) {
     pairs.push(pair);
   }
   const dell = spots.filter((s) => s.gather);
+  let hushed = false;
 
   function shut(pair, struck) {
     if (pair.state === 'shut') return;
@@ -200,6 +205,18 @@ export async function buildEyes(def, spots, path, camera) {
       const gathered = dell.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 20);
       const depth = nearestOnPath(path.points, p.x, p.z).d;
       const want = gathered ? def.count : Math.round(THREE.MathUtils.lerp(def.want[0], def.want[1], THREE.MathUtils.smoothstep(depth, 6, 50)));
+      if (hush) {
+        const d = Math.hypot(p.x - hush.x, p.z - hush.z);
+        if (!hushed && d < hush.radius) {
+          hushed = true;
+          const wait = rand(Math.random, [4, 6]);
+          for (const pair of pairs) { shut(pair, false); pair.clock = wait; }
+          sfx.blink(0);
+          subtitle('[every eye shuts at once]', 3);
+        } else if (hushed && d > hush.radius * 3) {
+          hushed = false;
+        }
+      }
       let open = pairs.filter((q) => q.state !== 'shut').length;
       pairs.forEach((pair, i) => {
         pair.clock -= dt;

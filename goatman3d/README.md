@@ -76,7 +76,7 @@ The box in the top right shows the level, the camera's position and yaw, the fly
 
 GoatMan floating in space on the start screen, then four places, as in the original:
 
-1. **The night forest.** Follow the glowing marks or wander off them: the woods go on in every direction and hide a few paths of their own. The way out is a low gap somewhere in the trees, given away by a faint pink light.
+1. **The night forest.** Follow the glowing marks or wander off them: the woods go on in every direction and hide a few paths of their own. The pale trunks all lean toward the way out, a low gap somewhere in the trees given away by a faint pink light. Away from the start, faint glowing mushrooms lead to the hidden places: a ring of standing stones, a hollow trunk to walk through, a fallen giant to climb, and still black ponds to wade in.
 2. **The red field.** Meet the Walking Thing. What you say to it matters.
 3. **The savanna.** Wade the bog, be kind to the Walking Thing, then leave toward the horizon.
 4. **The end.**

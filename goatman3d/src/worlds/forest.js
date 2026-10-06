@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildTerrain, valueNoise, walkPath } from '../terrain.js';
+import { buildTerrain, terrainHeight, valueNoise, walkPath } from '../terrain.js';
 import { loadImage, loadTexture, toCanvas, canvas, crunchy, grade, rng } from '../textures.js';
 import { nearestOnPath } from '../player.js';
 import { createScatter } from './scatter.js';
@@ -8,11 +8,14 @@ import { buildTrunks } from './trunks.js';
 import { buildUndergrowth, buildGrass } from './undergrowth.js';
 import { buildMarks, buildEyes } from './marks.js';
 import { buildGate } from './gate.js';
+import { pondCourse, buildPonds } from './ponds.js';
+import { buildMushrooms } from './mushrooms.js';
+import { buildFinds } from './finds.js';
 
 // Level 1, the night forest, from "Background Section 1.jpg" and fore.png: an open forest of
 // dense dark trunks under a dome of blue burlap, the ground rising and dipping, a path of
-// glowing marks through it with hidden paths off it, and somewhere past its end a gap where
-// the pink light of the red field leaks through. woods.js plans where everything goes, and
+// glowing marks through it with hidden paths off it, still black ponds in its clearings, and
+// somewhere past its end a gap where the pink light of the red field leaks through. woods.js plans where everything goes, and
 // the scatter draws only what is near the camera.
 
 export async function buildForest(def, { scene, camera, player }) {
@@ -30,21 +33,35 @@ export async function buildForest(def, { scene, camera, player }) {
   };
   const floor = await loadTexture(def.terrain.texture, 1);
   const groundMat = new THREE.MeshLambertMaterial({ map: floor, color: new THREE.Color(...def.terrain.tint) });
-  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat, { reshape });
-  group.add(ground);
+  // The ponds lie in finer patches of ground of their own; the coarse ground sinks out of sight under them.
+  const natural = terrainHeight(def.terrain);
+  const course = pondCourse(def.ponds, def.terrain, (x, z) => reshape(x, z, natural(x, z)));
+  const { mesh: ground, heightAt: coarse } = buildTerrain(def.terrain, groundMat, { reshape: (x, z, h) => course.lower(x, z, reshape(x, z, h)) });
+  const heightAt = (x, z) => course.height(x, z) ?? coarse(x, z);
+  const ponds = buildPonds(def.ponds, course, def.terrain, groundMat, camera);
+  group.add(ground, ponds.group);
 
   const gate = await buildGate(def, heightAt, r);
-  const plan = planForest(def, heightAt, r, { keepClear: gate.keepClear, trunks: gate.trunks });
+  const plan = planForest(def, heightAt, r, { keepClear: [...gate.keepClear, ...course.keepClear], trunks: gate.trunks, wet: course.wet });
   const scatter = createScatter({ reach: def.woods.reach });
   const wood = await buildTrunks(plan, scatter, gate.blush);
   buildUndergrowth(plan, scatter, def.undergrowth, r);
+  // Glowing mushrooms leading to the places: the side paths' ends and the ponds.
+  const places = {};
+  for (const p of def.sidePaths) if (p.end) places[p.name] = { x: p.end.at[0], z: p.end.at[1], radius: p.end.radius };
+  for (const p of course.list) places[p.name] = { x: p.x, z: p.z, radius: p.bank };
+  const mushrooms = buildMushrooms(def.mushrooms, {
+    places, start: [def.spawns.start.at[0], def.spawns.start.at[2]], path: def.path, heightAt, scatter, player, clumps: plan.finds.glowAt,
+    blocked: (x, z) => plan.crowded(x, z, 0.2, 0.1) || course.wet(x, z, 0.5) || nearestOnPath(def.path.points, x, z).d < def.path.width / 2,
+  });
   const fog = new THREE.Color(def.fog.color);
   const dome = await buildDome(def.dome, fog, r);
   group.add(...scatter.done(), wood.arches, gate.light, dome, buildGrass(def.grass, def.path, heightAt, r));
 
-  const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15));
-  const eyes = await buildEyes(def.eyes, plan.spots, def.path, camera);
-  group.add(marks.group, eyes.group);
+  const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15) || course.wet(x, z, 0.5));
+  const eyes = await buildEyes(def.eyes, plan.spots, def.path, camera, plan.finds.hush);
+  const finds = buildFinds(plan.finds, { heightAt, mats: wood.mats });
+  group.add(marks.group, eyes.group, finds.group);
 
   // What he can stand on besides the ground: the tops of the fallen trunks.
   const logs = new THREE.Object3D();
@@ -58,13 +75,18 @@ export async function buildForest(def, { scene, camera, player }) {
   const fogNight = new THREE.Color(def.fog.color), fogPink = new THREE.Color(def.exit.fog);
   return {
     group,
-    ground: [ground, logs],
+    ground: [ground, ...ponds.basins, logs],
     colliders,
-    blockers: [...wood.solid.map((k) => scatter.meshes[k]), ...wood.archBlockers],
-    rockTargets: eyes.targets,
+    blockers: [...wood.solid.map((k) => scatter.meshes[k]), ...wood.archBlockers, ...finds.blockers],
+    rockTargets: [...eyes.targets, ...ponds.waters],
     actors: {},
     heightAt,
     pebbles,
+    wet: course.wet,
+    waterDepth: course.depth, // (x, z, y): wading in the ponds
+    splash: ponds.splash, // (x, z, size, sound)
+    // Where the night bed's pond sounds come from (ambience.js): the nearest pond.
+    soundAt: (p) => course.nearest(p.x, p.z),
     scatter,
     solidNear: plan.near, // everything solid within a radius (admin mode's map)
     update(dt, t) {
@@ -75,6 +97,12 @@ export async function buildForest(def, { scene, camera, player }) {
       }
       marks.update(t);
       eyes.update(dt);
+      ponds.update(dt, t, scene.fog?.far ?? def.fog.far);
+      mushrooms.update(t);
+      finds.update(t, player);
+      // Up high (on the propped-up trunk) the fog thins and he sees out over it.
+      const up = smooth(player.pos.y - heightAt(player.pos.x, player.pos.z), 2.5, 8);
+      if (scene.fog && scene.fog.far < 1e3) Object.assign(scene.fog, { near: def.fog.near + up * 10, far: def.fog.far * (1 + up * 1.6) });
       // The pink light seeps into the fog near the way out.
       scene.fog?.color.lerpColors(fogNight, fogPink, gate.near(player.pos) * def.exit.tint);
       fog.copy(scene.fog?.color ?? fogNight);
