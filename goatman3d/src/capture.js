@@ -4,7 +4,7 @@
 
 export const PHOTO_W = 1600, PHOTO_H = 1200;
 
-export function capturePNG({ renderer, scene, camera, caption = '' }) {
+export function capturePNG({ renderer, scene, camera, caption = '', beforeRender }) {
   const prevPR = renderer.getPixelRatio();
   const prevW = renderer.domElement.clientWidth;
   const prevH = renderer.domElement.clientHeight;
@@ -14,6 +14,7 @@ export function capturePNG({ renderer, scene, camera, caption = '' }) {
   renderer.setSize(PHOTO_W / 2, PHOTO_H / 2, false);
   camera.aspect = PHOTO_W / PHOTO_H;
   camera.updateProjectionMatrix();
+  beforeRender?.(camera); // the level picks what to draw for the photo's shape
   renderer.render(scene, camera);
 
   const out = document.createElement('canvas');

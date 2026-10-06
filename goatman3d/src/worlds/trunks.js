@@ -1,91 +1,26 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadImage, loadTexture, canvas, crunchy } from '../textures.js';
-import { walkPath } from '../terrain.js';
-import { nearestOnPath } from '../player.js';
+import { loadImage, loadTexture, canvas, crunchy, toCanvas } from '../textures.js';
+import { limb } from './tealtree.js';
 
-// The night forest's trunks, from fore.png: low-poly bark cylinders, and "extruded cards":
-// Charlie's painted trunk cut-outs given a little thickness, like a cardboard diorama.
-// Hundreds of them are merged into a few meshes per stretch of path so they draw fast.
+// The night forest's wood, from fore.png: low-poly bark cylinders and "extruded cards"
+// (Charlie's painted trunk cut-outs given a little thickness, like a cardboard diorama),
+// the roots round the big trunks, the fallen ones and the ones bent over into arches, and
+// a few of weathered pale dead wood. woods.js says where they all go. Each kind is an
+// instanced mesh in the scatter, so only the ones near the camera are drawn; the arches are
+// one merged mesh.
 
 const SLICE = 8; // pixel rows between the points of a card's outline
 const DEPTH = 0.3; // card thickness, metres
-const CHUNK = 32; // metres of path per merged mesh
-
-const lerp = (a, b, k) => a + (b - a) * k;
-
-// --- Where the trunks go -------------------------------------------------------------------
-// From levels.json "trunks": rows of trunks along both sides of the path, a few leaning hard
-// or arching over it, a few in the way, and a thicket behind the start. Returns one spec
-// per trunk; `near` ones block the camera and (if close enough) the player.
-export function plantTrunks(def, path, heightAt, r, keepClear = []) {
-  const half = path.width / 2;
-  const len = walkPath(path.points, 0.5).at(-1).t;
-  const specs = [];
-
-  // o: anything to force (radius, height, lean, leanDir, card, near). force: skip the
-  // check that keeps the corridor and the keepClear spots open.
-  function add(x, z, o = {}, force = false) {
-    const near = nearestOnPath(path.points, x, z);
-    const card = o.card ?? r() < def.cards;
-    const radius = o.radius ?? lerp(def.radius[0], def.radius[1], r() * r());
-    const room = card ? 0.4 : radius;
-    if (!force && (near.d - room < half + 0.3 || keepClear.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr + room))) return;
-    specs.push({
-      x, z, y: heightAt(x, z) - 0.3, radius, card,
-      height: o.height ?? lerp(def.height[0], def.height[1], r()),
-      // cards turn their painted face to the path
-      yaw: Math.atan2(near.x - x, near.z - z) + (r() - 0.5) * 0.7,
-      leanDir: o.leanDir ?? r() * Math.PI * 2,
-      lean: o.lean ?? r() * def.lean,
-      art: Math.floor(r() * 6),
-      tint: 1.3 + r() * 0.9,
-      near: o.near ?? near.d < 9.5,
-      t: near.t,
-    });
-  }
-
-  for (const [min, max, spacing] of def.rows) {
-    for (const s of walkPath(path.points, spacing, r() * spacing)) {
-      for (const side of [-1, 1]) {
-        const off = side * lerp(min, max, r());
-        const along = (r() - 0.5) * spacing * 0.8;
-        add(s.x + s.nx * off + s.dx * along, s.z + s.nz * off + s.dz * along);
-      }
-    }
-  }
-  // Trunks leaning hard, and a few fallen across the path high enough to walk under.
-  walkPath(path.points, len / def.leaners, 5).forEach((s, i) => {
-    const side = i % 2 ? 1 : -1;
-    add(s.x + s.nx * side * 6, s.z + s.nz * side * 6, { lean: 0.25 + r() * 0.2, card: false });
-  });
-  for (const s of walkPath(path.points, len / (def.arches + 1), len / (def.arches + 1))) {
-    if (s.t > len - 20) break;
-    const side = Math.round(s.t) % 2 ? 1 : -1;
-    // tipped toward the path: about 3.4 m up where it crosses the edge of the corridor
-    const leanDir = Math.atan2(-s.nz * side, -s.nx * side);
-    add(s.x + s.nx * side * 6.5, s.z + s.nz * side * 6.5, { lean: 0.78, leanDir, radius: 0.45, height: 22, card: false, near: true });
-  }
-  // A few right in the way, to walk around.
-  for (const s of walkPath(path.points, (len - 45) / def.inPath, 20).slice(0, def.inPath)) {
-    const off = (Math.round(s.t) % 2 ? 1 : -1) * (1 + r() * 0.8);
-    add(s.x + s.nx * off, s.z + s.nz * off, { radius: 0.32 + r() * 0.15, card: false, near: true }, true);
-  }
-  // A thicket behind where he starts, so the only way is forward.
-  const [sx, sz] = path.points[0], [nx, nz] = path.points[1];
-  const back = Math.atan2(sz - nz, sx - nx);
-  for (let i = 0; i < def.behind; i++) {
-    const a = back + (r() - 0.5) * Math.PI * 1.3;
-    const d = 4.2 + r() * r() * 18;
-    add(sx + Math.cos(a) * d, sz + Math.sin(a) * d);
-  }
-  return specs;
-}
+// Bark cylinders come in three sizes, so the bark's pattern is about the same size on all
+// of them: [up to this radius, times the bark goes round].
+const SIZES = [[0.5, 1], [1.1, 3], [Infinity, 7]];
+const TALL = 24; // metres the bark's pattern is fitted to up a trunk (taller ones stretch it)
 
 // --- The painted cards ---------------------------------------------------------------------
 
-// All six trunk cut-outs side by side in one texture (so all cards draw in one go), with
-// a patch of plain bark at the end for their edges. The tops fade to black.
+// All six trunk cut-outs side by side in one texture (so all cards draw with one material),
+// with a patch of plain bark at the end for their edges. The tops fade to black.
 async function cardAtlas() {
   const imgs = [];
   for (let i = 1; i <= 6; i++) imgs.push(await loadImage(`assets/forest/trunk${i}.png`));
@@ -111,8 +46,7 @@ async function cardAtlas() {
   g.fillRect(x, 0, PATCH, 256);
   const data = g.getImageData(0, 0, width, 256).data;
   for (const card of cards) card.geometry = cardGeometry(card, data, width, (x + PATCH / 2) / width);
-  const texture = crunchy(c);
-  return { texture, cards };
+  return { texture: crunchy(c), cards };
 }
 
 // A card's outline is traced from the cut-out's alpha (the outermost painted pixel on every
@@ -141,64 +75,124 @@ function cardGeometry(card, data, width, patchU) {
   return geo;
 }
 
-// --- Building the meshes ----------------------------------------------------------------
+// --- The shapes, each 1 across ------------------------------------------------------------
 
-const UP = new THREE.Vector3(0, 1, 0);
-const m = new THREE.Matrix4(), q = new THREE.Quaternion(), lean = new THREE.Quaternion();
-const axis = new THREE.Vector3(), pos = new THREE.Vector3(), size = new THREE.Vector3();
-
-function place(geo, t, sx, sy) {
-  q.setFromAxisAngle(UP, t.yaw);
-  axis.set(Math.cos(t.leanDir), 0, Math.sin(t.leanDir));
-  lean.setFromAxisAngle(axis.cross(UP).normalize(), -t.lean); // tip over toward leanDir
-  q.premultiply(lean);
-  m.compose(pos.set(t.x, t.y, t.z), q, size.set(sx, sy, 1));
-  geo.applyMatrix4(m);
-  const n = geo.attributes.position.count;
-  const colors = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) colors.set([t.tint, t.tint, t.tint * 1.06], i * 3);
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+// A trunk 1 tall with a foot 1 in radius, narrowing to the top.
+function barkGeometry(around) {
+  const geo = new THREE.CylinderGeometry(0.7, 1, 1, 7, 1, true).translate(0, 0.5, 0);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * around, (uv.getY(i) * TALL) / 3);
   return geo;
 }
 
-function cylinder(t) {
-  const geo = new THREE.CylinderGeometry(t.radius * 0.7, t.radius, t.height, 7, 1, true);
-  geo.translate(0, t.height / 2, 0);
+// A root of a trunk 1 in radius, from inside its foot out and down into the ground.
+function rootGeometry(shape) {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const points = shape
+    ? [V(0.5, 0.9, 0), V(1.1, 0.5, 0.2), V(1.9, 0.15, -0.1), V(2.8, -0.15, 0.1)]
+    : [V(0.5, 0.6, 0), V(1.3, 0.28, 0), V(2.1, 0.05, 0), V(3, -0.15, 0)];
+  return limb(points, 0.42, 0.07, 5).geo;
+}
+
+// A fallen trunk 1 long and 1 in radius lying along x, closed so its cut ends show.
+function logGeometry() {
+  const geo = new THREE.CylinderGeometry(1, 1, 1, 7, 1, false).rotateZ(Math.PI / 2);
   const uv = geo.attributes.uv;
-  const around = Math.max(1, Math.round((Math.PI * 2 * t.radius) / 1.6));
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * around, (uv.getY(i) * t.height) / 3);
-  return place(geo, t, 1, 1);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 3, uv.getY(i) * 3);
+  return geo;
 }
 
-function extruded(t, atlas) {
-  const card = atlas.cards[t.art];
-  const height = t.height * 0.75;
-  return place(card.geometry.clone(), t, height * (card.w / 256) * 0.75, height);
+// Weathered dead wood, pale as old bone: the bark's light and dark swapped, so the
+// painting's specks become dark cracks in pale grey wood.
+function bleached(img) {
+  const c = toCanvas(img), g = c.getContext('2d');
+  const data = g.getImageData(0, 0, c.width, c.height), p = data.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const v = Math.max(20, 150 - (p[i] + p[i + 1] + p[i + 2])); // bark is 0-40 bright
+    p[i] = v; p[i + 1] = v * 0.97; p[i + 2] = v * 0.92;
+  }
+  g.putImageData(data, 0, 0);
+  return c;
 }
 
-// Merges the trunks into meshes: per stretch of path, cylinders and cards, near and far.
-// Returns { meshes, blockers, colliders }.
-export async function buildTrunks(specs) {
+// --- Placing them --------------------------------------------------------------------------
+
+const UP = new THREE.Vector3(0, 1, 0), ALONG = new THREE.Vector3(0, 0, 1);
+const m = new THREE.Matrix4(), q = new THREE.Quaternion(), turn = new THREE.Quaternion();
+const axis = new THREE.Vector3(), pos = new THREE.Vector3(), size = new THREE.Vector3();
+
+// Standing at (t.x, t.y, t.z), turned by t.yaw and tipped t.lean toward t.leanDir.
+function standing(t, sx, sy, sz) {
+  q.setFromAxisAngle(UP, t.yaw);
+  axis.set(Math.cos(t.leanDir), 0, Math.sin(t.leanDir));
+  turn.setFromAxisAngle(axis.cross(UP).normalize(), -t.lean);
+  q.premultiply(turn);
+  return m.compose(pos.set(t.x, t.y, t.z), q, size.set(sx, sy, sz));
+}
+
+// Turned to face `yaw` (round y, x pointing along it) and tipped `pitch` up (round its z).
+function lying(x, y, z, yaw, pitch, sx, sy, sz) {
+  q.setFromAxisAngle(UP, yaw).multiply(turn.setFromAxisAngle(ALONG, pitch));
+  return m.compose(pos.set(x, y, z), q, size.set(sx, sy, sz));
+}
+
+// Puts everything woods.js planned into the scatter. blush(x, z): 0-1, how much the pink
+// light of the way out tints the wood there. Returns the merged arches and the scatter
+// kinds the camera and pebbles bump into.
+export async function buildTrunks(plan, scatter, blush = () => 0) {
   const bark = await loadTexture('assets/forest/bark.png', 1);
   const atlas = await cardAtlas();
-  const barkMat = new THREE.MeshLambertMaterial({ map: bark, vertexColors: true, flatShading: true });
-  const cardMat = new THREE.MeshLambertMaterial({ map: atlas.texture, vertexColors: true, flatShading: true, alphaTest: 0.5 });
-  const lists = new Map();
-  const colliders = [];
-  for (const t of specs) {
-    const key = `${Math.floor(t.t / CHUNK)}-${t.card ? 'card' : 'bark'}-${t.near ? 'near' : 'far'}`;
-    if (!lists.has(key)) lists.set(key, []);
-    lists.get(key).push(t.card ? extruded(t, atlas) : cylinder(t));
-    const r = t.card ? Math.min(1, t.height * 0.06) : t.radius;
-    if (t.near) colliders.push({ kind: 'circle', x: t.x, z: t.z, r });
+  const lambert = (o) => new THREE.MeshLambertMaterial({ flatShading: true, ...o });
+  const barkMat = lambert({ map: bark });
+  const bone = crunchy(bleached(bark.image), 1);
+  const paleMat = lambert({ map: bone, emissive: '#5a5e70', emissiveMap: bone }); // faintly ghostly even in shadow
+  const cardMat = lambert({ map: atlas.texture, alphaTest: 0.5 });
+  const kinds = (mat) => ({
+    sizes: SIZES.map(([, around]) => scatter.kind(barkGeometry(around), mat)),
+    roots: [0, 1].map((shape) => scatter.kind(rootGeometry(shape), mat)),
+  });
+  const dark = kinds(barkMat), pale = kinds(paleMat);
+  const cards = atlas.cards.map((card) => scatter.kind(card.geometry, cardMat));
+  const logs = scatter.kind(logGeometry(), paleMat);
+
+  const color = new THREE.Color(), pink = new THREE.Color();
+  const tint = (x, z, k) => color.setRGB(k, k, k * 1.06).lerp(pink.setRGB(1.7 * k, 0.85 * k, 1.25 * k), blush(x, z));
+  for (const t of plan.trunks) {
+    if (t.card) {
+      const card = atlas.cards[t.art], height = t.height * 0.75;
+      scatter.add(cards[t.art], standing(t, height * (card.w / 256) * 0.75, height, 1), tint(t.x, t.z, t.tint));
+    } else {
+      const k = SIZES.findIndex(([max]) => t.radius <= max);
+      scatter.add((t.pale ? pale : dark).sizes[k], standing(t, t.radius, t.height, t.radius), tint(t.x, t.z, t.tint));
+    }
   }
-  const meshes = [], blockers = [];
-  for (const [key, geos] of lists) {
-    const mesh = new THREE.Mesh(mergeGeometries(geos), key.includes('card') ? cardMat : barkMat);
-    for (const g of geos) g.dispose();
-    meshes.push(mesh);
-    if (key.endsWith('near')) blockers.push(mesh);
+  for (const r of plan.roots) {
+    scatter.add((r.pale ? pale : dark).roots[r.shape], lying(r.x, r.y, r.z, -r.yaw, r.tilt, r.size, r.size, r.size), tint(r.x, r.z, r.tint));
   }
-  for (const card of atlas.cards) card.geometry.dispose();
-  return { meshes, blockers, colliders };
+  for (const l of plan.logs) {
+    const len = Math.hypot(l.bx - l.ax, l.bz - l.az);
+    const yaw = Math.atan2(-(l.bz - l.az), l.bx - l.ax), pitch = Math.atan2(l.yb - l.ya, len);
+    scatter.add(logs, lying(l.x, (l.ya + l.yb) / 2, l.z, yaw, pitch, len, l.r, l.r), tint(l.x, l.z, l.tint));
+  }
+
+  // The arches: tubes bent along their curves, tinted through their vertex colours.
+  const geos = plan.arches.map((a) => {
+    const { geo } = limb(a.points, a.r0, a.r1, 6);
+    const c = tint(a.points[3].x, a.points[3].z, a.tint);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(new Array(geo.attributes.position.count).fill([c.r, c.g, c.b]).flat(), 3));
+    return geo;
+  });
+  const arches = new THREE.Mesh(mergeGeometries(geos), lambert({ map: bark, vertexColors: true }));
+  for (const g of geos) g.dispose();
+  return { arches, solid: [...dark.sizes, ...pale.sizes, ...cards, logs] };
+}
+
+// A few big bark trunks on their own, merged into one mesh (the field's way back).
+// specs: [{ x, y, z, radius, height, yaw, lean, leanDir }]. Returns { mesh, colliders }.
+export async function barkTrunks(specs) {
+  const bark = await loadTexture('assets/forest/bark.png', 1);
+  const geos = specs.map((t) => barkGeometry(SIZES.find(([max]) => t.radius <= max)[1]).applyMatrix4(standing(t, t.radius, t.height, t.radius)));
+  const mesh = new THREE.Mesh(mergeGeometries(geos), new THREE.MeshLambertMaterial({ map: bark, flatShading: true }));
+  for (const g of geos) g.dispose();
+  return { mesh, colliders: specs.map((t) => ({ kind: 'circle', x: t.x, z: t.z, r: t.radius })) };
 }

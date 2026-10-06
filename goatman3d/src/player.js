@@ -55,13 +55,24 @@ export function nearestOnPath(points, x, z) {
 }
 
 // Colliders push a body standing at p (his hooves, a creature's feet) out sideways: circles
-// (trunks, legs), boxes, corridors along a path and rings that keep it inside. `body` is its
-// radius and `tall` its height, for colliders that only reach so high (y0..y1).
+// (trunks, legs), boxes, corridors along a path, rings that keep it inside and lines (fallen
+// trunks). `body` is its radius and `tall` its height, for colliders that only reach so high
+// (y0..y1).
 export function pushOut(p, colliders, body = BODY, tall = EYE) {
   for (const c of colliders) {
     if (c.off) continue;
     if (c.y0 !== undefined && (p.y > c.y1 || p.y + tall < c.y0)) continue;
-    if (c.kind === 'circle') {
+    if (c.kind === 'line') {
+      // A fallen trunk from a to b, its top at ya and yb: it stops him unless he is up on it,
+      // or it is low enough to step over.
+      const dx = c.bx - c.ax, dz = c.bz - c.az;
+      const k = THREE.MathUtils.clamp(((p.x - c.ax) * dx + (p.z - c.az) * dz) / (dx * dx + dz * dz), 0, 1);
+      if (p.y > c.ya + (c.yb - c.ya) * k - STEP_UP) continue;
+      const ex = p.x - (c.ax + dx * k), ez = p.z - (c.az + dz * k);
+      const d = Math.hypot(ex, ez);
+      const min = c.r + body;
+      if (d < min && d > 1e-4) { p.x += (ex / d) * (min - d); p.z += (ez / d) * (min - d); }
+    } else if (c.kind === 'circle') {
       const dx = p.x - c.x, dz = p.z - c.z;
       const d = Math.hypot(dx, dz);
       const min = c.r + body;
@@ -95,6 +106,18 @@ export function pushOut(p, colliders, body = BODY, tall = EYE) {
       }
     }
   }
+}
+
+// Is a body standing at p still inside a trunk (circle) or a fallen one (line)?
+function wedged(p, colliders, body = BODY) {
+  return colliders.some((c) => {
+    if (c.off || (c.y0 !== undefined && (p.y > c.y1 || p.y + EYE < c.y0))) return false;
+    if (c.kind === 'circle') return Math.hypot(p.x - c.x, p.z - c.z) < c.r + body - 0.02;
+    if (c.kind !== 'line') return false;
+    const dx = c.bx - c.ax, dz = c.bz - c.az;
+    const k = THREE.MathUtils.clamp(((p.x - c.ax) * dx + (p.z - c.az) * dz) / (dx * dx + dz * dz), 0, 1);
+    return p.y <= c.ya + (c.yb - c.ya) * k - STEP_UP && Math.hypot(p.x - c.ax - dx * k, p.z - c.az - dz * k) < c.r + body - 0.02;
+  });
 }
 
 export function createPlayer(head, controls, keys) {
@@ -192,8 +215,13 @@ export function createPlayer(head, controls, keys) {
     player.wrapped = false;
   }
 
-  function collide() {
-    pushOut(pos, player.level.colliders);
+  // Pushed out of anything solid. A gap narrower than he is pushes him from both sides at once
+  // and could squeeze him through, so if he is still stuck in something he stays where he was.
+  function collide(before) {
+    const all = player.level.colliders;
+    pushOut(pos, all);
+    pushOut(pos, all);
+    if (wedged(pos, all) && !wedged(before, all)) { pos.x = before.x; pos.z = before.z; }
   }
 
   // Shift with W: only walking forward (and not backing up at the same time).
@@ -289,7 +317,7 @@ export function createPlayer(head, controls, keys) {
       vel.set(wish.x * speed, 0, wish.z * speed);
       const before = pos.clone();
       pos.addScaledVector(vel, dt);
-      collide();
+      collide(before);
       const ground = groundAt(pos.x, pos.z, pos.y);
       if (ground === null) {
         // Off an edge (or down something too steep to walk): fall.
@@ -334,8 +362,9 @@ export function createPlayer(head, controls, keys) {
       const near = THREE.MathUtils.clamp((pos.y - (r[1] ?? 0)) / 40, 0, 1);
       vel.y = Math.max(vel.y, -THREE.MathUtils.lerp(SOFT_FALL, MAX_FALL, near));
     }
+    const before = pos.clone();
     pos.addScaledVector(vel, dt);
-    collide();
+    collide(before);
     player.stride += (Math.hypot(vel.x, vel.z) * dt) / (1 + (SPRINT_STEP - 1) * sprint); // his legs keep their rhythm in a jump
     const fall = Math.min(1, Math.max(0, -vel.y - 4) / 30); // wind builds as you fall faster
     loopsLevel.wind(fall);

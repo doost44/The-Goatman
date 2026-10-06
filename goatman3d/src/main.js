@@ -170,7 +170,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && controls.isLocked) controls.unlock();
   if (state !== 'play') return;
   if (e.code === 'KeyV') options.toggleCamera();
-  if (e.code === 'KeyP') capturePNG({ renderer, scene, camera, caption: levels.def?.title ?? '' });
+  if (e.code === 'KeyP') capturePNG({ renderer, scene, camera, caption: levels.def?.title ?? '', beforeRender: levels.world?.beforeRender });
 });
 
 // --- The loop ----------------------------------------------------------------------
@@ -192,7 +192,10 @@ renderer.setAnimationLoop(() => {
   updateSound(dt, camera);
   updateAmbience(dt, camera);
   updateHud(dt);
-  if (state === 'play') view.render();
+  if (state === 'play') {
+    levels.world?.beforeRender?.(camera); // the camera is placed: the forest picks what it can see
+    view.render();
+  }
   if (state !== 'play') title.update(dt); // the start screen, still turning while it fades out
 });
 

@@ -18,7 +18,7 @@ function hash(x, z) {
   const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
   return s - Math.floor(s);
 }
-function valueNoise(x, z) {
+export function valueNoise(x, z) {
   const xi = Math.floor(x), zi = Math.floor(z);
   const xf = x - xi, zf = z - zi;
   const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);

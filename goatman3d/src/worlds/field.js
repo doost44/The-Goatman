@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTerrain } from '../terrain.js';
 import { loadImage, loadTexture, canvas, crunchy, grade, rng } from '../textures.js';
-import { buildTrunks } from './trunks.js';
+import { barkTrunks } from './trunks.js';
 import { buildSkyDome, buildSkyline } from './horizon.js';
 import { createWalkingThing } from '../walkingthing.js';
 
@@ -147,9 +147,9 @@ async function buildGrass(d, heightAt, r) {
 async function buildGate(d, heightAt) {
   const [x, z] = d.at;
   const y = heightAt(x, z);
-  const trunks = await buildTrunks([-1, 1].map((side) => ({
+  const trunks = await barkTrunks([-1, 1].map((side) => ({
     x: x + side * (d.gap / 2 + d.trunkRadius), z, y: y - 0.5, radius: d.trunkRadius, height: d.height,
-    yaw: 0, lean: 0.04, leanDir: side < 0 ? 0 : Math.PI, card: false, tint: 1, art: 0, near: true, t: 0,
+    yaw: 0, lean: 0.04, leanDir: side < 0 ? 0 : Math.PI,
   })));
   const c = canvas(64, 256);
   const g = c.getContext('2d');
@@ -169,5 +169,5 @@ async function buildGate(d, heightAt) {
   );
   night.position.set(x, y + d.height * 0.45 - 1, z + 0.5);
   night.rotation.y = Math.PI; // facing the field
-  return { meshes: [...trunks.meshes, night], colliders: trunks.colliders, blockers: trunks.blockers };
+  return { meshes: [trunks.mesh, night], colliders: trunks.colliders, blockers: [trunks.mesh] };
 }

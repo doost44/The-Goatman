@@ -26,7 +26,8 @@ export function createRocks({ camera, controls, player, gm, arms }) {
   let aimed = null;
   let voidY = -50;
 
-  // A new level: its pebbles along the path (levels.json "rocks": { count, seed }).
+  // A new level: its pebbles along the path (levels.json "rocks": { count, seed }), and any
+  // more the world wants elsewhere (world.pebbles: [[x, z], ...], the forest's hidden paths).
   function place(def, world) {
     drop();
     rocks = [];
@@ -37,6 +38,7 @@ export function createRocks({ camera, controls, player, gm, arms }) {
     if (!def.rocks || !def.path || !world.heightAt) return;
     const r = rng(def.rocks.seed);
     const spots = walkPath(def.path.points, 1, 7);
+    const at = [];
     for (let i = 0; i < def.rocks.count; i++) {
       // the first one just ahead of the start, where it gets noticed; none in water
       let x, z, tries = 0;
@@ -46,6 +48,9 @@ export function createRocks({ camera, controls, player, gm, arms }) {
         x = s.x + s.nx * off;
         z = s.z + s.nz * off;
       } while (world.wet?.(x, z) && tries++ < 20);
+      at.push([x, z]);
+    }
+    for (const [x, z] of [...at, ...(world.pebbles ?? [])]) {
       const radius = 0.09 + r() * 0.07;
       const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 0), mat);
       mesh.scale.set(1, 0.7 + r() * 0.2, 1);
@@ -195,6 +200,8 @@ export function createRocks({ camera, controls, player, gm, arms }) {
       }
     }
     for (const rock of rocks) {
+      // Lying pebbles far off are not drawn (the fog hides them anyway).
+      if (rock.state === 'rest') rock.mesh.visible = rock.mesh.position.distanceToSquared(camera.position) < 40 * 40;
       if (rock.state === 'flying') fly(rock, dt);
       else if (rock === held) {
         // In first person the arms (viewmodel.js) show it; in third, it is in his hand.
