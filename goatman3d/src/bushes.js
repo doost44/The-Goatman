@@ -4,6 +4,7 @@ import { sfx } from './sfx.js';
 import { subtitle } from './hud.js';
 import { pushOut } from './player.js';
 import { creatureParts } from './bushes-body.js';
+import { showFrame } from './bushes-paint.js';
 
 // The striped creatures with eyes (the "bushes" of savanaScene.mp4): lumpy heaps wearing
 // their painting (bushes-body.js), each with a few babies. They breathe, creep through the
@@ -49,10 +50,9 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
   // One creature (grown, or a baby: smaller, rounder and paler).
   function make(x, z, heading, scale, baby) {
     const u = { uWave: { value: 0 }, uBreath: { value: 0 }, uCreep: { value: 0 } };
-    const map = parts.texture.clone();
+    const map = (baby ? parts.babyTexture : parts.texture).clone(); // its own frame of the shared paint
     // A little of their own colour unlit, so the stripes stay bright in the dusk.
     const skin = alive(new THREE.MeshLambertMaterial({ map, emissiveMap: map, emissive: 0x8a8a8a, flatShading: true }), u);
-    if (baby) skin.color.setRGB(1.3, 1.22, 1.22);
     const ink = alive(new THREE.MeshBasicMaterial({ color: 0x2a0c1e, side: THREE.BackSide }), u);
     const back = new THREE.Mesh(parts.back, skin), face = new THREE.Mesh(parts.head, skin);
     const eyes = new THREE.Mesh(parts.eyes, new THREE.MeshBasicMaterial({ map: parts.eyeMap }));
@@ -250,11 +250,13 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     c.head.rotation.y += (c.look - c.head.rotation.y) * Math.min(1, dt * 3);
     if ((c.blink -= dt) <= 0) { c.blink = rnd(2.5, 7); c.shut = 0.14; }
     c.shut -= dt;
-    c.eyes.scale.y = c.shut > 0 ? 0.12 : 1;
+    const shut = c.shut > 0;
+    c.eyes.material.map = shut ? parts.lidMap : parts.eyeMap; // the dark lids close over them
+    c.eyes.scale.y = shut ? 0.85 : 1;
     c.eyes.material.color.setScalar(dim);
     c.skin.emissiveIntensity = dim;
     c.frame += dt * (fleeing ? 10 : c.speed > 0.2 ? 5 : 1.5);
-    c.map.offset.x = (Math.floor(c.frame) % 4) * 0.25;
+    showFrame(c.map, Math.floor(c.frame) % 4);
     const waddle = Math.sin(c.rolled * 7 / c.scale);
     c.group.position.set(c.pos.x, c.pos.y + c.wobble * Math.abs(waddle) * 0.25 * c.scale, c.pos.z);
     c.group.rotation.set(0, c.heading, c.wobble * waddle * 0.14, 'YXZ');
