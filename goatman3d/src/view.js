@@ -3,9 +3,9 @@ import { settings } from './options.js';
 import { SPRINT_FOV } from './player.js';
 
 // Where the camera goes, and drawing the frame.
-// First person: the camera is between GoatMan's eyes, his body is drawn round it with the
-// head and neck hidden (looking down shows his chest, belly, legs and hooves) and his arms
-// are drawn over the world (viewmodel.js). Third person (V, or the options
+// First person: the camera is between GoatMan's eyes and his body is drawn round it with the
+// head and neck hidden: looking down shows his chest, belly, his own long arms hanging and
+// swinging as they do in third person, his legs and hooves. Third person (V, or the options
 // menu): a chase camera behind and above him that the mouse swings round, pulled in
 // when a trunk or wall is in the way. Switching eases between the two.
 
@@ -21,7 +21,7 @@ const RIDE_ROLL = 1.5; // first person on the Walking Thing: the view rolls with
 const clamp01 = (k) => Math.min(1, Math.max(0, k));
 const ease = (k) => k * k * (3 - 2 * k);
 
-export function createView({ renderer, scene, camera, head, player, gm, arms }) {
+export function createView({ renderer, scene, camera, head, player, gm }) {
   const follow = new THREE.Vector3(); // eases after him, so the chase camera floats
   const target = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -34,7 +34,6 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
   const orbit = new THREE.Euler(0, 0, 0, 'YXZ');
   let blockers = []; // what the chase camera can't see through
   let terrain = []; // ground that knows its own height (userData.surface), checked along the way
-  let lights = null; // the level's ambient and sun, for the arms
   let blend = settings.camera === 'third' ? 1 : 0; // 0 first person .. 1 third person
   let reach = DIST; // chase distance, shortened when something is in the way
   let yaw = 0; // which way his body faces
@@ -95,12 +94,11 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
     // A cutscene camera (the squash): { from, to, yaw } puts the camera at `from` looking
     // at `to`, with all of him showing and facing `yaw`. Null for the normal view.
     shot: null,
-    // A new level: his colours, the arms' light, what blocks the camera.
+    // A new level: his colours, what blocks the camera.
     enter(def, world) {
       api.shot = null;
       gm.reset();
       gm.setGrade(def.grade);
-      lights = world.lights;
       terrain = world.ground.filter((o) => o.userData.surface);
       blockers = [...(world.blockers ?? []), ...world.ground.filter((o) => !o.userData.surface)];
       yaw = head.rotation.y;
@@ -113,7 +111,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       const e = ease(blend);
       turnBody(dt);
       if (api.shot?.yaw !== undefined) yaw = api.shot.yaw;
-      // In first person his head and arms are hidden; with the chase camera squeezed up behind
+      // In first person his head and neck are hidden; with the chase camera squeezed up behind
       // him, all but his lower legs.
       const squeezed = blend >= 0.2 && reach < 1.1;
       gm.setFirstPerson(blend < 0.2 || squeezed, squeezed);
@@ -142,20 +140,9 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
         camera.position.copy(api.shot.from);
         camera.lookAt(api.shot.to);
       }
-      if (lights) arms.light(lights);
-      arms.update(dt, {
-        stride: player.stride, speed: player.speed, sprint: player.sprint, grounded: player.grounded,
-        pitch: head.rotation.x, lower: e, fov: camera.fov, aspect: camera.aspect,
-      });
     },
     render() {
       renderer.render(scene, camera);
-      if (blend < 1 && arms.visible && !api.shot) {
-        renderer.autoClear = false;
-        renderer.clearDepth();
-        renderer.render(arms.scene, arms.camera);
-        renderer.autoClear = true;
-      }
     },
   };
   return api;
