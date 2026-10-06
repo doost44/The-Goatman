@@ -51,6 +51,18 @@ export function terrainHeight(t) {
   };
 }
 
+// The ground's colour at (x, z) as [r, g, b] (mottle and shade), or null if it has neither.
+export function groundTint(t, shade) {
+  if (!t.mottle && !shade) return null;
+  const [amount, scale] = t.mottle ?? [0, 1];
+  return (x, z) => {
+    const n = 0.65 * valueNoise(x * scale + 31.7, z * scale - 17.3) + 0.35 * valueNoise(x * scale * 2.3 - 5.1, z * scale * 2.3 + 8.9);
+    const k = 1 - amount * (0.5 + 0.5 * n);
+    const [r, g, b] = shade ? shade(x, z) : [1, 1, 1];
+    return [k * r, k * g, k * b];
+  };
+}
+
 export function buildTerrain(t, material, { reshape, shade } = {}) {
   const [cx, cz] = t.center ?? [0, 0];
   let geo;
@@ -76,16 +88,10 @@ export function buildTerrain(t, material, { reshape, shade } = {}) {
     uv.setXY(i, x / tile, -z / tile); // world-space UVs: the texture tiles evenly on any shape
   }
   geo.computeVertexNormals();
-  if (t.mottle || shade) {
-    const [amount, scale] = t.mottle ?? [0, 1];
+  const tint = groundTint(t, shade);
+  if (tint) {
     const colors = [];
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i) * scale, z = pos.getZ(i) * scale;
-      const n = 0.65 * valueNoise(x + 31.7, z - 17.3) + 0.35 * valueNoise(x * 2.3 - 5.1, z * 2.3 + 8.9);
-      const k = 1 - amount * (0.5 + 0.5 * n);
-      const [r, g, b] = shade ? shade(pos.getX(i), pos.getZ(i)) : [1, 1, 1];
-      colors.push(k * r, k * g, k * b);
-    }
+    for (let i = 0; i < pos.count; i++) colors.push(...tint(pos.getX(i), pos.getZ(i)));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     material.vertexColors = true;
   }

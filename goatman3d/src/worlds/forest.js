@@ -66,6 +66,7 @@ export async function buildForest(def, { scene, camera, player }) {
     heightAt,
     pebbles,
     scatter,
+    solidNear: plan.near, // everything solid within a radius (admin mode's map)
     update(dt, t) {
       if (player.pos.distanceToSquared(last) > 4) {
         last.copy(player.pos);

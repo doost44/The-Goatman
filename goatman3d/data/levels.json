@@ -29,6 +29,14 @@
       },
       "respawn": [0, 0, 2],
       "voidY": -50,
+      "places": [
+        { "name": "start", "at": [0, 2], "yaw": 0 },
+        { "name": "ring of pale trunks", "at": [52, -28], "yaw": -90 },
+        { "name": "big white tree", "at": [-56, -66], "yaw": 90 },
+        { "name": "clearing", "at": [-42, -96], "yaw": 90 },
+        { "name": "eyes' dell", "at": [40, -137], "yaw": -130 },
+        { "name": "the way out", "at": [-22, -165], "yaw": 90 }
+      ],
       "terrain": {
         "shape": "rect", "size": [580, 580], "center": [-6, -70], "segments": [80, 80],
         "noise": 0.6, "noiseScale": 0.08, "rolling": [2.4, 0.022], "hills": [[47, -143, 13, -2.2], [-66, -67, 11, 1.4]],
@@ -102,6 +110,12 @@
       },
       "respawn": [0, 0, 72],
       "voidY": -70,
+      "places": [
+        { "name": "arrival", "at": [0, 72], "yaw": 0 },
+        { "name": "Walking Thing's home", "at": [0, 20], "yaw": 0 },
+        { "name": "hill", "at": [70, -80], "yaw": 150, "up": 6 },
+        { "name": "far side", "at": [0, -150], "yaw": 180 }
+      ],
       "bounds": 165,
       "terrain": {
         "shape": "disc", "radius": 330, "segments": [72, 26],
@@ -170,6 +184,13 @@
       },
       "respawn": [8, 0, 40],
       "voidY": -70,
+      "places": [
+        { "name": "arrival", "at": [8, 62], "yaw": 0 },
+        { "name": "willow", "at": [-6, -22], "yaw": 0 },
+        { "name": "river", "at": [36, 0], "yaw": 0 },
+        { "name": "herd", "at": [42, -36], "yaw": 0 },
+        { "name": "the way on", "at": [0, -112], "yaw": 0 }
+      ],
       "bounds": 130,
       "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
       "terrain": {
@@ -247,6 +268,57 @@
         ],
         "hold": 15
       }
+    },
+
+    "expanse": {
+      "title": "TEST · THE EXPANSE",
+      "builder": "expanse",
+      "palette": "field",
+      "test": true,
+      "seed": 11,
+      "sky": [[0, "#9c7f93"], [0.5, "#c69fae"], [1, "#dcbcc0"]],
+      "fog": { "color": "#cfa9b3", "near": 60, "far": 900 },
+      "view": 4500,
+      "ambient": { "color": "#ffe0e4", "intensity": 1.3 },
+      "sun": { "color": "#fff0e0", "intensity": 1.5, "dir": [0.5, 0.8, 0.3] },
+      "grade": [1.2, 1.8, 1.0, 0.0],
+      "surface": "grass",
+      "wind": { "volume": 1, "pitch": 1 },
+      "speed": 1,
+      "spawns": { "start": { "at": [0, 0, 900], "yaw": 0 } },
+      "respawn": [0, 0, 900],
+      "voidY": -250,
+      "places": [
+        { "name": "south edge", "at": [0, 900], "yaw": 0 },
+        { "name": "middle", "at": [0, 0], "yaw": 0 },
+        { "name": "spire", "at": [300, -130], "yaw": 180 },
+        { "name": "mesa", "at": [-500, -120], "yaw": 0 },
+        { "name": "north-west corner", "at": [-950, -950], "yaw": -135, "up": 40 },
+        { "name": "north-east corner", "at": [950, -950], "yaw": 135, "up": 40 }
+      ],
+      "terrain": {
+        "shape": "chunks", "size": [2048, 2048], "center": [0, 0], "chunk": 128,
+        "lods": [[220, 32], [480, 16], [1e9, 8]], "view": 1000, "cache": 260, "budget": 3,
+        "hills": [[-300, 300, 220, 30], [350, -400, 260, 45], [600, 500, 200, -18], [-650, -350, 280, 38], [100, -800, 180, 25]],
+        "noise": 9, "noiseScale": 0.007,
+        "rim": [950, 2600, 420],
+        "mottle": [0.35, 0.012],
+        "tile": 6, "texture": "assets/field/grass.png", "tint": [0.8, 0.8, 0.8]
+      },
+      "horizon": { "size": 9000, "segments": 120, "color": "#7c5f6a", "haze": [1, 0.55], "sink": 4 },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 4200, "repeat": 2 },
+      "landmarkLook": { "color": "#5b4752", "swap": 450, "haze": [80, 3600, 0.82] },
+      "landmarks": [
+        { "kind": "peak", "at": [-900, -1500], "size": [420, 620] },
+        { "kind": "peak", "at": [700, -1700], "size": [520, 760] },
+        { "kind": "peak", "at": [1700, 200], "size": [380, 520] },
+        { "kind": "spire", "at": [300, -200], "size": [26, 190] },
+        { "kind": "mesa", "at": [-500, 100], "size": [170, 110] },
+        { "kind": "stone", "at": [150, 550], "size": [5, 28] },
+        { "kind": "stone", "at": [-700, 750], "size": [7, 40] }
+      ],
+      "stones": { "count": 6000, "size": [0.25, 2.5], "reach": 320, "color": "#6d5e66" },
+      "interactions": []
     }
   }
 }

@@ -88,7 +88,7 @@ levels.onEnter = (id, def, world) => {
   view.enter(def, world);
   rocks.place(def, world);
   if (player.mount) gm.play('kneel', true); // arriving on the Walking Thing's back
-  writeSave({ level: id }); // the title offers CONTINUE from here
+  if (!def.test) writeSave({ level: id }); // the title offers CONTINUE from here
 };
 const doom = createSquash({ scene, camera, head, player, gm, view, levels });
 story = createStory({ levels, player, gm, arms, view, squash: doom.squash, toTitle });

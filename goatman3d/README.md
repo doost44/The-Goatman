@@ -60,14 +60,17 @@ For working on the levels: add `?admin` to the address (for example `.../goatman
 | Mouse wheel | fly speed (2, 5, 10, 20, 40 m/s) |
 | 1 / 2 / 3 | the forest / the field / the savanna |
 | 4 | the finale |
+| 5 | the expanse: a 2 km test level for big worlds (not part of the story) |
 | F | fog off / on |
 | T | night in the savanna, and back |
 | Y | count the Walking Thing as petted (opens the savanna's way on) |
 | H | hide the HUD and arms, for screenshots (P still saves a photo) |
 | K | copy the camera's position and yaw for levels.json |
 | N | night vision in the forest, flying or walking: everything green and lifted out of the dark, and the fog further off |
+| M | the map, flying or walking: the whole level from above, then a close-up round him, then hidden |
+| [ / ] | the level's places (named in levels.json), back and forward, flying or walking |
 
-The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate and the draw calls.
+The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate, draw calls and triangles, what the graphics card is holding (geometries and textures) and the page's memory, and in a big level how many ground chunks are drawn, kept and freed.
 
 ## The story
 
