@@ -1,53 +1,97 @@
 import * as THREE from 'three';
-import { buildTerrain, terrainHeight, walkPath, drape } from '../terrain.js';
+import { terrainHeight, walkPath, drape } from '../terrain.js';
+import { createChunkedTerrain } from '../chunks.js';
 import { loadTexture, canvas, crunchy, glowTexture, rng } from '../textures.js';
+import { nearestOnPath } from '../player.js';
 import { buildSkyDome, buildStars, buildSkyline } from './horizon.js';
 import { buildTealTree } from './tealtree.js';
 import { buildClumps } from './clumps.js';
-import { riverCourse, buildRiver } from './river.js';
+import { buildRiver } from './river.js';
+import { createWaters } from './waters.js';
 import { buildBog } from './bog.js';
+import { buildLowcountry } from './lowcountry.js';
 import { createBushes } from '../bushes.js';
 import { createWalkingThing } from '../walkingthing.js';
 
-// Level 3, the savanna, from Charlie's layered painting (the savannahg/) and its videos:
-// long purple grass swaying under a crimson sky that slowly darkens until nsky's stars come
-// through, a dark treeline all round, the teal tree as a weeping willow, a low boggy river
-// winding past it, and the striped creatures and their babies drifting through the grass.
-// GoatMan arrives on the Walking Thing's back. The way on is the path from under the tree
-// (across the river) to a gap in the treeline, and it only lights up once the Walking Thing
-// has been petted. At the very end it all dissolves into the light.
+// Level 3, the savanna, from Charlie's layered painting (the savannahg/) and its videos, and
+// as big as the land in Kenshi: about 1.5 km across, in chunks (chunks.js). The painted
+// colours stay (crimson sky, lavender ground, blue grass, the teal tree) but the land is
+// South Carolina's lowcountry: long purple grass swaying on open flats with longleaf pines
+// far apart, sandy rises and round wet hollows (Carolina bays), live oaks hung with moss by
+// the willow, the low boggy river winding on past it through a ford and out into a salt
+// marsh cut by tidal creeks, a cypress swamp beside it with a second willow, and a band of
+// dark forest at the edge (waters.js, lowcountry.js). Three herds of the striped creatures
+// and their babies keep to their own places. The crimson sky slowly darkens until nsky's
+// stars come through, and the night goes on getting deeper the longer he stays: more stars,
+// thicker fog and mist, the herds settling down to sleep.
+// GoatMan arrives on the Walking Thing's back. The way on is the long path from under the
+// tree (across the ford) to a gap in the far treeline, and it only lights up once the
+// Walking Thing has been petted; then its light can be seen from anywhere. At the very end
+// it all dissolves into the light.
 
 const WHITE = new THREE.Color(1, 1, 1);
+const smooth = THREE.MathUtils.smoothstep;
 
 export async function buildSavanna(def, { scene, camera, player, lights, flag }) {
   const group = new THREE.Group();
   const r = rng(def.seed);
 
+  const natural = terrainHeight(def.terrain);
+  const waters = createWaters(def, natural);
+  const [s0, s1] = def.terrain.sand; // the rises turn sandy from s0 to s1 metres up
   const floor = await loadTexture(def.terrain.texture, 1);
   const groundMat = new THREE.MeshLambertMaterial({ map: floor, color: new THREE.Color(...def.terrain.tint) });
-  const river = riverCourse(def.river, terrainHeight(def.terrain)); // its channel is carved into the ground
-  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat, river);
-  const wet = (x, z, margin = 1) => (river.nearest(x, z)?.d ?? Infinity) < river.edge + margin; // in the water, or about to be
+  const terrain = createChunkedTerrain(def.terrain, groundMat, {
+    reshape: waters.reshape,
+    shade: (x, z) => waters.shade(x, z, smooth(natural(x, z), s0, s1)),
+  });
+  const { heightAt } = terrain;
+  const { wet } = waters; // (x, z, margin): in the water, or within margin metres of it
 
   const sky = await buildSkyDome(def.skyDome, def.fog.color);
   const stars = await buildStars(def.stars);
+  const deepStars = await buildStars({ ...def.stars, radius: def.stars.radius - 5, repeat: def.night.repeat }); // more, as the night deepens
+  deepStars.rotation.y = 1.3;
   const treeline = await buildSkyline(def.treeline, heightAt);
   const tree = await buildTealTree(def.tree, heightAt);
+  const willows = await Promise.all((def.willows ?? []).map((w) => buildTealTree({ ...def.tree, ...w }, heightAt)));
   const path = await buildPath(def.path, heightAt);
   const exit = buildExit(def.exit, heightAt);
-  const [tx, tz] = def.tree.at;
-  const grass = await buildClumps(def.grass, heightAt, r, [[tx, tz, 2]], def.path, (x, z) => wet(x, z, 3)); // muddy banks: reeds only
-  const water = buildRiver(def.river, river, camera);
-  const bog = await buildBog(def.river.bog, river, heightAt);
-  group.add(ground, sky, stars, treeline, ...tree.meshes, path, exit.group, ...grass.meshes, water.group, ...bog.meshes);
+  const trees = [tree, ...willows];
+  const offPath = (x, z, by) => nearestOnPath(def.path.points, x, z).d > def.path.width / 2 + by;
+  const [sx, , sz] = def.spawns.start.at;
+  // Where a tree may stand: dry land off the path, clear of the willows and the arrival.
+  const open = (x, z) => !wet(x, z, 6) && offPath(x, z, 5) && Math.hypot(x - sx, z - sz) > 25
+    && trees.every((t) => Math.hypot(x - t.at[0], z - t.at[1]) > t.reach + 4);
+  const grass = await buildClumps(def.grass, heightAt,
+    (x, z) => wet(x, z, 3) || !offPath(x, z, 0.3) || trees.some((t) => Math.hypot(x - t.at[0], z - t.at[1]) < 2), // muddy banks: reeds only
+    waters.marsh);
+  const water = buildRiver(def.river, waters, camera);
+  const bog = await buildBog(def.river.bog, waters, heightAt, waters.marsh);
+  const haze = new THREE.Color(def.fog.color); // kept like the live fog: the giants are hazed toward it
+  const land = await buildLowcountry(def.lowcountry, { heightAt, waters, open, bounds: def.bounds, fog: haze });
+  group.add(terrain.group, sky, stars, deepStars, treeline, ...trees.flatMap((t) => t.meshes), path, exit.group,
+    ...grass.meshes, water.group, ...bog.meshes, ...land.meshes);
 
   const edge = { kind: 'ring', x: 0, z: 0, r: def.bounds };
-  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: [edge, ...tree.colliders], wet });
+  const fixed = [edge, ...trees.flatMap((t) => t.colliders)];
+  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: fixed, wet });
   const thing = await createWalkingThing(def.walkingThing, { heightAt, camera, player });
-  thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, tree.keepOut];
+  thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, ...trees.map((t) => t.keepOut)];
   thing.wet = wet;
   thing.onStep = (foot) => water.splash(foot.x, foot.z, 1.5); // only where there is water
   group.add(bushes.group, thing.group);
+  // What he can walk into: the edge, the willows' trunks, the creatures, the Walking Thing's
+  // legs, and the trunks near him (picked again each time he has moved a few metres).
+  const colliders = [];
+  const last = new THREE.Vector3(1e9, 0, 0);
+  const solidNear = () => {
+    if (last.distanceToSquared(player.pos) < 9) return;
+    last.copy(player.pos);
+    colliders.length = 0;
+    colliders.push(...fixed, ...bushes.colliders, ...thing.colliders, ...land.near(player.pos.x, player.pos.z, 12));
+  };
+  solidNear();
 
   // The ending's white-out: a white dome just inside the sky, over the sky and the stars.
   const veil = new THREE.Mesh(
@@ -59,42 +103,57 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
   let dissolving = null;
 
   const fog = new THREE.Color(def.fog.color);
-  let opened = 0;
+  let opened = 0, clock = 0;
   const pushers = [];
   const world = {
     group,
-    ground: [ground],
-    colliders: [edge, ...tree.colliders, ...bushes.colliders, ...thing.colliders],
-    blockers: tree.blockers,
-    rockTargets: [...bushes.targets, water.water],
+    ground: [terrain.ground],
+    colliders,
+    blockers: trees.flatMap((t) => t.blockers),
+    rockTargets: [...bushes.targets, ...water.meshes],
     actors: { walkingThing: thing },
     heightAt,
+    chunks: terrain, // the admin box and map show what it has built
     wet, // no pebbles are put there
-    waterDepth: river.depth, // (x, z, y): how deep the water is over ground at y (wading)
+    waterDepth: waters.depth, // (x, z, y): how deep the water is over ground at y (wading)
     splash: water.splash, // (x, z, size, sound)
-    // Where the bog's sounds come from (ambience.js): the nearest stretch of the river.
-    soundAt(p) {
-      const near = river.closest(p.x, p.z);
-      return { x: near.x, y: near.level - def.river.water, z: near.z };
-    },
+    // Everything solid within `span` of (x, z), for admin mode's map.
+    solidNear: (x, z, span) => [...fixed, ...land.near(x, z, span)],
+    // Where the bog's sounds come from (ambience.js): the nearest water.
+    soundAt: (p) => waters.closest(p),
     time: 0, // seconds in the level: over def.dusk.time the sky, light and fog darken and the stars come out
     white: 0, // the ending: 0 .. 1 dissolved into the light
     // Dissolves everything into white over `time` seconds (the prelude to the last video).
     dissolve(time) {
       return new Promise((resolve) => { dissolving = { rate: 1 / time, resolve }; });
     },
-    beforeRender(camera) {
-      grass.scatter.update(camera);
+    beforeRender(cam) {
+      terrain.update(cam);
+      grass.update(cam);
+      bog.scatter.update(cam);
+      land.update(cam, clock);
+    },
+    dispose() {
+      terrain.dispose();
     },
     update(dt, t) {
+      clock = t;
       world.time += dt;
-      const k = THREE.MathUtils.smoothstep(world.time, 0, def.dusk.time);
-      const dim = 1 - (1 - def.dusk.dim) * k;
+      // The dusk, then the night going on getting deeper.
+      const k = smooth(world.time, 0, def.dusk.time);
+      const night = smooth(world.time, def.dusk.time, def.night.time);
+      const dim = (1 - (1 - def.dusk.dim) * k) * (1 - (1 - def.night.dim) * night);
       sky.material.color.setScalar(dim);
       treeline.material.color.setScalar(dim);
       stars.material.opacity = k * def.dusk.stars;
       stars.visible = stars.material.opacity > 0.005; // see-through things cost as much to draw as solid ones
+      deepStars.material.opacity = night * def.night.stars;
+      deepStars.visible = deepStars.material.opacity > 0.005;
       scene.fog?.color.copy(fog).multiplyScalar(dim);
+      if (scene.fog) {
+        scene.fog.near = THREE.MathUtils.lerp(def.fog.near, def.night.fog[0], night);
+        scene.fog.far = THREE.MathUtils.lerp(def.fog.far, def.night.fog[1], night);
+      }
       lights.ambient.intensity = def.ambient.intensity * (0.4 + 0.6 * dim);
       lights.sun.intensity = def.sun.intensity * dim;
       if (dissolving) {
@@ -105,28 +164,33 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
       if (white > 0) {
         scene.fog?.color.lerp(WHITE, white);
         if (scene.fog) {
-          scene.fog.near = THREE.MathUtils.lerp(def.fog.near, 2, white);
-          scene.fog.far = THREE.MathUtils.lerp(def.fog.far, 36, white);
+          scene.fog.near = THREE.MathUtils.lerp(scene.fog.near, 2, white);
+          scene.fog.far = THREE.MathUtils.lerp(scene.fog.far, 36, white);
         }
         lights.ambient.intensity *= 1 + 2.5 * white;
       }
+      if (scene.fog) haze.copy(scene.fog.color);
       treeline.material.emissive.setScalar(white);
       veil.material.opacity = white ** 1.3;
       veil.visible = white > 0;
-      sky.position.copy(camera.position); // always as far away
-      stars.position.copy(camera.position);
-      veil.position.copy(camera.position);
+      for (const o of [sky, stars, deepStars, veil]) o.position.copy(camera.position); // always as far away
       stars.rotation.y = world.time * 0.004; // the night sky turning, very slowly
+      deepStars.rotation.y = 1.3 + world.time * 0.004;
 
-      grass.update(t);
+      grass.tick(t);
       water.update(dt, t, dim);
-      bog.update(dt, t, dim, k);
-      // GoatMan and the Walking Thing's feet push through the willow's tendrils.
+      bog.update(dt, t, dim, k, night);
+      // GoatMan and the Walking Thing's feet push through the willows' tendrils.
       pushers[0] = { x: player.pos.x, y: player.pos.y, z: player.pos.z, r: 1, tall: 2.4 };
       thing.feet.forEach((foot, i) => { pushers[i + 1] = { x: foot.x, y: foot.y, z: foot.z, r: 1.6, tall: thing.hips - foot.y }; });
-      tree.update(t, pushers);
-      bushes.update(dt, dim);
+      for (const w of trees) {
+        const seen = Math.hypot(camera.position.x - w.at[0], camera.position.z - w.at[1]) < (scene.fog?.far ?? 1e4) + w.reach;
+        for (const m of w.meshes) m.visible = seen; // past the fog: not drawn at all
+        if (seen) w.update(t, pushers);
+      }
+      bushes.update(dt, dim, night);
       thing.update(dt);
+      solidNear();
       opened = flag('petted') ? Math.min(1, opened + dt / 3) : 0; // the way on lights up
       exit.update(t, opened);
     },

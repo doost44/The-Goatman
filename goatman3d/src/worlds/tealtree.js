@@ -25,11 +25,11 @@ const TILES = 8; // tendril textures side by side, 16 x 128 px each
 const PUSHERS = 3; // GoatMan and the Walking Thing's two feet
 
 // A tapered tube along a smooth curve through `points`, r0 thick at the start and r1 at the
-// end (bog.js makes its dead branches with it too).
-export function limb(points, r0, r1, sides = 6) {
+// end, a ring every `step` metres (bog.js and lowcountry-trees.js make their wood with it too).
+export function limb(points, r0, r1, sides = 6, step = 1.2) {
   const curve = new THREE.CatmullRomCurve3(points);
   const len = curve.getLength();
-  const rings = Math.max(3, Math.ceil(len / 1.2));
+  const rings = Math.max(3, Math.ceil(len / step));
   const { normals, binormals } = curve.computeFrenetFrames(rings, false);
   const pos = [], uv = [], index = [];
   const p = new THREE.Vector3(), n = new THREE.Vector3();
@@ -185,6 +185,7 @@ export async function buildTealTree(d, heightAt) {
 
   return {
     meshes: [group, shade],
+    at: d.at, reach: d.reach,
     blockers: [blocker],
     colliders: [{ kind: 'circle', x, z, r: 1.2 }],
     // The Walking Thing keeps its body out of the canopy.

@@ -100,11 +100,11 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
     arms.visible = !c;
   }
 
-  // T: the savanna's dusk jumps to full night, and back to where it was.
+  // T: the savanna's dusk jumps to deep night, and back to where it was.
   function toggleNight() {
     const w = levels.world;
     if (levels.id !== 'savanna' || !w) return;
-    if (night === null) { night = w.time; w.time = levels.def.dusk.time; } else { w.time = night; night = null; }
+    if (night === null) { night = w.time; w.time = levels.def.night?.time ?? levels.def.dusk.time; } else { w.time = night; night = null; }
   }
 
   // K: the camera's position and yaw, as levels.json writes them.

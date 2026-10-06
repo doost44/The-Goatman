@@ -170,7 +170,8 @@
       "palette": "savanna",
       "seed": 9,
       "sky": [[0, "#12030a"], [0.55, "#3b0914"], [1, "#6a1424"]],
-      "fog": { "color": "#4a0d1c", "near": 30, "far": 210 },
+      "fog": { "color": "#4a0d1c", "near": 60, "far": 600 },
+      "view": 2100,
       "ambient": { "color": "#d890b8", "intensity": 1.15 },
       "sun": { "color": "#ffb0a0", "intensity": 1.3, "dir": [0.35, 0.8, 0.55] },
       "grade": [1.1, 1.0, 1.0, 0.15],
@@ -187,64 +188,114 @@
       "places": [
         { "name": "arrival", "at": [8, 62], "yaw": 0 },
         { "name": "willow", "at": [-6, -22], "yaw": 0 },
-        { "name": "river", "at": [36, 0], "yaw": 0 },
-        { "name": "herd", "at": [42, -36], "yaw": 0 },
-        { "name": "the way on", "at": [0, -112], "yaw": 0 }
+        { "name": "river and oaks", "at": [60, 30], "yaw": -60 },
+        { "name": "herd by the river", "at": [42, -36], "yaw": 0 },
+        { "name": "the ford", "at": [-14, -52], "yaw": -120 },
+        { "name": "pine flats", "at": [-190, -110], "yaw": 60, "up": 2 },
+        { "name": "herd on the flats", "at": [-225, -110], "yaw": 30 },
+        { "name": "carolina bay", "at": [-250, -200], "yaw": 50, "up": 2 },
+        { "name": "the marsh", "at": [230, -300], "yaw": -130, "up": 6 },
+        { "name": "second willow", "at": [205, -395], "yaw": 135 },
+        { "name": "cypress swamp", "at": [470, -190], "yaw": -120, "up": 2 },
+        { "name": "sandy hills", "at": [-170, 350], "yaw": -120, "up": 4 },
+        { "name": "herd in the hills", "at": [260, 270], "yaw": -135 },
+        { "name": "treeline edge", "at": [-420, -440], "yaw": 135 },
+        { "name": "the way on", "at": [0, -590], "yaw": 0 }
       ],
-      "bounds": 130,
+      "bounds": 680,
       "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
+      "night": { "time": 720, "dim": 0.72, "stars": 0.85, "repeat": 2.6, "fog": [40, 380] },
       "terrain": {
-        "shape": "disc", "radius": 220, "segments": [256, 96],
-        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4]],
-        "flat": [[-6, -34, 22], [8, 62, 14]],
-        "rim": [135, 205, 14],
-        "mottle": [0.35, 0.03],
-        "noise": 0.6, "noiseScale": 0.05, "tile": 4,
+        "shape": "chunks", "size": [1536, 1536], "center": [0, 0], "chunk": 128,
+        "lods": [[130, 40], [300, 20], [1e9, 5]], "view": 640, "cache": 220, "budget": 3,
+        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4],
+          [-380, 120, 150, 20], [-250, 430, 170, 28], [300, 340, 160, 18], [560, -80, 110, 14],
+          [-560, -330, 140, 20], [180, -580, 120, 14], [-120, -300, 90, 6], [420, 520, 120, 12]],
+        "flat": [[-6, -34, 22], [8, 62, 14], [180, -420, 18]],
+        "rim": [600, 900, 30],
+        "mottle": [0.35, 0.02],
+        "noise": 1.6, "noiseScale": 0.012, "tile": 4, "sand": [7, 17],
         "texture": "assets/savanna/grass.png", "tint": [1, 0.95, 1.1]
       },
-      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 600, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
-      "stars": { "texture": "assets/savanna/stars.png", "radius": 590, "repeat": 1.5 },
+      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 1900, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
+      "stars": { "texture": "assets/savanna/stars.png", "radius": 1880, "repeat": 1.5 },
       "treeline": {
-        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 160, "depth": 20, "height": 32, "ground": 215,
-        "columns": 384, "repeat": 12, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -160, 52]]
+        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 800, "depth": 30, "height": 46, "ground": 790,
+        "columns": 512, "repeat": 24, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -800, 90]]
       },
-      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
-      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126]], "width": 3.4 },
+      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "segment": 1, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
+      "willows": [
+        { "at": [180, -420], "fork": 8, "branches": 6, "height": 21, "reach": 11, "spacing": 0.6, "keepOut": 13, "seed": 11 }
+      ],
+      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126], [-12, -180], [6, -250], [-8, -330], [12, -410], [-2, -490], [-10, -560], [0, -626]], "width": 3.4 },
+      "marsh": { "at": [360, -390], "size": [210, 160], "level": -2.2, "edge": 70 },
       "river": {
-        "points": [[172, 30], [136, 22], [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40],
-          [-34, -58], [-16, -68], [6, -70], [28, -76], [48, -92], [62, -114], [70, -140], [78, -168]],
+        "points": [[720, 60], [640, 92], [560, 76], [480, 40], [410, 52], [330, 78], [260, 52], [200, 34], [172, 30], [136, 22],
+          [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40], [-34, -58], [-16, -68], [6, -70, 1.7, 0.7],
+          [28, -76], [48, -92], [62, -114], [70, -140], [80, -172], [104, -210], [142, -244], [188, -272, 1.3], [238, -304, 1.7],
+          [292, -346, 2.2], [350, -392, 2.6], [410, -440, 2.8], [460, -490, 2.6], [500, -540, 2.4]],
         "width": 18, "depth": 1, "water": 0.4, "margin": 6, "flow": 0.35, "sky": "#3a1220", "seed": 3,
         "bog": {
-          "reeds": 400, "tussocks": 140, "tussock": "assets/savanna/blades2.png", "scum": 50,
-          "branches": 12, "stumps": 9, "mist": 26, "reach": 135, "seed": 8
+          "reeds": 2600, "tussocks": 1000, "tussock": "assets/savanna/blades2.png", "scum": 160,
+          "branches": 60, "stumps": 50, "mist": 120, "reach": 690, "near": 150, "seed": 8
         }
       },
+      "creeks": [
+        { "points": [[300, -350], [270, -390], [290, -430], [250, -470], [262, -510], [230, -545]], "width": 9, "depth": 1.2 },
+        { "points": [[420, -446], [470, -420], [520, -430], [560, -395], [590, -350]], "width": 10, "depth": 1.2 },
+        { "points": [[330, -372], [380, -330], [440, -320], [480, -290], [510, -262]], "width": 8, "depth": 1.2 },
+        { "points": [[380, -415], [350, -460], [380, -500], [350, -545]], "width": 7, "depth": 1.1 }
+      ],
+      "bays": [
+        { "at": [545, -235], "size": [95, 60], "turn": 30, "deep": 2.2, "water": 1.1, "rim": 0, "swamp": true },
+        { "at": [-300, -250], "size": [70, 40], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [-470, -40], "size": [50, 30], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [210, 230], "size": [60, 34], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [-150, 360], "size": [46, 28], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [140, -370], "size": [40, 24], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 }
+      ],
+      "lowcountry": {
+        "seed": 13, "reach": 640, "near": 380,
+        "pines": { "count": 420, "gap": 22, "tall": [20, 30],
+          "areas": [[-300, -220, 230], [-60, -420, 170], [-430, 150, 170], [180, 420, 170], [-200, 500, 120], [420, 150, 150]] },
+        "oaks": { "count": 22, "gap": 20, "size": [0.8, 1.15],
+          "areas": [[60, 0, 70], [-60, -40, 50], [140, 30, 60], [-30, 60, 40], [200, -440, 40]] },
+        "cypress": { "count": 45, "gap": 6, "tall": [14, 22] },
+        "snags": { "count": 40, "gap": 8, "tall": [6, 13] },
+        "band": { "from": 610, "to": 770, "count": 6500, "gap": 6, "tall": 22, "opening": [0, -700, 60], "texture": "assets/savanna/treeline.png", "reach": 260 },
+        "giants": [
+          { "kind": "cypress", "at": [560, -215], "tall": 60, "seed": 9 },
+          { "kind": "pine", "at": [-250, 430], "tall": 50, "seed": 4 }
+        ]
+      },
       "grass": {
-        "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
-        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16
+        "art": "assets/savanna/blades", "cards": 4, "density": 0.09, "cell": 32, "reach": 130,
+        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16,
+        "marsh": { "tint": [0.9, 1.2, 2.2], "size": 1.5, "density": 1.6 }
       },
       "bushes": {
-        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "length": 5, "radius": 1.4,
+        "at": [[28, 10], [42, -46], [-36, 22], [-250, -140], [-235, -165], [-262, -118], [280, 300], [300, 322]],
+        "roam": 14, "length": 5, "radius": 1.4,
         "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6],
-        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4
+        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4, "sleep": 0.45, "seen": 220
       },
-      "exit": { "at": [0, -126], "gap": [0, -168], "gapSize": [70, 44], "pillarSize": [7, 24] },
+      "exit": { "at": [0, -626], "gap": [0, -800], "gapSize": [150, 95], "pillarSize": [7, 24] },
       "rocks": { "seed": 4, "count": 8 },
       "walkingThing": {
         "home": [8, 0, 62], "facing": 0, "wander": 6, "height": 22, "speed": 2.5, "rideSpeed": 3.2, "hurry": 1.5, "turn": 0.5,
-        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 126
+        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 670
       },
       "interactions": [
         { "type": "dismount", "mounted": true },
         { "type": "pet", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO PET", "once": "petted" },
         { "type": "ride", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO RIDE" },
-        { "type": "exit", "at": [0, 0, -126], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
+        { "type": "exit", "at": [0, 0, -626], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
       ],
       "outcomes": {
         "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
         "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
         "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
-        "ending": { "ride": "walkingThing", "toward": [0, 0, -168], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
+        "ending": { "ride": "walkingThing", "toward": [0, 0, -720], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
       }
     },
 

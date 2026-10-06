@@ -70,10 +70,16 @@ goatman3d/
                        glimpse of level 2 through it
       marks.js         the glowing ground marks and the eyes that watch, blink and move
       field.js         level 2: sky dome, ring of painted peaks, two cloud layers, red grass, the gate back
-      savanna.js       level 3: dusk falling to stars, the path and the light at its end
-      river.js         the savanna's bog river: its course (carved into the ground along a spline),
-                       the murky flowing water, splashes and bubbles
-      bog.js           the river's dressing: swaying reeds and tussocks, dead wood, floating scum, dusk mist
+      savanna.js       level 3: 1.5 km of chunked lowcountry, dusk falling to deep night, the path and
+                       the light at its end
+      waters.js        the savanna's wet ground: the salt marsh, Carolina bays, the cypress swamp, and
+                       everything the level asks about water (depth, surface, wet, the ground's tint)
+      river.js         a winding course (the river, the marsh's creeks): carved along a spline, widening
+                       where its points say; the murky water in 192 m tiles, splashes and bubbles
+      bog.js           the water's dressing: reeds and tussocks (a scatter), dead wood, scum, mist
+      lowcountry.js    the savanna's South Carolina trees put in place: longleaf pines, live oaks,
+                       cypress in the swamp, dead snags in the water, the band of forest to ride into
+      lowcountry-trees.js  those trees' low-poly shapes (strands.js makes their Spanish moss)
       pool.js          the orange and blue swirl pool (thepool.png), kept for the final level
       horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees; for big
                        levels the far land past the fog and haze() for things seen beyond it
@@ -81,7 +87,10 @@ goatman3d/
       expanse.js       the big-world test level (admin only): 2 km of chunked land, far land, landmarks
       tealtree.js      the savanna's teal tree as a weeping willow: trunk, arcing boughs, hanging
                        tendrils that sway and part round GoatMan and the Walking Thing's feet
-      clumps.js        the savanna's grass clumps: crossed cards in a scatter, swaying in the shader
+      strands.js       hanging strands (the willow's tendrils, the moss): smooth tapered ribbons and
+                       their travelling-wave sway
+      clumps.js        the savanna's grass: crossed cards grown a square at a time round the camera
+                       (each square from its own seed), swaying and shrinking away in the shader
     walkingthing.js    the Walking Thing: wandering, watching, its 11-drawing stride (dipping and leaning
                        onto each foot), carrying a rider
     walkingthing-acts.js   its scripted moves: kneeling, walking off, the stomp, climbing on and off, nuzzling
@@ -90,6 +99,7 @@ goatman3d/
     squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
     bushes.js          the savanna's striped creatures and their babies: creep, watch him, run off
     bushes-body.js     their lumpy bodies, swept from the side drawing (cret1-4) like the Walking Thing's
+    bushes-paint.js    their skin painted round the whole body from the drawing's colours, and their eyes
     story.js, interact.js   what E does (exits, dialogue, petting) and the endings: the ride into
                        the light, the finale flash and video, the credits
     rocks.js           pebbles: right click / G picks one up and throws it
@@ -125,7 +135,7 @@ goatman3d/
 - A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists. A `line` collider is a fallen trunk (`ax, az, bx, bz, r` and the heights of its top at each end, `ya, yb`): he steps over it when it is lower than `STEP_UP` under his hooves and walks on it through a ground object whose `userData.surface` gives its top. A step that would leave him wedged between colliders (a gap narrower than his body) is undone, so he can't squeeze through.
-- Big levels (the forest is a disc 500 m across): put the thousands of things in a `createScatter` (scatter.js), one InstancedMesh per kind, refilled each frame with the copies within `reach` that are in view, nearest first (the savanna's grass too, with `reach: Infinity`: its fog is far off). Fog is by depth, so things at the sides of the view fade later: `reach` must be past the fog's far distance by about 1 / cos(half the horizontal field of view). Collisions come from a grid of what is solid near him (woods.js `near()`), refreshed as he moves, never from the whole level.
+- Big levels (the forest is a disc 500 m across): put the thousands of things in a `createScatter` (scatter.js), one InstancedMesh per kind, refilled each frame with the copies within `reach` that are in view, nearest first (the savanna's grass is grown and forgotten a square at a time in clumps.js instead). Fog is by depth, so things at the sides of the view fade later: `reach` must be past the fog's far distance by about 1 / cos(half the horizontal field of view). Collisions come from a grid of what is solid near him (woods.js `near()`), refreshed as he moves, never from the whole level.
 - The forest's sky is a dome that moves with the camera (so trunks never show outside it); its painting melts into the live fog colour near the horizon, so it follows the fog's pink near the way out.
 - Forest layout lives in levels.json: `woods` (spacing, clearings and clusters, the edge rings, how many logs, arches, stones), `sidePaths` (each with its points, `mouth` hidden by `leaning` trunks or `undergrowth`, faint `marks` and an `end`: a `ring` of pale trunks, a pale giant `tree`, the `eyes` dell or a `clearing`), `dome`, `undergrowth`, `marks.out` (fainter marks thinning away from the path) and `exit`.
 - Big levels (1.5 km and more, sections 3 and 4 of version 2; `expanse` is the test level): terrain `"shape": "chunks"` goes to `createChunkedTerrain` (chunks.js), not `buildTerrain`. Its `group` goes in the level's group, its `ground` (a stand-in whose `userData.surface` is the exact height of whichever chunk is drawn there) in `ground`, and the world calls `update(camera)` from `beforeRender` and `dispose()` from its own `dispose`. `heightAt` is the finest grid (for placing things), `height` the smooth function (for the far land beyond the level), and the world returns the terrain as `chunks` so the admin box and map can show it. Chunks are 128 m squares at a few levels of detail (`lods`, finest first) out to `view` metres; a chunk keeps its detail until it is a quarter chunk past a boundary, at most `budget` chunks are rebuilt a frame (a missing one is built at once, so there is never a hole), and skirts hang from every edge to hide cracks between details. Memory: built chunks stay in a cache of `cache` chunks and the one unused longest is freed (`geometry.dispose()`) past that, so the graphics card's geometries (the admin box's GPU line) level off however far he goes; the material is shared and freed with the level. Past the fog, `buildFarLand` (horizon.js) draws one coarse grid of the land out to the horizon (not drawn within `cut` of the camera, where the chunks are) and `buildLandmarks` (landmarks.js) the big shapes, both hazed toward the fog colour by `haze()` instead of fogged out; set the level's `view` (the camera's far plane, 800 by default) past them. The level's scatter `reach` stays near what the fog lets you see of small things, not the whole fog distance.
