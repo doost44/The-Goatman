@@ -15,7 +15,7 @@ import { limb } from './tealtree.js';
 const dummy = new THREE.Object3D();
 
 // Two crossed cards standing on the ground, lit like the ground (like clumps.js).
-function cards(w, h) {
+export function cards(w, h) {
   const card = new THREE.PlaneGeometry(w, h).translate(0, h / 2 - 0.1, 0);
   const geo = mergeGeometries([card, card.clone().rotateY(Math.PI / 2)]);
   const normal = geo.attributes.normal;
@@ -25,7 +25,7 @@ function cards(w, h) {
 
 // Reeds and tussocks lean with the wind, their tips most (a few lines added to the
 // material's shader, after each one is put in place).
-function swaying(mat, time, amount) {
+export function swaying(mat, time, amount) {
   mat.customProgramCacheKey = () => 'reeds';
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, { uTime: time, uSway: { value: amount } });
@@ -44,7 +44,7 @@ function swaying(mat, time, amount) {
 
 // Reeds: thin dark stalks in the painting's maroons and its grass strokes' blue, a few
 // leaves curving off them and some with a seed head.
-function reedPaint(r) {
+export function reedPaint(r) {
   const c = canvas(64, 128);
   const g = c.getContext('2d');
   const colours = ['#12060c', '#1c0a14', '#28101c', '#1a1440', '#24205a'];
@@ -83,7 +83,7 @@ function scumPaint(r) {
 }
 
 // Dead wood: grey-brown with dark splits along the grain.
-function barkPaint(r) {
+export function barkPaint(r) {
   const c = canvas(32, 64);
   const g = c.getContext('2d');
   g.fillStyle = '#3a2c2e';
@@ -95,21 +95,72 @@ function barkPaint(r) {
   return crunchy(c, [1, 1]);
 }
 
-// Mist: a few soft pale puffs run together, see-through at the edges.
-function mistPaint(r) {
+// Mist: a few soft pale puffs run together, see-through at the edges (rgb: its colour).
+export function mistPaint(r, rgb = '232, 190, 205') {
   const c = canvas(64, 32);
   const g = c.getContext('2d');
   for (let i = 0; i < 6; i++) {
     const x = 14 + r() * 36, y = 13 + r() * 6, rad = 6 + r() * 7;
     const grad = g.createRadialGradient(x, y, 0, x, y, rad);
-    grad.addColorStop(0, 'rgba(232, 190, 205, 0.45)');
-    grad.addColorStop(1, 'rgba(232, 190, 205, 0)');
+    grad.addColorStop(0, `rgba(${rgb}, 0.45)`);
+    grad.addColorStop(1, `rgba(${rgb}, 0)`);
     g.fillStyle = grad;
     g.fillRect(0, 0, 64, 32);
   }
   const t = crunchy(c);
   t.magFilter = THREE.LinearFilter; // mist is soft even here
   return t;
+}
+
+// A stump broken off raggedly, standing in the ground at (x, y, z).
+export function stump(r, x, y, z) {
+  const h = 0.7 + r() * 1.3, lean = (r() - 0.5) * 0.4;
+  const stump = new THREE.CylinderGeometry(0.22 + r() * 0.12, 0.35 + r() * 0.15, h, 6, 1);
+  const pos = stump.attributes.position;
+  const jag = Array.from({ length: 7 }, () => (r() - 0.6) * 0.4); // broken off raggedly: a height per corner, and the middle
+  for (let k = 0; k < pos.count; k++) {
+    const x = pos.getX(k), y = pos.getY(k), z = pos.getZ(k);
+    const corner = x * x + z * z < 1e-6 ? 6 : (Math.round(Math.atan2(z, x) / (Math.PI / 3)) + 6) % 6;
+    if (y > 0) pos.setY(k, y + jag[corner]);
+    pos.setX(k, x + lean * (pos.getY(k) + h / 2));
+  }
+  return stump.rotateY(r() * Math.PI).translate(x, y + h / 2 - 0.25, z);
+}
+
+// Mist: cards that always face the camera (turned to it in the shader), drifting slowly
+// about. puffs: [{ x, y, z, w, h }]. The material starts see-through (opacity 0).
+export function mistCards(puffs, map, time) {
+  const mist = new THREE.BufferGeometry();
+  const centres = [], corners = [], uvs = [], index = [];
+  puffs.forEach(({ x, y, z, w, h }, i) => {
+    for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      centres.push(x, y, z);
+      corners.push((cx * w) / 2, (cy * h) / 2);
+      uvs.push((cx + 1) / 2, (cy + 1) / 2);
+    }
+    index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+  });
+  mist.setAttribute('position', new THREE.Float32BufferAttribute(centres, 3));
+  mist.setAttribute('corner', new THREE.Float32BufferAttribute(corners, 2));
+  mist.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  mist.setIndex(index);
+  const material = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, opacity: 0 });
+  material.customProgramCacheKey = () => 'mist';
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = time;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 corner;\nuniform float uTime;')
+      .replace('#include <project_vertex>', `
+        transformed.x += 2.5 * sin(uTime * 0.05 + position.z * 0.1);
+        transformed.z += 2.5 * cos(uTime * 0.04 + position.x * 0.1);
+        vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+        mvPosition.xy += corner;
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  const mesh = new THREE.Mesh(mist, material);
+  mesh.frustumCulled = false; // its corners are only put out in the shader
+  mesh.renderOrder = 1; // over the water
+  return { mesh, material };
 }
 
 export async function buildBog(d, course, heightAt) {
@@ -155,17 +206,8 @@ export async function buildBog(d, course, heightAt) {
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const wood = [];
   for (let i = 0; i < d.stumps; i++) {
-    const p = spot(r() * edge, edge + 2), y = heightAt(p.x, p.z), h = 0.7 + r() * 1.3, lean = (r() - 0.5) * 0.4;
-    const stump = new THREE.CylinderGeometry(0.22 + r() * 0.12, 0.35 + r() * 0.15, h, 6, 1);
-    const pos = stump.attributes.position;
-    const jag = Array.from({ length: 7 }, () => (r() - 0.6) * 0.4); // broken off raggedly: a height per corner, and the middle
-    for (let k = 0; k < pos.count; k++) {
-      const x = pos.getX(k), y = pos.getY(k), z = pos.getZ(k);
-      const corner = x * x + z * z < 1e-6 ? 6 : (Math.round(Math.atan2(z, x) / (Math.PI / 3)) + 6) % 6;
-      if (y > 0) pos.setY(k, y + jag[corner]);
-      pos.setX(k, x + lean * (pos.getY(k) + h / 2));
-    }
-    wood.push(stump.rotateY(r() * Math.PI).translate(p.x, y + h / 2 - 0.25, p.z));
+    const p = spot(r() * edge, edge + 2);
+    wood.push(stump(r, p.x, heightAt(p.x, p.z), p.z));
   }
   for (let i = 0; i < d.branches; i++) {
     const p = spot(r() * edge * 0.8, edge * 0.9), top = p.level - course.water;
@@ -187,39 +229,13 @@ export async function buildBog(d, course, heightAt) {
   }));
   meshes.push(scum);
 
-  // Mist: cards over the water that always face the camera (turned to it in the shader),
-  // drifting slowly about, showing as the dusk falls.
-  const mist = new THREE.BufferGeometry();
-  const centres = [], corners = [], uvs = [], index = [];
+  // Mist over the water, showing as the dusk falls.
+  const puffs = [];
   for (let i = 0; i < d.mist; i++) {
     const p = spot(0, edge * 0.8), w = 7 + r() * 7, h = 1.4 + r() * 1.2, y = p.level - course.water + 0.3 + r() * 0.6;
-    for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      centres.push(p.x, y, p.z);
-      corners.push((cx * w) / 2, (cy * h) / 2);
-      uvs.push((cx + 1) / 2, (cy + 1) / 2);
-    }
-    index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+    puffs.push({ x: p.x, y, z: p.z, w, h });
   }
-  mist.setAttribute('position', new THREE.Float32BufferAttribute(centres, 3));
-  mist.setAttribute('corner', new THREE.Float32BufferAttribute(corners, 2));
-  mist.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  mist.setIndex(index);
-  const mistMat = new THREE.MeshBasicMaterial({ map: mistPaint(r), transparent: true, depthWrite: false, opacity: 0 });
-  mistMat.customProgramCacheKey = () => 'mist';
-  mistMat.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = time;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 corner;\nuniform float uTime;')
-      .replace('#include <project_vertex>', `
-        transformed.x += 2.5 * sin(uTime * 0.05 + position.z * 0.1);
-        transformed.z += 2.5 * cos(uTime * 0.04 + position.x * 0.1);
-        vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
-        mvPosition.xy += corner;
-        gl_Position = projectionMatrix * mvPosition;`);
-  };
-  const mistMesh = new THREE.Mesh(mist, mistMat);
-  mistMesh.frustumCulled = false; // its corners are only put out in the shader
-  mistMesh.renderOrder = 1; // over the water
+  const { mesh: mistMesh, material: mistMat } = mistCards(puffs, mistPaint(r), time);
   meshes.push(mistMesh);
 
   return {

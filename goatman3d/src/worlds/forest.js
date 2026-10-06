@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildTerrain, valueNoise, walkPath } from '../terrain.js';
+import { buildTerrain, terrainHeight, valueNoise, walkPath } from '../terrain.js';
 import { loadImage, loadTexture, toCanvas, canvas, crunchy, grade, rng } from '../textures.js';
 import { nearestOnPath } from '../player.js';
 import { createScatter } from './scatter.js';
@@ -8,11 +8,12 @@ import { buildTrunks } from './trunks.js';
 import { buildUndergrowth, buildGrass } from './undergrowth.js';
 import { buildMarks, buildEyes } from './marks.js';
 import { buildGate } from './gate.js';
+import { pondCourse, buildPonds } from './ponds.js';
 
 // Level 1, the night forest, from "Background Section 1.jpg" and fore.png: an open forest of
 // dense dark trunks under a dome of blue burlap, the ground rising and dipping, a path of
-// glowing marks through it with hidden paths off it, and somewhere past its end a gap where
-// the pink light of the red field leaks through. woods.js plans where everything goes, and
+// glowing marks through it with hidden paths off it, still black ponds in its clearings, and
+// somewhere past its end a gap where the pink light of the red field leaks through. woods.js plans where everything goes, and
 // the scatter draws only what is near the camera.
 
 export async function buildForest(def, { scene, camera, player }) {
@@ -30,11 +31,16 @@ export async function buildForest(def, { scene, camera, player }) {
   };
   const floor = await loadTexture(def.terrain.texture, 1);
   const groundMat = new THREE.MeshLambertMaterial({ map: floor, color: new THREE.Color(...def.terrain.tint) });
-  const { mesh: ground, heightAt } = buildTerrain(def.terrain, groundMat, { reshape });
-  group.add(ground);
+  // The ponds lie in finer patches of ground of their own; the coarse ground sinks out of sight under them.
+  const natural = terrainHeight(def.terrain);
+  const course = pondCourse(def.ponds, def.terrain, (x, z) => reshape(x, z, natural(x, z)));
+  const { mesh: ground, heightAt: coarse } = buildTerrain(def.terrain, groundMat, { reshape: (x, z, h) => course.lower(x, z, reshape(x, z, h)) });
+  const heightAt = (x, z) => course.height(x, z) ?? coarse(x, z);
+  const ponds = buildPonds(def.ponds, course, def.terrain, groundMat, camera);
+  group.add(ground, ponds.group);
 
   const gate = await buildGate(def, heightAt, r);
-  const plan = planForest(def, heightAt, r, { keepClear: gate.keepClear, trunks: gate.trunks });
+  const plan = planForest(def, heightAt, r, { keepClear: [...gate.keepClear, ...course.keepClear], trunks: gate.trunks, wet: course.wet });
   const scatter = createScatter({ reach: def.woods.reach });
   const wood = await buildTrunks(plan, scatter, gate.blush);
   buildUndergrowth(plan, scatter, def.undergrowth, r);
@@ -42,7 +48,7 @@ export async function buildForest(def, { scene, camera, player }) {
   const dome = await buildDome(def.dome, fog, r);
   group.add(...scatter.done(), wood.arches, gate.light, dome, buildGrass(def.grass, def.path, heightAt, r));
 
-  const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15));
+  const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15) || course.wet(x, z, 0.5));
   const eyes = await buildEyes(def.eyes, plan.spots, def.path, camera);
   group.add(marks.group, eyes.group);
 
@@ -58,13 +64,18 @@ export async function buildForest(def, { scene, camera, player }) {
   const fogNight = new THREE.Color(def.fog.color), fogPink = new THREE.Color(def.exit.fog);
   return {
     group,
-    ground: [ground, logs],
+    ground: [ground, ...ponds.basins, logs],
     colliders,
     blockers: [...wood.solid.map((k) => scatter.meshes[k]), ...wood.archBlockers],
-    rockTargets: eyes.targets,
+    rockTargets: [...eyes.targets, ponds.water],
     actors: {},
     heightAt,
     pebbles,
+    wet: course.wet,
+    waterDepth: course.depth, // (x, z, y): wading in the ponds
+    splash: ponds.splash, // (x, z, size, sound)
+    // Where the night bed's pond sounds come from (ambience.js): the nearest pond.
+    soundAt: (p) => course.nearest(p.x, p.z),
     scatter,
     update(dt, t) {
       if (player.pos.distanceToSquared(last) > 4) {
@@ -74,6 +85,7 @@ export async function buildForest(def, { scene, camera, player }) {
       }
       marks.update(t);
       eyes.update(dt);
+      ponds.update(dt, t);
       // The pink light seeps into the fog near the way out.
       scene.fog?.color.lerpColors(fogNight, fogPink, gate.near(player.pos) * def.exit.tint);
       fog.copy(scene.fog?.color ?? fogNight);

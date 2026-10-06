@@ -77,6 +77,13 @@
         "at": [-31, -165], "facing": -90, "gap": 2.0, "apex": 3.6, "trunkRadius": 1.0, "reach": 34, "fog": "#3a2340", "tint": 0.4,
         "glimpse": { "sky": "assets/field/sky.png", "cloud": "assets/field/cloud-front2.png", "peaks": "assets/field/peaks.png", "grass": "assets/field/grass.png" }
       },
+      "ponds": {
+        "bank": 3, "water": 0.25, "reeds": 30, "stumps": 3, "branches": 3, "mist": 6, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
+        "list": [
+          { "name": "clearing", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
+          { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 }
+        ]
+      },
       "rocks": { "count": 14, "seed": 9 },
       "interactions": [
         { "type": "exit", "at": [-32, 0, -165], "radius": 1.7, "look": 60, "prompt": "PRESS E TO ENTER", "to": "field" }
