@@ -33,7 +33,7 @@ function tube(a, b, ra, rb, sides = 7) {
 }
 
 // --- The far Walking Things ------------------------------------------------------------------
-// levels.json "giants": { look: { body, legs, haze: [from, to, most] }, walkers: [{ from: [x, z],
+// levels.json "giants": { look: { body, legs, haze: [from, to, most], low? (see haze()) }, walkers: [{ from: [x, z],
 //   to: [x, z], height, speed }] }. Each walks from `from` to `to` and back on the far land,
 // legs swinging from the hips: a pale body and two jointed stilt legs, hazed like the landmarks.
 
@@ -42,7 +42,7 @@ export function buildGiants(d, height, fogColor) {
   const look = d.look;
   const mat = (color) => {
     const m = new THREE.MeshLambertMaterial({ color, flatShading: true });
-    haze(m, { color: fogColor, from: look.haze[0], to: look.haze[1], a: 0, b: look.haze[2] });
+    haze(m, { color: fogColor, from: look.haze[0], to: look.haze[1], a: 0, b: look.haze[2], low: look.low });
     return m;
   };
   const bodyMat = mat(look.body), legMat = mat(look.legs);

@@ -150,24 +150,33 @@ export async function buildSkyline(d, heightAt) {
 // than that (on the ground plane): the far land leaves the middle to the terrain chunks.
 // color is a THREE.Color the level keeps in step with its fog (it can change, as at dusk);
 // it is mixed in after the output colour conversion, as fog is, so it is converted too.
-export function haze(material, { color, from, to, a = 0, b = 0.85, cut = 0 }) {
+// With `low: [y0, y1]` (world heights) the haze thickens toward the ground, as real haze
+// does: fully the fog colour below y0, back to the distance haze above y1, so a far
+// mountain's foot melts into the fogged land in front of it rather than standing on it.
+// The low haze comes in over the same distance as the rest, so nothing near is fogged by it.
+// Sprites (the clouds) are hazed by their centre.
+export function haze(material, { color, from, to, a = 0, b = 0.85, cut = 0, low = [-1e5, -1e5 + 1] }) {
   const uniforms = {
     uHaze: { value: color }, uHazeRamp: { value: new THREE.Vector4(from, to, a, b) }, uHazeCut: { value: cut },
+    uHazeLow: { value: new THREE.Vector2(...low) },
   };
+  const sprite = material.isSpriteMaterial;
   material.fog = false;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vHazeAt;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvHazeAt = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <fog_vertex>', `#include <fog_vertex>\nvHazeAt = ${sprite ? 'modelMatrix[3].xyz' : '(modelMatrix * vec4(transformed, 1.0)).xyz'};`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vHazeAt;\nuniform vec3 uHaze;\nuniform vec4 uHazeRamp;\nuniform float uHazeCut;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vHazeAt;\nuniform vec3 uHaze;\nuniform vec4 uHazeRamp;\nuniform vec2 uHazeLow;\nuniform float uHazeCut;')
       .replace('void main() {', 'void main() {\n  if (length(vHazeAt.xz - cameraPosition.xz) < uHazeCut) discard;')
       .replace('#include <fog_fragment>', `#include <fog_fragment>
   float hazeK = smoothstep(uHazeRamp.x, uHazeRamp.y, distance(vHazeAt, cameraPosition));
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uHaze, 1.0)).rgb, mix(uHazeRamp.z, uHazeRamp.w, hazeK));`);
+  float lowK = (1.0 - smoothstep(uHazeLow.x, uHazeLow.y, vHazeAt.y)) * smoothstep(0.0, 0.25, hazeK);
+  float hazeMix = max(mix(uHazeRamp.z, uHazeRamp.w, hazeK), lowK);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uHaze, 1.0)).rgb, hazeMix);`);
   };
-  material.customProgramCacheKey = () => `haze${cut > 0 ? '-cut' : ''}`;
+  material.customProgramCacheKey = () => `haze${cut > 0 ? '-cut' : ''}${sprite ? '-sprite' : ''}`;
   return uniforms;
 }
 

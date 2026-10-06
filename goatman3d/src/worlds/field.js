@@ -42,10 +42,12 @@ export async function buildField(def, { scene, camera, player }) {
   const sky = await buildSkyDome(def.skyDome, def.fog.color);
   const far = buildFarLand(def.horizon, terrain.height, { center, cut: t.view - 20, fogColor: fog, sun: def.sun.dir });
   const peaks = await buildSkyline(def.peaks, terrain.height);
+  // past everything else, so fogged the most: at least `fog` of the way, and fully at the foot
+  haze(peaks.material, { color: fog, from: 0, to: 1, a: def.peaks.fog, b: def.peaks.fog, low: def.landmarkLook.low });
   const marks = buildLandmarks(def.landmarks, def.landmarkLook, heightAt, fog);
   const giants = buildGiants(def.giants, terrain.height, fog);
   const leg = buildFallenLeg(def.fallenLeg, heightAt);
-  const clouds = await buildClouds(def.clouds, r);
+  const clouds = await buildClouds(def.clouds, r, fog);
   const grass = buildRedGrass(def.grass, { heightAt, inside, dips: def.dips, ring: def.ring, shadow, seed: def.seed });
   const stones = buildStones(def.stones, terrain, r);
   group.add(terrain.group, far, sky, peaks, marks.group, giants.group, clouds.group, ...leg.meshes, grass.group, ...stones.meshes);
@@ -163,8 +165,9 @@ float cloudNoise(vec2 p) {
 
 // Two heights of painted cloud cards drifting on the wind: BACKCLOUDS far up and slow,
 // frontclouds lower and faster. Sprites, so they always face him, cut out with alphaTest.
-// They drift in a circle round him, so however far he walks the sky is never empty.
-async function buildClouds(d, r) {
+// They drift in a circle round him, so however far he walks the sky is never empty. The far
+// ones low over the horizon fade into the haze like the mountains (clouds.haze: [from, to, most]).
+async function buildClouds(d, r, fogColor) {
   const group = new THREE.Group();
   const drifting = [];
   for (const layer of [d.far, d.near]) {
@@ -172,7 +175,9 @@ async function buildClouds(d, r) {
     for (let i = 1; i <= layer.cards; i++) {
       const map = await loadTexture(`${layer.art}${i}.png`);
       // opaque cut-outs (not see-through), so the squash's darkness covers them too
-      mats.push({ mat: new THREE.SpriteMaterial({ map, alphaTest: 0.5, transparent: false, fog: false, color: new THREE.Color(layer.tint) }), aspect: map.image.height / map.image.width });
+      const mat = new THREE.SpriteMaterial({ map, alphaTest: 0.5, transparent: false, color: new THREE.Color(layer.tint) });
+      haze(mat, { color: fogColor, from: d.haze[0], to: d.haze[1], a: 0, b: d.haze[2] });
+      mats.push({ mat, aspect: map.image.height / map.image.width });
     }
     for (let i = 0; i < layer.count; i++) {
       const { mat, aspect } = mats[i % mats.length];

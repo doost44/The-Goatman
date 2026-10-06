@@ -173,10 +173,10 @@
       ],
       "ring": { "at": [-280, 140], "radius": 70, "width": 12 },
       "fallenLeg": { "joints": [[-35, -560, 5], [-15, -395, 4.2], [30, -320, 2.8], [48, -292, 1.8]], "pad": 1.9 },
-      "horizon": { "size": 9000, "segments": 80, "color": "#7a2434", "haze": [1, 0.55], "sink": 6 },
+      "horizon": { "size": 9000, "segments": 80, "color": "#7a2434", "haze": [1, 0.85], "sink": 6 },
       "skyDome": { "texture": "assets/field/sky.png", "radius": 4200, "repeat": 2 },
-      "peaks": { "texture": "assets/field/peaks.png", "radius": 3300, "depth": 300, "height": 700, "ground": 1100, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.55)" },
-      "landmarkLook": { "color": "#3a1822", "swap": 500, "haze": [100, 3600, 0.75] },
+      "peaks": { "texture": "assets/field/peaks.png", "radius": 3300, "depth": 300, "height": 700, "ground": 1100, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.55)", "fog": 0.6 },
+      "landmarkLook": { "color": "#3a1822", "swap": 500, "haze": [100, 2000, 0.85], "low": [190, 450] },
       "landmarks": [
         { "kind": "peak", "at": [-600, -1400], "size": [380, 560] },
         { "kind": "peak", "at": [-280, -1480], "size": [260, 330], "seed": 3 },
@@ -198,7 +198,7 @@
         { "kind": "stone", "at": [90, 260], "size": [4, 14], "color": "#24121a" }
       ],
       "giants": {
-        "look": { "body": "#efe2dc", "legs": "#e4cfca", "haze": [100, 3600, 0.7] },
+        "look": { "body": "#efe2dc", "legs": "#e4cfca", "haze": [100, 2000, 0.8], "low": [190, 420] },
         "walkers": [
           { "from": [-900, -1100], "to": [-300, -1250], "height": 140, "speed": 3 },
           { "from": [1100, -200], "to": [1150, 500], "height": 110, "speed": 2.5 },
@@ -207,6 +207,7 @@
       },
       "clouds": {
         "wind": [1, 0.25],
+        "haze": [150, 1100, 0.75],
         "shadows": { "scale": 90, "speed": 6, "dark": 0.28 },
         "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 22, "height": [180, 300], "size": [120, 220], "radius": 1200, "speed": 3, "tint": "#fff4f0" },
         "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 12, "height": [80, 130], "size": [70, 130], "radius": 700, "speed": 6, "tint": "#ffffff" }
