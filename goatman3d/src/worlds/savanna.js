@@ -16,11 +16,13 @@ import { createWalkingThing } from '../walkingthing.js';
 // Level 3, the savanna, from Charlie's layered painting (the savannahg/) and its videos, and
 // as big as the land in Kenshi: about 1.5 km across, in chunks (chunks.js). The painted
 // colours stay (crimson sky, lavender ground, blue grass, the teal tree) but the land is
-// South Carolina's lowcountry: long purple grass swaying on open flats with longleaf pines
-// far apart, sandy rises and round wet hollows (Carolina bays), live oaks hung with moss by
-// the willow, the low boggy river winding on past it through a ford and out into a salt
-// marsh cut by tidal creeks, a cypress swamp beside it with a second willow, and a band of
-// dark forest at the edge (waters.js, lowcountry.js). Three herds of the striped creatures
+// South Carolina's lowcountry: most of it a tidal salt marsh, a shining sheet of shallow
+// water broken into hundreds of winding hummocks of golden marsh grass, crossed by the
+// path on an old dike. Out of it rise islands: the one he arrives on, with the willow, live
+// oaks hung with moss and the low boggy river winding past through a ford; longleaf pines
+// far apart on sandy rises with round wet hollows (Carolina bays); a cypress swamp; a
+// second willow on its own hummock; and a band of dark forest round the edge (waters.js,
+// lowcountry.js). Three herds of the striped creatures
 // and their babies keep to their own places. The crimson sky slowly darkens until nsky's
 // stars come through, and the night goes on getting deeper the longer he stays: more stars,
 // thicker fog and mist, the herds settling down to sleep.
@@ -46,7 +48,7 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
     shade: (x, z) => waters.shade(x, z, smooth(natural(x, z), s0, s1)),
   });
   const { heightAt } = terrain;
-  const { wet } = waters; // (x, z, margin): in the water, or within margin metres of it
+  const { wet, deep } = waters; // wet(x, z, margin): in the water, or within margin metres of it
 
   const sky = await buildSkyDome(def.skyDome, def.fog.color);
   const stars = await buildStars(def.stars);
@@ -61,7 +63,7 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
   const offPath = (x, z, by) => nearestOnPath(def.path.points, x, z).d > def.path.width / 2 + by;
   const [sx, , sz] = def.spawns.start.at;
   // Where a tree may stand: dry land off the path, clear of the willows and the arrival.
-  const open = (x, z) => !wet(x, z, 6) && offPath(x, z, 5) && Math.hypot(x - sx, z - sz) > 25
+  const open = (x, z) => !wet(x, z, 6) && waters.marsh(x, z) < 0.3 && offPath(x, z, 5) && Math.hypot(x - sx, z - sz) > 25
     && trees.every((t) => Math.hypot(x - t.at[0], z - t.at[1]) > t.reach + 4);
   const grass = await buildClumps(def.grass, heightAt,
     (x, z) => wet(x, z, 3) || !offPath(x, z, 0.3) || trees.some((t) => Math.hypot(x - t.at[0], z - t.at[1]) < 2), // muddy banks: reeds only
@@ -75,10 +77,10 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
 
   const edge = { kind: 'ring', x: 0, z: 0, r: def.bounds };
   const fixed = [edge, ...trees.flatMap((t) => t.colliders)];
-  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: fixed, wet });
+  const bushes = await createBushes(def.bushes, { heightAt, camera, player, avoid: fixed, wet: deep }); // they splash about the marsh
   const thing = await createWalkingThing(def.walkingThing, { heightAt, camera, player });
   thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, ...trees.map((t) => t.keepOut)];
-  thing.wet = wet;
+  thing.wet = deep;
   thing.onStep = (foot) => water.splash(foot.x, foot.z, 1.5); // only where there is water
   group.add(bushes.group, thing.group);
   // What he can walk into: the edge, the willows' trunks, the creatures, the Walking Thing's

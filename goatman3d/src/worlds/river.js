@@ -178,7 +178,8 @@ function waterPaint(r) {
 }
 
 // waters (waters.js): { courses (the river and the creeks), pools (still water: { at,
-//   outline(angle) -> metres, level }), surface(x, z) (the water's height there, or null) }.
+//   outline(angle) -> metres, level }), surface(x, z) (the water's height there, or null),
+//   sheet(x, z) (true on the marsh), level (the marsh water's height), marshSize }.
 export function buildRiver(d, waters, camera) {
   const r = rng(d.seed ?? 3);
   const group = new THREE.Group();
@@ -189,13 +190,14 @@ export function buildRiver(d, waters, camera) {
   const tiles = new Map();
   const tile = (x, z) => {
     const k = `${Math.floor(x / TILE_SQUARE)},${Math.floor(z / TILE_SQUARE)}`;
-    if (!tiles.has(k)) tiles.set(k, { pos: [], uv: [], drift: [], index: [] });
+    if (!tiles.has(k)) tiles.set(k, { pos: [], uv: [], drift: [], shine: [], index: [] });
     return tiles.get(k);
   };
-  const vertex = (t, x, y, z, u, v, drift) => {
+  const vertex = (t, x, y, z, u, v, drift, shine = 0) => {
     t.pos.push(x, y, z);
     t.uv.push(u, v);
     t.drift.push(drift);
+    t.shine.push(shine);
     return t.pos.length / 3 - 1;
   };
   for (const course of waters.courses) {
@@ -221,6 +223,20 @@ export function buildRiver(d, waters, camera) {
       t.index.push(v(cx, cz), v(x1, z1), v(x0, z0));
     }
   }
+  // The marsh: one sheet of water over it all (the hummocks and the islands stand up out of
+  // it), a square to each tile it reaches, its paint stretched wider, shining with the sky.
+  const span = Math.ceil((waters.marshSize[0] + 80) / TILE_SQUARE);
+  for (let ix = -span; ix < span; ix++) {
+    for (let iz = -span; iz < span; iz++) {
+      const x0 = ix * TILE_SQUARE, z0 = iz * TILE_SQUARE, S = TILE_SQUARE;
+      let some = false;
+      for (let a = 0; a <= 8 && !some; a++) for (let b = 0; b <= 8 && !some; b++) some = waters.sheet(x0 + (a / 8) * S, z0 + (b / 8) * S);
+      if (!some) continue;
+      const t = tile(x0 + S / 2, z0 + S / 2);
+      const v = (x, z) => vertex(t, x, waters.level, z, x / (TILE * 2), z / (TILE * 2), 0.05, 1);
+      t.index.push(v(x0, z0), v(x0, z0 + S), v(x0 + S, z0), v(x0 + S, z0), v(x0, z0 + S), v(x0 + S, z0 + S));
+    }
+  }
   // The paint is read twice, flowing at two speeds and sizes, so the two drift through each
   // other as faint ripples; looking along it, it takes on the sky's colour.
   const flow = { value: 0 };
@@ -231,24 +247,27 @@ export function buildRiver(d, waters, camera) {
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, { uFlow: flow, uSky: sky });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float drift;\nvarying float vGraze, vDrift;')
+      .replace('#include <common>', '#include <common>\nattribute float drift, shine;\nvarying float vGraze, vDrift, vShine;')
       .replace('#include <fog_vertex>', `#include <fog_vertex>
         vDrift = drift;
+        vShine = shine;
         vec3 up = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
         vGraze = 1.0 - abs(dot(normalize(-mvPosition.xyz), up));`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uFlow;\nuniform vec3 uSky;\nvarying float vGraze, vDrift;')
+      .replace('#include <common>', '#include <common>\nuniform float uFlow;\nuniform vec3 uSky;\nvarying float vGraze, vDrift, vShine;')
       .replace('#include <map_fragment>', `
         vec4 slow = texture2D(map, vMapUv + vec2(0.0, -uFlow * vDrift));
         vec4 fast = texture2D(map, vMapUv * 1.37 + vec2(0.37, -uFlow * 1.8 * vDrift));
         diffuseColor *= max(slow, fast * 0.85);
-        diffuseColor.rgb = mix(diffuseColor.rgb, uSky, pow(vGraze, 3.0) * 0.5);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uSky, pow(vGraze, 3.0) * 0.5);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uSky * 2.4, vShine * (0.35 + 0.45 * pow(vGraze, 2.0)));`);
   };
   const meshes = [...tiles.values()].map((t) => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(t.pos, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(t.uv, 2));
     geo.setAttribute('drift', new THREE.Float32BufferAttribute(t.drift, 1));
+    geo.setAttribute('shine', new THREE.Float32BufferAttribute(t.shine, 1));
     geo.setIndex(t.index);
     geo.computeVertexNormals();
     const water = new THREE.Mesh(geo, mat);
