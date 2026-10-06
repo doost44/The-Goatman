@@ -107,3 +107,12 @@ draw only what is near and in view. Tried and dropped: 256 m chunks (32 calls in
 
 Screenshots: `savanna-places.png` (the 15 places in admin mode), `savanna-night.png` (deep
 night, a herd asleep), `savanna-creatures.png`, `savanna-willow.png`.
+
+## After the salt marsh
+
+Most of the savanna is now tidal salt marsh (Charlie's photos): one sheet of water over it
+and hummocks shaped in the ground, with finer ground near the camera (48 segments a chunk
+within 110 m) for the hummocks' edges. Same place, same method: 9.9-10.2 FPS, 148-157 draw
+calls, 116-119K triangles. 64 segments looked a little smoother but dropped it to 8.4 FPS.
+Screenshot: `savanna-marsh.png` (from the Walking Thing's back, low over the hummocks, high
+over them, the map from above).
