@@ -1,167 +1,39 @@
 import * as THREE from 'three';
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadSheet, loadTexture, canvas, crunchy } from './textures.js';
+import { loadSheet, loadTexture } from './textures.js';
 import { sfx } from './sound.js';
 import { shake, subtitle } from './hud.js';
 import { pushOut } from './player.js';
+import { BODY_ROWS, bodyGeometry, legTexture, hull, createShadow } from './walkingthing-body.js';
+import { THIGH, SHIN, PASTERN, createLeg, placeLeg, springLeg } from './walkingthing-legs.js';
 
 // The Walking Thing, from WBOY1-11 (WALKYBOY/): a pale small body high up on two very long,
 // thin, red-lined stilt legs. The body is the painted body swept round into a rounded
-// low-poly shape with the painting on its flanks. The legs are thin cylinders worked out every
-// frame from where its feet are (two-bone IK), so the feet plant on the ground and lift.
-// The walk keeps the painting's rhythm: one stride cycle is its 11 drawings, and the body
-// bobs and tips the way it does in them. The dark outlines are back faces drawn a little
-// bigger ("inverted hulls"), like the painted line round the body and down the legs.
+// low-poly shape with the painting on its flanks (walkingthing-body.js). The legs are worked
+// out every frame from where its feet are (walkingthing-legs.js), so the feet plant on the
+// ground and lift. The walk keeps the painting's rhythm: one stride cycle is its 11
+// drawings, and the body tips the way it does in them; it dips and sways onto each foot as
+// it lands. The dark outlines are back faces drawn a little bigger ("inverted hulls"), like
+// the painted line round the body and down the legs.
 //
 // levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, ... }
 // and for riding it: rideSpeed, hurry (Shift: rideSpeed times this), turn (radians a second).
 
 const SHEET = 'assets/field/wboy';
-const BODY_ROWS = 56; // in the 256 px drawings its legs start below this row
 const TALL = 254; // the drawings' height in pixels, top of the head to the feet
-const HIP_X = 49; // where the legs come out of the body, pixels from the left
-// Per drawing, WBOY1-11: how far the body sits below its highest (pixels) and how far it
-// tips its head up (radians), read off the frames.
-const BOB = [0, 1, 1, 0, 1, 4, 5, 7, 4, 4, 6];
+// Per drawing, WBOY1-11: how far it tips its head up (radians), read off the frames.
 const TIP = [0, 0, 0, 0.02, 0.02, 0, 0, 0.05, 0.14, 0.11, 0.04];
-const SWING = 0.42; // part of a cycle each foot spends in the air
-const THIGH = 0.42, SHIN = 0.36, PASTERN = 0.22; // of a leg's length
+const SWING = 0.55; // part of a cycle each foot spends in the air: the next lifts just before the other lands
 const KNEEL_HIP = 1.2; // metres above the ground when it kneels
+// The tip at a point f (0..11) through the drawings, on a smooth curve through them.
+function tipAt(f) {
+  const i = Math.floor(f), w = f - i, at = (n) => TIP[(n + 11) % 11];
+  const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+  return p1 + 0.5 * w * (p2 - p0 + w * (2 * p0 - 5 * p1 + 4 * p2 - p3 + w * (3 * (p1 - p2) + p3 - p0)));
+}
 
-const UP = new THREE.Vector3(0, 1, 0);
-const Y = UP;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const ease = (k) => k * k * (3 - 2 * k);
 const clamp = THREE.MathUtils.clamp;
-
-// --- Building it --------------------------------------------------------------------------
-
-// The body: the first drawing above the legs, swept round. Every few columns of the
-// painting become a ring as tall as the paint in that column (narrower at the head), the
-// rings are joined into one rounded low-poly shape, and the painting is projected onto it
-// from the side, so it shows on both flanks.
-const COLUMN = 3, RING = 8;
-function bodyGeometry(sheet, m, depth) {
-  const f = sheet.frames[0];
-  const c = canvas(f.w, BODY_ROWS);
-  const g = c.getContext('2d');
-  g.drawImage(sheet.img, f.x, f.y, f.w, BODY_ROWS, 0, 0, f.w, BODY_ROWS);
-  const img = g.getImageData(0, 0, f.w, BODY_ROWS);
-  const p = img.data;
-  const cols = [];
-  for (let x = 1; x < f.w; x += COLUMN) {
-    let a = -1, b = -1;
-    for (let y = 0; y < BODY_ROWS; y++) if (p[(y * f.w + x) * 4 + 3] > 127) { if (a < 0) a = y; b = y + 1; }
-    if (a >= 0) cols.push({ x, a, b });
-  }
-  fillEdges(p);
-  g.putImageData(img, 0, 0);
-
-  const pos = [], uv = [], index = [];
-  const head = cols[0].x + 22; // the head and neck end about here
-  cols.forEach(({ x, a, b }, i) => {
-    const mid = (a + b) / 2, half = (b - a) / 2;
-    const thick = (depth / 2) * (0.45 + 0.55 * THREE.MathUtils.smoothstep(x, head - 8, head + 8));
-    for (let k = 0; k < RING; k++) {
-      const t = (k / RING) * Math.PI * 2; // 0 is the top
-      const y = mid - Math.cos(t) * half;
-      pos.push(Math.sin(t) * thick, (BODY_ROWS - y) * m, (x - HIP_X) * m);
-      // its back and belly show the paint just inside the painted outline, not the line itself
-      uv.push(x / f.w, 1 - (mid - Math.cos(t) * Math.max(0, half - 3)) / BODY_ROWS);
-    }
-    if (i > 0) {
-      for (let k = 0; k < RING; k++) {
-        const a0 = (i - 1) * RING + k, a1 = (i - 1) * RING + ((k + 1) % RING), b0 = i * RING + k, b1 = i * RING + ((k + 1) % RING);
-        index.push(a0, b0, b1, a0, b1, a1);
-      }
-    }
-  });
-  // Close both ends with a fan round a middle point.
-  for (const [i, face] of [[0, 1], [cols.length - 1, -1]]) {
-    const { x, a, b } = cols[i];
-    const centre = pos.length / 3;
-    pos.push(0, (BODY_ROWS - (a + b) / 2) * m, (x - HIP_X) * m);
-    uv.push(x / f.w, 1 - (a + b) / 2 / BODY_ROWS);
-    for (let k = 0; k < RING; k++) {
-      const k0 = i * RING + k, k1 = i * RING + ((k + 1) % RING);
-      index.push(...(face > 0 ? [centre, k0, k1] : [centre, k1, k0]));
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setIndex(index);
-  geo.computeVertexNormals();
-  return { geo, texture: crunchy(c) };
-}
-
-// See-through pixels take the average colour of the painted ones, so the edges of the
-// painting don't show up dark on the model.
-function fillEdges(p) {
-  let r = 0, g = 0, b = 0, n = 0;
-  for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 127) { r += p[i]; g += p[i + 1]; b += p[i + 2]; n++; }
-  for (let i = 0; i < p.length; i += 4) {
-    if (p[i + 3] > 127) continue;
-    p[i] = r / n; p[i + 1] = g / n; p[i + 2] = b / n; p[i + 3] = 255;
-  }
-}
-
-// A leg's paint: down the first drawing's front leg, the middle of each row's painted span
-// stretched to the width of the texture and wrapped round the cylinders.
-function legTexture(sheet) {
-  const f = sheet.frames[0];
-  const from = BODY_ROWS + 4, to = 250;
-  const c = canvas(16, to - from);
-  const g = c.getContext('2d');
-  const src = canvas(f.w, 256);
-  const sg = src.getContext('2d');
-  sg.drawImage(sheet.img, f.x, f.y, f.w, 256, 0, 0, f.w, 256);
-  const data = sg.getImageData(0, 0, f.w, 256).data;
-  for (let y = from; y < to; y++) {
-    let a = -1, b = -1;
-    for (let x = 0; x < 56; x++) {
-      const on = data[(y * f.w + x) * 4 + 3] > 127;
-      if (on && a < 0) a = x;
-      if (on) b = x + 1;
-      else if (a >= 0) break; // just the first leg from the left
-    }
-    const inset = Math.floor((b - a) / 4); // the middle of the leg: the outline does its edges
-    if (a >= 0) g.drawImage(src, a + inset, y, Math.max(1, b - a - inset * 2), 1, 0, y - from, 16, 1);
-  }
-  const t = crunchy(c);
-  t.wrapS = THREE.RepeatWrapping;
-  t.repeat.x = 2;
-  return t;
-}
-
-// Back faces of a copy pushed out along its normals: a dark outline from every side.
-function hull(geo, width, material) {
-  const g = mergeVertices(geo.clone().deleteAttribute('uv').deleteAttribute('normal'));
-  g.computeVertexNormals();
-  const p = g.attributes.position, n = g.attributes.normal;
-  for (let i = 0; i < p.count; i++) {
-    p.setXYZ(i, p.getX(i) + n.getX(i) * width, p.getY(i) + n.getY(i) * width, p.getZ(i) + n.getZ(i) * width);
-  }
-  return new THREE.Mesh(g, material);
-}
-
-// A leg segment one unit long from y = 0 to 1 (stretched to length each frame), showing
-// the part of the leg texture between v0 and v1.
-function segment(r0, r1, v0, v1, mat, line, width) {
-  const geo = new THREE.CylinderGeometry(r1, r0, 1, 6, 1, true).translate(0, 0.5, 0);
-  const uv = geo.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setY(i, v0 + (v1 - v0) * uv.getY(i));
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.add(new THREE.Mesh(new THREE.CylinderGeometry(r1 + width, r0 + width, 1, 6, 1, true).translate(0, 0.5, 0), line));
-  return mesh;
-}
-
-function knot(radius, mat, line, width, squash = 1) {
-  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 0), mat);
-  mesh.add(new THREE.Mesh(new THREE.IcosahedronGeometry(radius + width, 0), line));
-  mesh.scale.y = squash;
-  return mesh;
-}
 
 // --- The creature ----------------------------------------------------------------------------
 
@@ -184,56 +56,35 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
   const redLine = new THREE.MeshBasicMaterial({ color: 0x4a0a14, side: THREE.BackSide });
   const darkLine = new THREE.MeshBasicMaterial({ color: 0x3b2733, side: THREE.BackSide });
 
-  const { geo: bodyGeo, texture: bodyTex } = bodyGeometry(sheet, m, depth);
+  const { geo: bodyGeo, texture: bodyTex, top: backTop } = bodyGeometry(sheet, m, depth); // backTop: above the hips
   const body = new THREE.Group();
   body.rotation.order = 'YXZ';
   body.add(new THREE.Mesh(bodyGeo, new THREE.MeshLambertMaterial({ map: bodyTex, emissiveMap: bodyTex, emissive: 0x505050, flatShading: true, color: 0xe4dcdc })));
   body.add(hull(bodyGeo, line * 1.8, darkLine));
-  bodyGeo.computeBoundingBox();
-  const backTop = bodyGeo.boundingBox.max.y; // the top of its back, above the hips
   group.add(body);
 
+  const size = { T, S, P, k, line };
   const legs = [-1, 1].map((s) => {
-    const leg = {
-      s,
-      thigh: segment(0.36 * k, 0.29 * k, 1, 1 - THIGH, legMat, redLine, line),
-      shin: segment(0.27 * k, 0.21 * k, 1 - THIGH, PASTERN, legMat, redLine, line),
-      pastern: segment(0.2 * k, 0.15 * k, PASTERN, 0, legMat, redLine, line),
-      knee: knot(0.4 * k, legMat, redLine, line),
-      ankle: knot(0.31 * k, legMat, redLine, line),
-      pad: knot(0.42 * k, legMat, redLine, line, 0.5),
-      // the foot: where it is, and where a step goes from and to (k = 1 when planted)
-      at: new THREE.Vector3(), from: new THREE.Vector3(), to: new THREE.Vector3(), k: 1, time: 1, lift: 1,
-      grow: 1, // the foot's size (the squash makes it huge)
-      held: null, // a scripted position instead of walking (the stomp)
-    };
-    group.add(leg.thigh, leg.shin, leg.pastern, leg.knee, leg.ankle, leg.pad);
+    const leg = createLeg(s, { k, line, mat: legMat, lineMat: redLine });
+    group.add(...leg.meshes, leg.pad);
     return leg;
   });
 
-  // shadow.png as its blob shadow, laid over the ground under the body every frame
-  const shadowGeo = new THREE.PlaneGeometry(1, 1, 6, 4);
-  const shadow = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({
-    map: await loadTexture(def.shadow), color: 0x2a0010, transparent: true, opacity: 0.6, depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: -2,
-  }));
-  shadow.frustumCulled = false;
-  const grid = [];
-  for (let i = 0; i < shadowGeo.attributes.position.count; i++) {
-    grid.push([shadowGeo.attributes.position.getX(i), shadowGeo.attributes.position.getY(i)]);
-  }
+  const shadow = createShadow(await loadTexture(def.shadow), (backTop + 30 * m) * 1.6, depth * 2.2);
   group.add(shadow);
 
   // --- State ---
   const pos = new THREE.Vector3(def.home[0], 0, def.home[2]); // the ground point under its hips
   const fwd = new THREE.Vector3(), side = new THREE.Vector3(), back = new THREE.Vector3();
-  const v = new THREE.Vector3(), hip = new THREE.Vector3(), ankle = new THREE.Vector3();
-  const knee = new THREE.Vector3(), dir = new THREE.Vector3(), bend = new THREE.Vector3(), pole = new THREE.Vector3();
+  const v = new THREE.Vector3(), hip = new THREE.Vector3();
   let heading = def.facing ?? 0;
   let speed = 0;
   let phase = 0;
   let crouch = 0; // 0 standing .. 1 kneeling
   let rear = 0; // rearing back, head up (the squash)
+  let dip = 0, dipVel = 0, press = 0; // the body sinking onto a foot as it lands, and springing back up
+  let roll = 0, rollVel = 0, rollTo = 0; // and leaning over onto that foot
+  let lastSpeed = 0;
   let mode = 'wander'; // wander | watch | script | ridden
   let target = null; // where it is walking to
   let rest = rnd(1, 3); // seconds before it sets off again
@@ -270,58 +121,23 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     v.subVectors(p, camera.position).setY(0).normalize();
     return clamp(v.dot(right), -1, 1);
   }
-  // A foot comes down: felt more than heard, and the closer the more the screen shakes.
+  // A foot comes down: felt more than heard, and the closer the more the screen shakes. The
+  // body sinks and leans onto it, the knee gives and the pad squashes.
   function footfall(leg) {
+    const walking = Math.min(1, speed / def.speed);
+    press += (2.5 * k * walking) / 0.06; // pressing down over a moment, not all at once
+    rollTo = leg.s * 0.035;
+    leg.wobVel -= 0.8 * k * walking;
+    leg.squashVel += 8;
     const d = camera.position.distanceTo(leg.at);
     sfx.thud(clamp(1.4 - d / 45, 0.15, 1.3), pan(leg.at));
     const riding = player.mount === thing ? 0.35 : 1;
     shake(clamp(0.55 - d / 70, 0, 0.55) * riding * (def.shake ?? 1));
   }
 
-  // The legs from the hips to the feet. The knees bend forward, and up and out as it kneels;
-  // the lowest part of each leg folds back flat on the ground.
+  const axesNow = { fwd, side, back };
   function placeLegs() {
-    const fold = crouch * 1.35;
-    for (const leg of legs) {
-      body.localToWorld(hip.set(leg.s * spread, 0, 0));
-      ankle.copy(leg.at).addScaledVector(UP, P * Math.cos(fold)).addScaledVector(back, P * Math.sin(fold));
-      dir.subVectors(ankle, hip);
-      const far = dir.length();
-      dir.divideScalar(far || 1);
-      const d = clamp(far, Math.abs(T - S) + 0.01, T + S - 0.01);
-      ankle.copy(hip).addScaledVector(dir, d);
-      const a = (T * T - S * S + d * d) / (2 * d);
-      const h = Math.sqrt(Math.max(0, T * T - a * a));
-      pole.copy(fwd).addScaledVector(UP, 0.3 + crouch * 1.5).addScaledVector(side, leg.s * crouch * 0.5);
-      bend.copy(pole).addScaledVector(dir, -pole.dot(dir)).normalize();
-      knee.copy(hip).addScaledVector(dir, a).addScaledVector(bend, h);
-      put(leg.thigh, hip, knee);
-      put(leg.shin, knee, ankle);
-      put(leg.pastern, ankle, leg.at);
-      leg.knee.position.copy(knee);
-      leg.ankle.position.copy(ankle);
-      leg.pad.position.copy(leg.at);
-      leg.pad.scale.set(leg.grow, leg.grow * 0.5, leg.grow);
-    }
-  }
-  function put(mesh, a, b) {
-    v.subVectors(b, a);
-    const len = v.length();
-    mesh.position.copy(a);
-    mesh.quaternion.setFromUnitVectors(Y, v.divideScalar(len || 1));
-    mesh.scale.set(1, len, 1);
-  }
-
-  function layShadow() {
-    const p = shadowGeo.attributes.position;
-    const len = (backTop + 30 * m) * 1.6, wide = depth * 2.2;
-    for (let i = 0; i < grid.length; i++) {
-      const [lx, ly] = grid[i];
-      const x = pos.x + fwd.x * (-lx * len) + side.x * (ly * wide);
-      const z = pos.z + fwd.z * (-lx * len) + side.z * (ly * wide);
-      p.setXYZ(i, x, heightAt(x, z) + 0.06, z);
-    }
-    p.needsUpdate = true;
+    for (const leg of legs) placeLeg(leg, body.localToWorld(hip.set(leg.s * spread, 0, 0)), axesNow, crouch, size);
   }
 
   // --- What it does ---
@@ -387,11 +203,16 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     pushOut(pos, thing.avoid, 0); // the level's no-go areas: the tree's canopy, the pool, the edge
     pos.y = heightAt(pos.x, pos.z);
 
-    // The stride: a foot sets off at the start of each half of the cycle.
+    // The stride: a foot sets off at the start of each half of the cycle (at once when it
+    // sets off from standing, not gliding off over its feet).
+    if (lastSpeed < 0.05 && speed >= 0.05 && legs.every((l) => l.k >= 1 && !l.held)) phase = 0.999;
     const before = phase;
     phase = (phase + (dt * speed) / (def.speed * cycle)) % 1;
     const swingTime = (cycle * SWING) / Math.max(1, speed / def.speed); // quicker steps going faster
-    const ahead = speed * swingTime + 0.29 * speed * cycle;
+    // How far ahead a lifting foot goes: it lands as far in front of the hips as it will be
+    // behind them when it lifts again (closer in when going slowly, further setting off).
+    const pace = Math.max(speed, want);
+    const ahead = 0.5 * (def.speed * cycle * Math.min(1, pace / def.speed) + pace * swingTime);
     for (const leg of legs) {
       if (leg.held) continue;
       const start = leg.s < 0 ? 0 : 0.5;
@@ -411,19 +232,30 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       if (leg.k >= 1) footfall(leg);
     }
 
-    // The body: over the hips' ground point, at leg height (lower as it kneels), bobbing
-    // and tipping with the painting's drawings, swaying from foot to foot.
-    const f = phase * 11;
-    const i = Math.floor(f) % 11, j = (i + 1) % 11, w = f - Math.floor(f);
+    // The springs: the body's dip and lean, and the knees, which the body speeding up or
+    // slowing down pushes on (the wobble when it stops).
     const walking = Math.min(1, speed / def.speed);
-    const bob = (BOB[i] + (BOB[j] - BOB[i]) * w) * m * walking;
-    const tip = (TIP[i] + (TIP[j] - TIP[i]) * w) * walking;
+    const accel = dt > 0 ? (speed - lastSpeed) / dt : 0;
+    lastSpeed = speed;
+    for (let n = Math.ceil(dt / 0.02), s = 0; s < n; s++) {
+      const h = dt / n;
+      dipVel += (press - 32 * dip - 5 * dipVel) * h;
+      press *= Math.exp(-h / 0.06);
+      dip += dipVel * h;
+      rollVel += (25 * (rollTo * walking - roll) - 7 * rollVel) * h;
+      roll += rollVel * h;
+    }
+    for (const leg of legs) springLeg(leg, dt, -accel * 5 * k);
+
+    // The body: over the hips' ground point, at leg height (lower as it kneels), tipping
+    // with the painting's drawings, dipping and leaning onto each foot as it lands.
+    const tip = tipAt(phase * 11) * walking;
     const stand = (T + S + P) * 0.96;
-    body.position.set(pos.x, pos.y + stand + (KNEEL_HIP - stand) * crouch - bob, pos.z);
-    body.rotation.set(tip - crouch * 0.12 + rear * 0.45, heading, Math.sin(phase * Math.PI * 2) * 0.035 * walking);
+    body.position.set(pos.x, pos.y + stand + (KNEEL_HIP - stand) * crouch - dip, pos.z);
+    body.rotation.set(tip - crouch * 0.12 + rear * 0.45, heading, roll);
     body.updateMatrixWorld();
     placeLegs();
-    layShadow();
+    shadow.userData.lay(pos, fwd, side, heightAt);
 
     legs.forEach((leg, n) => { colliders[n].x = leg.at.x; colliders[n].z = leg.at.z; });
     belly.off = crouch < 0.6;

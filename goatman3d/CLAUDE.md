@@ -63,8 +63,10 @@ goatman3d/
       horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees
       tealtree.js      the savanna's teal tree: cut-out canopy cards, trunk and branches
       clumps.js        the savanna's swaying grass clumps (instanced crossed cards)
-    walkingthing.js    the Walking Thing: swept painted body, two-bone IK stilt legs, its 11-drawing walk,
-                       kneeling, the stomp, carrying a rider
+    walkingthing.js    the Walking Thing: wandering, watching, its 11-drawing stride (dipping and leaning
+                       onto each foot), kneeling, the stomp, carrying a rider
+    walkingthing-body.js   its swept painted body (rounded snout and back), the legs' paint, outline hull, shadow
+    walkingthing-legs.js   its legs: two-bone IK drawn as tapering tubes along a curve, knee and pad springs
     squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
     bushes.js          the savanna's striped creatures: painted cards that drift, watch and run off
     story.js, interact.js   what E does (exits, dialogue, petting) and the endings: the ride into
