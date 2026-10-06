@@ -42,8 +42,12 @@ export function showLevelName(text, seconds = 4) {
 }
 
 let subtitleLeft = 0;
+const shown = new Map(); // caption -> when it was last shown (ms)
 // Captions for sounds, e.g. "[distant knocking]". Only shown with the subtitles option on.
-export function subtitle(text, seconds = 3) {
+// again: seconds before the same caption may show again (for sounds that keep coming).
+export function subtitle(text, seconds = 3, again = 0) {
+  if (text && again && performance.now() - (shown.get(text) ?? -Infinity) < again * 1000) return;
+  if (text) shown.set(text, performance.now());
   const el = $('subtitle');
   const on = !!text && settings.subtitles;
   el.classList.toggle('hidden', !on);

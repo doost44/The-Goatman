@@ -48,6 +48,7 @@ export async function createLevels(scene, player, camera) {
     scene.remove(w.group);
     w.dispose?.();
     w.group.traverse((o) => {
+      if (o.isInstancedMesh) o.dispose(); // its per-copy buffers
       o.geometry?.dispose();
       for (const m of [o.material].flat()) {
         if (!m) continue;

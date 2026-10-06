@@ -113,18 +113,20 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     b.target = null;
     b.want = facing(b, from) + Math.PI + rnd(-0.4, 0.4); // away
     b.rustle = 0;
+    subtitle('[something rushes off through the grass]', 2.5, 10);
   }
   // A pebble: a grown one runs off; a baby squeaks and runs to it, and it turns on GoatMan.
   function hitBy(c, point) {
     if (!c.baby) { flee(c, point); return; }
     c.scared = 2.5;
     sfx.chirp(pan(c.pos), loud(c) * 1.4, 4);
+    subtitle('[the baby squeals]', 2);
     const b = c.parent;
     if (b.mode === 'flee') return;
     b.mode = 'guard';
     b.guarding = 5;
     sfx.murmur(pan(b.pos), loud(b) * 1.8, true);
-    subtitle('[the striped creature turns on you, rumbling]', 3);
+    subtitle('[the baby squeals and the striped creature turns on you, rumbling]', 3);
   }
 
   // Turns smoothly toward a heading; true when it is roughly facing that way.
@@ -185,7 +187,10 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     // Drifting about, now and then a murmur to itself.
     b.sound -= dt;
     if (b.sound <= 0) {
-      if (near < 45) sfx.murmur(pan(b.pos), loud(b) * 0.6);
+      if (near < 45) {
+        sfx.murmur(pan(b.pos), loud(b) * 0.6);
+        subtitle('[a low murmur in the grass]', 2.5, 30);
+      }
       b.sound = rnd(8, 18);
     }
     return drift(b, dt);
@@ -215,7 +220,10 @@ export async function createBushes(d, { heightAt, camera, player, avoid, wet = (
     k.look = clamp(angle(facing(k, watching ? player.pos : lead.pos) - k.heading), -LOOK, LOOK);
     k.sound -= dt * (k.wobble > 0.5 ? 3 : 1);
     if (k.sound <= 0) {
-      if (loud(k) > 0.1) sfx.chirp(pan(k.pos), loud(k) * (watching ? 1 : 0.6));
+      if (loud(k) > 0.1) {
+        sfx.chirp(pan(k.pos), loud(k) * (watching ? 1 : 0.6));
+        subtitle('[small chirps in the grass]', 2, 30);
+      }
       k.sound = rnd(5, 12);
     }
     return want;

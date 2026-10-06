@@ -137,8 +137,8 @@ function lying(x, y, z, yaw, pitch, sx, sy, sz) {
 }
 
 // Puts everything woods.js planned into the scatter. blush(x, z): 0-1, how much the pink
-// light of the way out tints the wood there. Returns the merged arches and the scatter
-// kinds the camera and pebbles bump into.
+// light of the way out tints the wood there. Returns the merged arches, the same arches one
+// by one for raycasts, and the scatter kinds the camera and pebbles bump into.
 export async function buildTrunks(plan, scatter, blush = () => 0) {
   const bark = await loadTexture('assets/forest/bark.png', 1);
   const atlas = await cardAtlas();
@@ -183,8 +183,10 @@ export async function buildTrunks(plan, scatter, blush = () => 0) {
     return geo;
   });
   const arches = new THREE.Mesh(mergeGeometries(geos), lambert({ map: bark, vertexColors: true }));
-  for (const g of geos) g.dispose();
-  return { arches, solid: [...dark.sizes, ...pale.sizes, ...cards, logs] };
+  // Raycasts (the chase camera, pebbles) use each arch on its own, never drawn, so a ray only
+  // works through the triangles of an arch it comes near.
+  const archBlockers = geos.map((g) => new THREE.Mesh(g, arches.material));
+  return { arches, archBlockers, solid: [...dark.sizes, ...pale.sizes, ...cards, logs] };
 }
 
 // A few big bark trunks on their own, merged into one mesh (the field's way back).

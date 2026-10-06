@@ -106,6 +106,7 @@ export function createSquash({ scene, camera, head, player, gm, view, levels }) 
     await thing.dropFoot(camera.position.clone().addScaledVector(UP, 0.4), o.drop);
     await fall;
     sfx.boom();
+    subtitle('[a crushing boom]', 2.5);
     shake(1);
     const soft = settings.flash ? 4 : 1; // "soften flashes" slows a flash right down
     await fadeTo(settings.flash ? 0.7 : 1, o.flash.in * soft, '#fff');

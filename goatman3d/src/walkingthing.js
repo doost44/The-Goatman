@@ -133,6 +133,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     leg.squashVel += 8;
     const d = camera.position.distanceTo(leg.at);
     sfx.thud(clamp(1.4 - d / 45, 0.15, 1.3), pan(leg.at));
+    if (d < 45 && player.mount !== thing) subtitle('[heavy footfalls]', 2, 20);
     thing.onStep?.(leg.at); // the level's own (a splash in the savanna's bog)
     const riding = player.mount === thing ? 0.35 : 1;
     shake(clamp(0.55 - d / 70, 0, 0.55) * riding * (def.shake ?? 1));

@@ -60,7 +60,7 @@ export async function buildForest(def, { scene, camera, player }) {
     group,
     ground: [ground, logs],
     colliders,
-    blockers: [...wood.solid.map((k) => scatter.meshes[k]), wood.arches],
+    blockers: [...wood.solid.map((k) => scatter.meshes[k]), ...wood.archBlockers],
     rockTargets: eyes.targets,
     actors: {},
     heightAt,

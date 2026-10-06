@@ -31,6 +31,22 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | P | save a 1600x1200 photo |
 | Esc | free the mouse (click to carry on) |
 
+## Options
+
+O, or OPTIONS on the start screen, opens the options. They are remembered in this browser.
+
+| Option | |
+| --- | --- |
+| Camera | first or third person (V switches too) |
+| Field of view, mouse sensitivity | |
+| Pixel size | chunky, retro (the look it was made for), soft or sharp; sharper costs frame rate |
+| Volume, music and soundscapes, mute | the second slider turns the soundtracks down under the sound effects |
+| Show HUD | off hides the prompts, hints and level names; choices, messages and captions stay |
+| Screen shake | off: the Walking Thing's footfalls and the squash don't shake the view, and sprinting bobs it no more than walking |
+| Soften flashes | the two white flashes (the squash, and the way into the light at the end) are dimmer and four times slower |
+| Subtitles | every line, plus captions for the sounds that tell you something, like [heavy footfalls] or [knocking, far off] |
+| Fullscreen | Esc then only frees the mouse (in Chrome and Edge; in other browsers it goes back to fullscreen when you click into the game) |
+
 ## Admin mode
 
 For working on the levels: add `?admin` to the address (for example `.../goatman3d/?admin`, or `?admin&level=savanna` to go straight into a level), then press ` (backquote) to fly. The normal link has none of this.
@@ -60,6 +76,17 @@ GoatMan floating in space on the start screen, then four places, as in the origi
 2. **The red field.** Meet the Walking Thing. What you say to it matters.
 3. **The savanna.** Wade the bog, be kind to the Walking Thing, then leave toward the horizon.
 4. **The end.**
+
+## Publishing
+
+GitHub Pages serves the game from this repository: each push to the branch it serves is live a minute or two later, at the address above. While the 3D build is in its pull request, Pages serves the build branch (`claude/goatman3d-build-fn59n1`). Once the pull request is merged:
+
+1. On GitHub, open the repository's **Settings**, then **Pages** in the sidebar.
+2. Under **Build and deployment**, keep **Source** on **Deploy from a branch**, pick **main** and **/ (root)**, and press **Save**.
+3. In the **Actions** tab, wait for the **pages build and deployment** run to finish with a green tick.
+4. Only then delete the build branch, if you want to: Pages would have nothing to serve while it still points at a deleted branch.
+
+The address stays the same, and the 2D original stays at https://doost44.github.io/ccilla_sidequestt_W3/.
 
 ## How it is made
 

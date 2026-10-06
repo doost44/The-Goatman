@@ -14,6 +14,7 @@ const SHOULDERS = 1.45;
 const SWITCH = 0.5; // seconds to ease between first and third person
 const LEGS_AHEAD = 0.2; // first person: his legs sit a little in front, so looking down finds them
 const SWING_UP = 0.25; // looking up further than this, the chase camera stops swinging down and only tilts
+const WIDE = 0.3; // the chase camera also looks this far to each side of the line back from him
 const RIDE_ROLL = 1.5; // first person on the Walking Thing: the view rolls with its sway, a bit more
 
 const clamp01 = (k) => Math.min(1, Math.max(0, k));
@@ -24,6 +25,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
   const target = new THREE.Vector3();
   const dir = new THREE.Vector3();
   const chasePos = new THREE.Vector3();
+  const side = new THREE.Vector3();
   const bodyPos = new THREE.Vector3();
   const ray = new THREE.Raycaster();
   const orbit = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -56,20 +58,31 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
     dir.set(0, 0, DIST).applyEuler(orbit);
     dir.y += LIFT;
     const len = dir.length();
-    ray.set(follow, dir.divideScalar(len));
-    ray.far = len;
-    const hit = ray.intersectObjects(blockers, false)[0];
-    let want = hit ? Math.max(0.5, hit.distance - 0.3) : len;
+    dir.divideScalar(len);
+    // Three lines back from his shoulders, the middle one and one each side, so a trunk just
+    // beside the line still pulls the camera in front of it instead of filling the view.
+    side.set(dir.z, 0, -dir.x).normalize().multiplyScalar(WIDE);
+    let want = len, wall = len; // where the camera would be, and the furthest it may be at all
+    for (const s of [0, 1, -1]) {
+      ray.set(chasePos.copy(follow).addScaledVector(side, s), dir);
+      ray.far = len;
+      const hit = ray.intersectObjects(blockers, false)[0];
+      if (!hit) continue;
+      want = Math.min(want, Math.max(0.5, hit.distance - 0.3));
+      if (s === 0) wall = want; // right in the way
+    }
     // The terrain: a few points along the way, quicker than a ray through its triangles.
-    for (let d = 0.5; d < want; d += 0.25) {
+    for (let d = 0.5; d < Math.max(want, reach); d += 0.25) {
       chasePos.copy(follow).addScaledVector(dir, d);
       if (terrain.some((o) => (o.userData.surface(chasePos.x, chasePos.z) ?? -Infinity) > chasePos.y - 0.2)) {
-        want = Math.max(0.5, d - 0.3);
+        wall = Math.min(wall, Math.max(0.5, d - 0.3));
+        want = Math.min(want, wall);
         break;
       }
     }
-    // Pull in at once, ease back out.
-    reach = want < reach ? want : reach + (want - reach) * (1 - Math.exp(-dt * 3));
+    // In at once past what is right in the way, quickly for what is beside it; out slowly.
+    reach += (want - reach) * (1 - Math.exp(-dt * (want < reach ? 10 : 3)));
+    reach = Math.min(reach, wall);
     return chasePos.copy(follow).addScaledVector(dir, reach);
   }
 

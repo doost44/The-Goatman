@@ -26,6 +26,7 @@ export function addActions(thing, { heightAt, k }) {
     rise(time) {
       const from = thing.crouch;
       sfx.groan(thing.pan(thing.body.position), 0.8);
+      subtitle('[the Walking Thing rises, groaning]', 2.5);
       return tween(time, (t) => { thing.crouch = from * (1 - ease(t)); });
     },
     walkTo(point, pace = 1) {
@@ -57,6 +58,7 @@ export function addActions(thing, { heightAt, k }) {
       const leg = thing.stomping;
       const from = leg.held.clone();
       sfx.whistle(time);
+      subtitle('[something whistles down from above]', time);
       return tween(time, (t) => {
         leg.held.lerpVectors(from, onto, t * t); // falling faster and faster
         thing.rear = 1 - t * 0.7;
