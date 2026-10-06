@@ -96,7 +96,7 @@
         ]
       },
       "ponds": {
-        "bank": 3, "water": 0.25, "reeds": 30, "stumps": 3, "branches": 3, "mist": 6, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
+        "bank": 3, "water": 0.25, "reeds": 25, "stumps": 3, "branches": 3, "mist": 4, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
         "list": [
           { "name": "blackwater", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
           { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 },

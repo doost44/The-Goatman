@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { glowTexture, rng } from '../textures.js';
-import { walkPath, valueNoise, drape } from '../terrain.js';
+import { walkPath, valueNoise } from '../terrain.js';
 import { nearestOnPath } from '../player.js';
 import { glowFog } from './marks.js';
 
@@ -9,8 +9,8 @@ import { glowFog } from './marks.js';
 // to its places (the ring, the pale giant, the eyes' dell, the clearings and ponds), with a
 // ring of them round each place. None grow near the start, so the first walk is in the dark.
 // They glow brighter and grow closer together the nearer they are to where they lead, and
-// shiver and dim as GoatMan passes. The mushrooms go in the forest's scatter (only the ones
-// near the camera are drawn); the soft glow under each clump is one mesh.
+// shiver and dim as GoatMan passes. They and the soft glow under each clump go in the
+// forest's scatter, so only the ones near the camera are drawn.
 //
 // levels.json "mushrooms": { from (metres round the start where none grow), color, glow:
 //   [far, near] (brightness at a trail's start and at its place), spacing: [far, near]
@@ -24,12 +24,12 @@ const smooth = THREE.MathUtils.smoothstep, lerp = THREE.MathUtils.lerp;
 // told apart by how bright their vertex colours are.
 function mushroomGeometry(pointed) {
   const shade = (geo, k) => geo.setAttribute('color', new THREE.Float32BufferAttribute(new Array(geo.attributes.position.count * 3).fill(k), 3));
-  const stem = shade(new THREE.CylinderGeometry(0.1, 0.14, 0.7, 5, 1).translate(0, 0.35, 0), 0.45);
+  const stem = shade(new THREE.CylinderGeometry(0.1, 0.14, 0.7, 4, 1, true).translate(0, 0.35, 0), 0.45);
   const cap = pointed
-    ? new THREE.ConeGeometry(0.26, 0.45, 6, 1).translate(0, 0.85, 0)
-    : new THREE.SphereGeometry(0.36, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1).translate(0, 0.66, 0);
+    ? new THREE.ConeGeometry(0.26, 0.45, 5, 1, true).translate(0, 0.85, 0)
+    : new THREE.SphereGeometry(0.36, 6, 2, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1).translate(0, 0.66, 0);
   shade(cap, 1);
-  const gills = shade(new THREE.CircleGeometry(pointed ? 0.26 : 0.36, 7).rotateX(Math.PI / 2).translate(0, pointed ? 0.63 : 0.66, 0), 0.6);
+  const gills = shade(new THREE.CircleGeometry(pointed ? 0.26 : 0.36, pointed ? 5 : 6).rotateX(Math.PI / 2).translate(0, pointed ? 0.63 : 0.66, 0), 0.6);
   return mergeGeometries([stem, cap, gills]);
 }
 
@@ -59,7 +59,11 @@ export function buildMushrooms(def, { places, start, path, heightAt, blocked, sc
   const time = { value: 0 };
   const mat = glowFog(nearHim(new THREE.MeshBasicMaterial({ color: def.color, vertexColors: true }), time, player));
   const kinds = [false, true].map((pointed) => scatter.kind(mushroomGeometry(pointed), mat));
-  const halos = [];
+  // A soft glow on the ground under each clump: a square turned to lie on the slope there.
+  const glow = glowTexture([[0, 'rgba(255,255,255,0.6)'], [0.4, 'rgba(255,255,255,0.2)'], [1, 'rgba(255,255,255,0)']]);
+  const haloMat = glowFog(new THREE.MeshBasicMaterial({ map: glow, color: def.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), true);
+  const halo = scatter.kind(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2), haloMat);
+  const up = new THREE.Vector3(0, 1, 0), slope = new THREE.Vector3();
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3();
   const color = new THREE.Color();
 
@@ -72,7 +76,9 @@ export function buildMushrooms(def, { places, start, path, heightAt, blocked, sc
       m.compose(p.set(mx, heightAt(mx, mz) - 0.02, mz), q.setFromEuler(e.set((r() - 0.5) * 0.4, r() * 6, (r() - 0.5) * 0.4)), s.setScalar(size));
       scatter.add(kinds[r() < 0.3 ? 1 : 0], m, color.setScalar(bright * (0.75 + r() * 0.4)));
     }
-    halos.push([x, z, bright]);
+    slope.set(heightAt(x - 0.6, z) - heightAt(x + 0.6, z), 1.2, heightAt(x, z - 0.6) - heightAt(x, z + 0.6)).normalize();
+    m.compose(p.set(x, heightAt(x, z) + 0.08, z), q.setFromUnitVectors(up, slope), s.setScalar(1));
+    scatter.add(halo, m, color.setScalar(bright));
   }
 
   for (const trail of def.trails) {
@@ -100,18 +106,7 @@ export function buildMushrooms(def, { places, start, path, heightAt, blocked, sc
 
   for (const [x, z] of clumps) clump(x, z, def.glow[1]);
 
-  // A soft glow on the ground under each clump.
-  const geos = halos.map(([x, z, bright]) => {
-    const geo = drape(new THREE.PlaneGeometry(2.4, 2.4, 2, 2).rotateX(-Math.PI / 2).translate(x, 0, z), heightAt, 0.04);
-    return geo.setAttribute('color', new THREE.Float32BufferAttribute(new Array(geo.attributes.position.count * 3).fill(bright), 3));
-  });
-  const glow = glowTexture([[0, 'rgba(255,255,255,0.6)'], [0.4, 'rgba(255,255,255,0.2)'], [1, 'rgba(255,255,255,0)']]);
-  const haloMat = glowFog(new THREE.MeshBasicMaterial({ map: glow, color: def.color, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), true);
-  const halo = new THREE.Mesh(mergeGeometries(geos), haloMat);
-  geos.forEach((g) => g.dispose());
-
   return {
-    group: halo,
     update(t) {
       time.value = t;
       haloMat.opacity = 0.85 + 0.15 * Math.sin(t * 0.7); // breathing, slower than the marks

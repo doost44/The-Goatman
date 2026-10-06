@@ -61,7 +61,7 @@ export async function buildForest(def, { scene, camera, player }) {
   const marks = await buildMarks(def.marks, def.path, def.sidePaths, heightAt, (x, z) => plan.crowded(x, z, 0, 0.15) || course.wet(x, z, 0.5));
   const eyes = await buildEyes(def.eyes, plan.spots, def.path, camera, plan.finds.hush);
   const finds = buildFinds(plan.finds, { heightAt, mats: wood.mats });
-  group.add(marks.group, eyes.group, mushrooms.group, finds.group);
+  group.add(marks.group, eyes.group, finds.group);
 
   // What he can stand on besides the ground: the tops of the fallen trunks.
   const logs = new THREE.Object3D();
@@ -78,7 +78,7 @@ export async function buildForest(def, { scene, camera, player }) {
     ground: [ground, ...ponds.basins, logs],
     colliders,
     blockers: [...wood.solid.map((k) => scatter.meshes[k]), ...wood.archBlockers, ...finds.blockers],
-    rockTargets: [...eyes.targets, ponds.water],
+    rockTargets: [...eyes.targets, ...ponds.waters],
     actors: {},
     heightAt,
     pebbles,
@@ -96,7 +96,7 @@ export async function buildForest(def, { scene, camera, player }) {
       }
       marks.update(t);
       eyes.update(dt);
-      ponds.update(dt, t);
+      ponds.update(dt, t, scene.fog?.far ?? def.fog.far);
       mushrooms.update(t);
       finds.update(t, player);
       // Up high (on the propped-up trunk) the fog thins and he sees out over it.

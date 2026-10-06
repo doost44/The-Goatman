@@ -70,13 +70,16 @@ export function createSplashes({ surface, camera, r, ring = 0xc88898, drop = 0xd
         m.material.opacity = 0.55 * (1 - k) * dim;
         if (k >= 1) m.visible = false;
       }
+      let flying = 0;
       for (let i = 0; i < DROPS; i++) {
         if (dropPos[i * 3 + 1] < -900) continue;
+        flying++;
         dropVel[i * 3 + 1] -= 12 * dt;
         for (let a = 0; a < 3; a++) dropPos[i * 3 + a] += dropVel[i * 3 + a] * dt;
         if (dropPos[i * 3 + 1] < dropFloor[i]) dropPos[i * 3 + 1] = -999;
       }
       dropGeo.attributes.position.needsUpdate = true;
+      drops.visible = flying > 0; // nothing to draw between splashes
     },
   };
 }

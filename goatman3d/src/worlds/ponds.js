@@ -122,29 +122,30 @@ export function buildPonds(d, course, t, groundMat, camera) {
   const { list } = course;
   const time = { value: 0 };
   const group = new THREE.Group();
+  // Each pond's things in a group of its own, hidden while it is lost in the fog.
+  const ponds = list.map(() => {
+    const one = new THREE.Group();
+    group.add(one);
+    return one;
+  });
 
   // The basins: discs of the same floor, darkening to mud at the water. They are drawn over
   // the coarse ground where the two meet.
   const basinMat = groundMat.clone();
   Object.assign(basinMat, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const basins = list.map((p) => {
+  const basins = list.map((p, i) => {
     const shade = (x, z) => {
       const k = 1 - smooth(Math.hypot(x - p.x, z - p.z), p.R, p.R + 2.5);
       return [1 - 0.6 * k, 1 - 0.6 * k, 1 - 0.45 * k];
     };
-    const disc = { shape: 'disc', center: [p.x, p.z], radius: p.outer, segments: [36, 16], tile: t.tile };
-    return buildTerrain(disc, basinMat, { reshape: (x, z) => course.floor(p, x, z), shade }).mesh;
+    const disc = { shape: 'disc', center: [p.x, p.z], radius: p.outer, segments: [28, 12], tile: t.tile };
+    const { mesh } = buildTerrain(disc, basinMat, { reshape: (x, z) => course.floor(p, x, z), shade });
+    ponds[i].add(mesh);
+    return mesh;
   });
-  group.add(...basins);
 
-  // The water: one disc per pond, the paint once across it, drifting very slowly; seen at a
-  // low angle it takes on the dome's blue.
-  const geos = list.map((p) => {
-    const geo = new THREE.CircleGeometry(p.R + 0.4, 28).rotateX(-Math.PI / 2);
-    const uv = geo.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (p.R / 8), uv.getY(i) * (p.R / 8));
-    return geo.translate(p.x, p.y, p.z);
-  });
+  // The water: a disc, the paint drifting very slowly across it; seen at a low angle it
+  // takes on the dome's blue.
   const mat = new THREE.MeshBasicMaterial({ map: waterPaint(r) });
   mat.customProgramCacheKey = () => 'pondwater';
   mat.onBeforeCompile = (shader) => {
@@ -161,12 +162,18 @@ export function buildPonds(d, course, t, groundMat, camera) {
         diffuseColor *= max(texture2D(map, vMapUv + drift), texture2D(map, vMapUv * 1.3 - drift) * 0.8);
         diffuseColor.rgb = mix(diffuseColor.rgb, uSky, pow(vGraze, 4.0) * 0.4);`);
   };
-  const water = new THREE.Mesh(mergeGeometries(geos), mat);
-  geos.forEach((g) => g.dispose());
-  water.userData.sinks = true; // pebbles go in and are gone
-  water.userData.onRock = (hit) => splash(hit.point.x, hit.point.z, 0.7);
   const { splash, ...splashes } = createSplashes({ surface: course.surface, camera, r, ring: 0x7a86c0, drop: 0x8a96d0 });
-  group.add(water, splashes.group);
+  const waters = list.map((p, i) => {
+    const geo = new THREE.CircleGeometry(p.R + 0.4, 28).rotateX(-Math.PI / 2);
+    const uv = geo.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * (p.R / 8), uv.getY(k) * (p.R / 8));
+    const water = new THREE.Mesh(geo.translate(p.x, p.y, p.z), mat);
+    water.userData.sinks = true; // pebbles go in and are gone
+    water.userData.onRock = (hit) => splash(hit.point.x, hit.point.z, 0.7);
+    ponds[i].add(water);
+    return water;
+  });
+  group.add(splashes.group);
 
   // Reeds in clumps round the edge, some standing in the shallows; stumps on the banks and in
   // the water; dead branches half sunk with their ends sticking out; a thin mist lying on it.
@@ -174,10 +181,12 @@ export function buildPonds(d, course, t, groundMat, camera) {
     const a = r() * Math.PI * 2, k = from + r() * (to - from);
     return { x: p.x + Math.cos(a) * k, z: p.z + Math.sin(a) * k };
   };
-  const reeds = new THREE.InstancedMesh(cards(1.1, 1.9), swaying(new THREE.MeshLambertMaterial({ map: reedPaint(r), alphaTest: 0.5, side: THREE.DoubleSide }), time, 0.02), d.reeds * list.length);
-  const wood = [], puffs = [];
-  let n = 0;
-  for (const p of list) {
+  const reedGeo = cards(1.1, 1.9);
+  const reedMat = swaying(new THREE.MeshLambertMaterial({ map: reedPaint(r), alphaTest: 0.5, side: THREE.DoubleSide }), time, 0.02);
+  const woodMat = new THREE.MeshLambertMaterial({ map: barkPaint(r), flatShading: true });
+  const mistMap = mistPaint(r, d.mistColor);
+  list.forEach((p, n) => {
+    const reeds = new THREE.InstancedMesh(reedGeo, reedMat, d.reeds);
     let clump;
     for (let i = 0; i < d.reeds; i++) {
       if (i % 5 === 0) clump = at(p, p.R - 1, p.R + 1.2);
@@ -186,8 +195,9 @@ export function buildPonds(d, course, t, groundMat, camera) {
       dummy.rotation.set(0, r() * Math.PI, 0);
       dummy.scale.set(0.8 + r() * 0.4, 0.6 + r() * 0.6, 0.8 + r() * 0.4);
       dummy.updateMatrix();
-      reeds.setMatrixAt(n++, dummy.matrix);
+      reeds.setMatrixAt(i, dummy.matrix);
     }
+    const wood = [], puffs = [];
     for (let i = 0; i < d.stumps; i++) {
       const s = at(p, p.R * 0.6, p.R + 2);
       wood.push(stump(r, s.x, course.floor(p, s.x, s.z), s.z));
@@ -201,21 +211,23 @@ export function buildPonds(d, course, t, groundMat, camera) {
       const s = at(p, 0, p.R * 0.7);
       puffs.push({ x: s.x, y: p.y + 0.3 + r() * 0.4, z: s.z, w: 4 + r() * 5, h: 0.8 + r() * 0.7 });
     }
-  }
-  const woodGeo = mergeGeometries(wood);
-  wood.forEach((g) => g.dispose());
-  const mist = mistCards(puffs, mistPaint(r, d.mistColor), time);
-  mist.material.opacity = 0.3;
-  group.add(reeds, new THREE.Mesh(woodGeo, new THREE.MeshLambertMaterial({ map: barkPaint(r), flatShading: true })), mist.mesh);
+    const woodGeo = mergeGeometries(wood);
+    wood.forEach((g) => g.dispose());
+    const mist = mistCards(puffs, mistMap, time);
+    mist.material.opacity = 0.3;
+    ponds[n].add(reeds, new THREE.Mesh(woodGeo, woodMat), mist.mesh);
+  });
 
   return {
     group,
     basins,
-    water,
+    waters,
     splash,
-    update(dt, t) {
+    // far: how far the fog lets him see.
+    update(dt, t, far) {
       time.value = t;
       splashes.update(dt);
+      list.forEach((p, i) => { ponds[i].visible = Math.hypot(camera.position.x - p.x, camera.position.z - p.z) - p.outer < far; });
     },
   };
 }
