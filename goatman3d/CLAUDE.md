@@ -66,12 +66,20 @@ goatman3d/
       undergrowth.js   ferns and bushes painted on crossed cards, half-sunk stones, tufts by the path
       gate.js          the way out: a gap under a trunk leaning on another, its pink haze and the
                        glimpse of level 2 through it
-      marks.js         the glowing ground marks and the eyes that watch, blink and move
+      marks.js         the glowing ground marks and the eyes that watch, blink, move and all shut
+                       at once in the hush; glowFog() for anything that should glow through fog
+      mushrooms.js     glowing mushroom trails leading to the forest's places, shivering as he passes
+      ponds.js         the forest's still black ponds: their bowls in the ground, the water, reeds,
+                       dead wood and mist
+      finds.js         what waits at the side paths' ends: standing stones, the hollow trunk, the
+                       high trunk on its stump
       field.js         level 2: sky dome, ring of painted peaks, two cloud layers, red grass, the gate back
       savanna.js       level 3: dusk falling to stars, the path and the light at its end
       river.js         the savanna's bog river: its course (carved into the ground along a spline),
                        the murky flowing water, splashes and bubbles
       bog.js           the river's dressing: swaying reeds and tussocks, dead wood, floating scum, dusk mist
+                       (its reeds, stumps and mist are shared with the forest's ponds)
+      splash.js        splashes and ripples on any water (the river and the ponds)
       pool.js          the orange and blue swirl pool (thepool.png), kept for the final level
       horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees
       tealtree.js      the savanna's teal tree as a weeping willow: trunk, arcing boughs, hanging
@@ -121,7 +129,12 @@ goatman3d/
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists. A `line` collider is a fallen trunk (`ax, az, bx, bz, r` and the heights of its top at each end, `ya, yb`): he steps over it when it is lower than `STEP_UP` under his hooves and walks on it through a ground object whose `userData.surface` gives its top. A step that would leave him wedged between colliders (a gap narrower than his body) is undone, so he can't squeeze through.
 - Big levels (the forest is a disc 500 m across): put the thousands of things in a `createScatter` (scatter.js), one InstancedMesh per kind, refilled each frame with the copies within `reach` that are in view, nearest first (the savanna's grass too, with `reach: Infinity`: its fog is far off). Fog is by depth, so things at the sides of the view fade later: `reach` must be past the fog's far distance by about 1 / cos(half the horizontal field of view). Collisions come from a grid of what is solid near him (woods.js `near()`), refreshed as he moves, never from the whole level.
 - The forest's sky is a dome that moves with the camera (so trunks never show outside it); its painting melts into the live fog colour near the horizon, so it follows the fog's pink near the way out.
-- Forest layout lives in levels.json: `woods` (spacing, clearings and clusters, the edge rings, how many logs, arches, stones), `sidePaths` (each with its points, `mouth` hidden by `leaning` trunks or `undergrowth`, faint `marks` and an `end`: a `ring` of pale trunks, a pale giant `tree`, the `eyes` dell or a `clearing`), `dome`, `undergrowth`, `marks.out` (fainter marks thinning away from the path) and `exit`.
+- Forest layout lives in levels.json: `woods` (spacing, clearings and clusters, the edge rings, how many logs, arches, stones, snags), `sidePaths` (each with its points, `mouth` hidden by `leaning` trunks or `undergrowth`, faint `marks` and an `end`: a `ring` of pale trunks, a pale giant `tree`, the `eyes` dell or a `clearing`, with an optional `find`), `dome`, `undergrowth`, `marks.out` (fainter marks thinning away from the path) and `exit`.
+- The forest's pale trunks lean toward the gate (`trunks.toGate`: [max degrees at the gate, min degrees, metres where it is greatest, metres where it is least]); their roots and colliders follow the lean, and `woods.snags` adds pale dead snags. Fallen trunks point toward it too.
+- `mushrooms` in levels.json: trails (`to` a side path's or pond's name, starting at `from` or the nearest point of the main path) past `from` metres from the spawn, brighter and closer together near their place, with a ring of clumps round it. They are scatter kinds; their shader reads `uPlayer` to shiver and dim near him.
+- `ponds` in levels.json: each pond `{ name, at, radius, depth }` plus shared dressing counts. `pondCourse()` works on the forest's coarse height: under each pond its ground is lowered out of the way and a finer basin mesh (a bowl) is laid on top, so `heightAt` is the basin there and the coarse ground everywhere else. The ponds give the forest `wet`, `waterDepth`, `splash` and `soundAt` (the nearest pond, for the night bed's frogs and drips). Each pond is its own group, hidden when past the fog.
+- A side path's `end.find` (finds.js): `stones`, `hollow`, `high` or `hush`. Collider heights `y0`/`y1` let him walk over a collider (the high trunk's stump) when he is above it.
+- When he is up high in the forest (the high trunk), the fog lifts a little so he can look out over it.
 - Admin mode (`?admin`, then `): `admin.fly(dt)` replaces `player.update` while it is on, `interact.update(false)` stops interactions, and `view.forceFirst` keeps first person. Check new level work by flying round it (F turns the fog off, K copies a position for levels.json). N is night vision, in a level with `nightVision` in levels.json (the forest): the frame is drawn into a render target and through a shader onto the screen, and the fog is pushed back and the light turned up while it is on; main.js draws through `admin.nightVision.render(draw)`, and a level's scatter `reach` follows the fog's far distance.
 - Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option. A new white flash should do what squash.js and story.js do with `settings.flash` (soften flashes: only 70% white, four times slower).
 - Captions: any sound that tells the player something gets `subtitle('[heavy footfalls]', seconds, again)` from hud.js, in square brackets; `again` is how many seconds before the same caption may show again, for sounds that keep coming. They show only with the subtitles option on; dialogue, prompts and messages always show.
