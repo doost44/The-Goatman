@@ -333,6 +333,25 @@ export async function createGoatMan() {
     return p;
   }
 
+  // Weightless (the start screen): curled up a little, his long limbs drifting slowly.
+  function floating() {
+    const p = { ...STAND };
+    const s = (rate, offset) => Math.sin(t * rate + offset);
+    p.lean = 0.25 + 0.06 * s(0.5, 0);
+    p.hunch = 0.35;
+    p.neck = 0.2;
+    p.head = 0.05 + 0.08 * s(0.4, 1);
+    p.armL = 0.5 + 0.3 * s(0.45, 0.5); p.armR = 0.4 + 0.3 * s(0.38, 2);
+    p.spreadL = 0.5 + 0.15 * s(0.3, 1); p.spreadR = 0.45 + 0.15 * s(0.33, 3);
+    p.elbowL = 0.5 + 0.2 * s(0.5, 2); p.elbowR = 0.4 + 0.2 * s(0.42, 0);
+    p.thighL = 0.6 + 0.2 * s(0.35, 1); p.thighR = 0.3 + 0.2 * s(0.4, 2.5);
+    p.shinL = -1.1 + 0.25 * s(0.37, 0); p.shinR = -0.8 + 0.25 * s(0.45, 1.5);
+    p.ankleL = 0.6; p.ankleR = 0.5;
+    p.roll = 0.05 * s(0.3, 0.7);
+    p.twist = 0.08 * s(0.27, 2);
+    return p;
+  }
+
   // The head: on the neck, partway off it, or off. The strands follow it.
   const onPos = new THREE.Vector3(), onQuat = new THREE.Quaternion(), scale = new THREE.Vector3();
   const offQuat = new THREE.Quaternion();
@@ -411,13 +430,14 @@ export async function createGoatMan() {
       walk = air = land = 0;
     },
     get acting() { return !!action; },
-    // move: { pos, yaw, speed, stride, grounded, vy, ground }, where ground is the height
-    // of the ground under him (null over the void), for the shadow.
+    // move: { pos, yaw, speed, stride, grounded, vy, ground, float }, where ground is the
+    // height of the ground under him (null over the void), for the shadow, and float makes
+    // him weightless (the start screen).
     update(dt, move) {
       t += dt;
       group.position.copy(move.pos);
       group.rotation.y = move.yaw;
-      let target = locomotion(dt, move);
+      let target = move.float ? floating() : locomotion(dt, move);
       // Carrying a pebble, the right forearm comes up; throwing, the arm whips over.
       hold += ((gm.holding ? 1 : 0) - hold) * Math.min(1, dt * 8);
       fling = Math.min(1, fling + dt / 0.35);

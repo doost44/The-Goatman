@@ -20,7 +20,7 @@ Early-2000s PC shooter (Half-Life 1 era) built from Charlie's paintings, not rea
 - The world should feel slightly off, paced and gated (see `Process & Decisions Documentation.pdf` at the repo root): choices have consequences and the ending resolves instead of looping.
 
 ## Story (must be preserved)
-Title video -> 1 Night forest (walk to the exit, E to enter) -> 2 Red field: meet the Walking Thing; "Grab Their LEG" = "They didn't like that, you were SQUASHED", back to title; "Will you be my mount, Walking Thing?" = go on -> 3 Savanna: pet the Walking Thing ("They liked that"), reach the exit (only after petting) -> 4 Finale: white flash (fast in, slow out), ending video plays once, fade back to title.
+Start screen (GoatMan floating in space; START, CONTINUE once a level was reached, OPTIONS) -> 1 Night forest (walk to the exit, E to enter) -> 2 Red field: meet the Walking Thing; "Grab Their LEG" = "They didn't like that, you were SQUASHED", back to the start screen; "Will you be my mount, Walking Thing?" = go on -> 3 Savanna: pet the Walking Thing ("They liked that"), reach the exit (only after petting) -> 4 Finale: a ride into the light, white flash (fast in, slow out), ending video plays once, credits, back to the start screen. The p5 title video and its intro cutscene are left out for now (revision pass 1).
 
 GoatMan is the red painted figure with hairy backward-bending goat legs and long arms. The Walking Thing is the pale small-bodied creature on very long thin red-lined stilt legs. The striped yellow-pink creature with eyes lives in the savanna (the "bush" in savanaScene.mp4).
 
@@ -42,8 +42,8 @@ goatman3d/
   README.md            how to run, controls
   index.html, style.css
   src/                 one short module per concern:
-    main.js            the loop, title, intro video, new game, back to title
-    title.js           the title screen: START, CONTINUE, OPTIONS over a slow orbit round GoatMan
+    main.js            the loop, the start screen, new game, back to the start screen
+    title.js           the start screen: GoatMan floating in space, START, CONTINUE and OPTIONS on the left
     save.js            remembers the last level reached (localStorage), for CONTINUE
     admin.js           admin mode (only loaded with ?admin): fly through everything, coordinates, level keys
     player.js          walking, jumping, falling into the void (his hooves are player.pos)
@@ -76,7 +76,7 @@ goatman3d/
     goatman/           walk sheets from 3 angles, kneel/head/backhead sheets, part-*.png 256 px body crops
     forest/ field/ savanna/   level textures, cards and sprite sheets
     audio/             soundscapes (.m4a); *-loop.m4a are seamless crossfaded loops
-    video/             title.mp4 and finale.mp4, 640 px FMV cutscenes
+    video/             finale.mp4, the 640 px FMV ending
   tools/prep-assets.sh     regenerates assets/ from the originals (bash + ffmpeg only)
   tools/contact-sheet.sh   docs/contact-sheet.png of every texture
   docs/                screenshots and the contact sheet for PRs
@@ -90,7 +90,7 @@ goatman3d/
 - Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
 - Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
 - Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn)` WASD drives it (the savanna). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
-- `levels.load(id, spawn, { backdrop: true })` builds a level without its sound, story or name card (the title's orbit). A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
+- A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists.
 - Admin mode (`?admin`, then `): `admin.fly(dt)` replaces `player.update` while it is on, `interact.update(false)` stops interactions, and `view.forceFirst` keeps first person. Check new level work by flying round it (F turns the fog off, K copies a position for levels.json).

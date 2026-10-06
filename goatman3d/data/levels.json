@@ -1,8 +1,12 @@
 {
   "start": "forest",
   "fade": { "out": 0.85, "in": 0.8 },
-  "intro": { "video": "assets/video/title.mp4", "skipAfter": 1 },
-  "title": { "level": "forest", "spawn": "title", "radius": 2.7, "height": 1.35, "look": 1.15, "speed": 0.1, "light": 2.5 },
+  "space": {
+    "stars": 480, "dust": 160, "turn": 0.22, "bob": 0.12, "grade": [1.15, 1.15, 1.05, 0],
+    "ambient": { "color": "#3a3a6a", "intensity": 1.4 },
+    "sun": { "color": "#ffe2c8", "intensity": 2.2, "dir": [-0.6, 0.8, 0.9] },
+    "glow": "255,90,170", "fov": 36, "from": [0, 1.05, 5.2], "look": [0, 0.95, 0], "shift": 0.75, "lift": 0.9
+  },
   "levels": {
     "forest": {
       "title": "I · THE NIGHT FOREST",
@@ -20,8 +24,7 @@
       "ambience": "night",
       "spawns": {
         "start": { "at": [0, 0, 2], "yaw": 0 },
-        "back": { "at": [-14, 0, -134], "yaw": 160 },
-        "title": { "at": [0, 0, -4], "yaw": 0 }
+        "back": { "at": [-14, 0, -134], "yaw": 160 }
       },
       "respawn": [0, 0, 2],
       "voidY": -50,

@@ -291,10 +291,8 @@ fmv() {
     -pix_fmt yuv420p -c:a aac -b:a 96k -movflags +faststart "$OUT/video/$2.mp4"
   note "$OUT/video/$2.mp4" "${1#"$ROOT"/}" "$5"
 }
-fmv "$IMG/Goatman Title Screen.mp4" title 28 1200k "intro cutscene (640 px FMV)"
+# The title video and its intro cutscene were dropped for the start screen (revision pass 1).
 fmv "$IMG/Savana scene trigger.mp4" finale 30 450k "finale cutscene (640 px FMV)"
-"${FF[@]}" -i "$OUT/video/title.mp4" -frames:v 1 -vf "scale=320:-2:flags=area" "$TMP/poster.png"
-pal "$TMP/poster.png" "$OUT/video/title-poster.png" 32; note "$OUT/video/title-poster.png" "video/title.mp4" "first frame, the title backdrop before START"
 
 # --- 7. Palettes -------------------------------------------------------------------------------
 echo "Palettes..."

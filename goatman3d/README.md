@@ -53,7 +53,7 @@ The box in the top right shows the level, the camera's position and yaw, the fly
 
 ## The story
 
-Title video, then four places, as in the original:
+GoatMan floating in space on the start screen, then four places, as in the original:
 
 1. **The night forest.** Find your way through the trunks to the gap and enter.
 2. **The red field.** Meet the Walking Thing. What you say to it matters.

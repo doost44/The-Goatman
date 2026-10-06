@@ -62,13 +62,8 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
 #skip { position: absolute; right: 24px; bottom: 24px; transition: opacity 2s; }
 
 /* --- Title screen ----------------------------------------------------------- */
+/* The start screen: GoatMan floats in space behind it (title.js draws him), the menu is on the left. */
 #title { position: fixed; inset: 0; z-index: 3; }
-/* The title video's first frame; it dissolves into the 3D orbit once that has loaded (title.js). */
-#poster {
-  position: absolute; inset: 0; background: #000 url(assets/video/title-poster.png) center / contain no-repeat;
-  image-rendering: pixelated; transition: opacity 0.4s;
-}
-#title.live #poster { opacity: 0; transition: opacity 3s; }
 #title .panel {
   position: absolute; left: max(16px, 8vw); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 12px; width: min(300px, calc(100vw - 32px)); padding: 22px;
@@ -77,6 +72,9 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
 #title h2 { margin: 0 0 10px; font-size: 13px; opacity: 0.8; }
 #title .big { font-size: 22px; padding: 12px; }
 #title .small { font-size: 11px; opacity: 0.7; margin: 6px 0 0; }
+@media (max-aspect-ratio: 9/10) { /* a phone: the menu along the bottom, GoatMan above it */
+  #title .panel { left: 16px; right: 16px; top: auto; bottom: 16px; transform: none; width: auto; }
+}
 
 /* Shown when the mouse is free during play (Esc, or before the first click). */
 #paused {
@@ -107,7 +105,7 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
   font: inherit; font-weight: bold; letter-spacing: 1px; color: #ffb43c; cursor: pointer; text-transform: uppercase;
   background: rgba(10, 10, 8, 0.8); border: 2px solid rgba(255, 180, 60, 0.6); padding: 6px 12px;
 }
-.btn:hover, .btn:focus-visible { background: #ffb43c; color: #111; outline: none; }
+.btn:hover, .btn:focus-visible, .btn.on { background: #ffb43c; color: #111; outline: none; }
 #options {
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.6); z-index: 10; overflow-y: auto; padding: 16px 0;

@@ -12,15 +12,14 @@ import { createView } from './view.js';
 import { createRocks } from './rocks.js';
 import { createSquash } from './squash.js';
 import { updateAmbience, stopAmbience } from './ambience.js';
-import { playFMV } from './fmv.js';
 import { startSound, updateSound, stopSoundscape, duck } from './sound.js';
 import { updateHud, fadeTo, showError, showMessage, setCinematic } from './hud.js';
 import { capturePNG } from './capture.js';
 import { createTitle } from './title.js';
 import { writeSave } from './save.js';
 
-// The loop and the frame around the game: title screen, intro video, play, ending.
-// state: 'title' | 'intro' | 'play'
+// The loop and the frame around the game: the start screen, play, the endings.
+// state: 'title' | 'intro' (leaving the start screen) | 'play'
 
 const $ = (id) => document.getElementById(id);
 const titleEl = $('title');
@@ -95,7 +94,7 @@ const doom = createSquash({ scene, camera, head, player, gm, view, levels });
 story = createStory({ levels, player, gm, arms, view, squash: doom.squash, toTitle });
 levels.flag = (name) => !!story.flags[name]; // so a level can change when the story does (the savanna's exit)
 interact = createInteract({ levels, player, head, controls, story });
-const title = createTitle({ levels, view, player });
+const title = createTitle({ renderer, levels, gm });
 
 // Admin mode (?admin in the address): flying, coordinates, level keys. Not even loaded otherwise.
 const params = new URLSearchParams(location.search);
@@ -103,7 +102,7 @@ const admin = params.has('admin')
   ? (await import('./admin.js')).createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, playing: () => state === 'play' })
   : null;
 
-// --- Title, intro, new game ---------------------------------------------------------
+// --- Start screen, new game -------------------------------------------------------
 
 function showTitle(on) {
   if (on) title.show();
@@ -120,28 +119,20 @@ if (skipTo) {
   showTitle(true);
 }
 
-$('start').addEventListener('click', async () => {
-  if (state !== 'title') return;
-  startSound(); // browsers only allow audio to start from a click
-  state = 'intro';
-  await title.leave();
-  showTitle(false);
-  const how = await playFMV(levels.data.intro.video, { skipAfter: levels.data.intro.skipAfter });
-  if (how === 'skipped') controls.lock(); // the SKIP click lets us take the mouse straight away
-  newGame(levels.data.start);
-});
-
-// CONTINUE: straight into the last level reached, without the intro.
-$('continue').addEventListener('click', async () => {
-  const id = title.saved();
+// START (the night forest) or CONTINUE (the last level reached): a short fade to black,
+// then straight in.
+async function begin(id) {
   if (state !== 'title' || !id) return;
-  startSound();
+  startSound(); // browsers only allow audio to start from a click or a key
   controls.lock(); // while the click still counts
   state = 'intro';
-  await title.leave();
+  await fadeTo(1, 0.6, '#000');
+  title.leave();
   showTitle(false);
   newGame(id);
-});
+}
+$('start').addEventListener('click', () => begin(levels.data.start));
+$('continue').addEventListener('click', () => begin(title.saved()));
 
 async function newGame(id, spawn) {
   story.reset();
@@ -202,7 +193,7 @@ renderer.setAnimationLoop(() => {
   updateAmbience(dt, camera);
   updateHud(dt);
   if (state === 'play') view.render();
-  if (state === 'title') title.update(dt, t);
+  if (state !== 'play') title.update(dt); // the start screen, still turning while it fades out
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
