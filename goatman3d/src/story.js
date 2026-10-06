@@ -5,6 +5,7 @@ import { stopAmbience } from './ambience.js';
 import { freezeLook } from './mouse.js';
 import { playFMV } from './fmv.js';
 import { settings } from './options.js';
+import { clearSave } from './save.js';
 
 // What the interactions do: the story of the p5 game, step by step.
 // Texts and timings come from the level's "dialogue" and "outcomes" in levels.json.
@@ -47,15 +48,17 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
     return levels.go(id, spawn);
   }
 
-  // scene4.js: a white flash (fast in, slow out) over the last video, which plays once,
-  // then a fade to black and back to the title.
+  // scene4.js, after a prelude in the light: the white flash (fast in, slow out) over the
+  // last video, which plays once, then the credits and back to the title. Finishing
+  // clears the save: the story is over.
   async function ending(def) {
     story.cutscene = true;
     player.frozen = true;
     setCinematic(true);
+    await intoTheLight(outcome('ending'));
     const soft = settings.flash ? 4 : 1; // "soften flashes" slows the flash right down
     duck(1, 'ending');
-    await fadeTo(settings.flash ? 0.6 : 1, def.flash.in * soft, '#fff');
+    await fadeTo(settings.flash ? 0.7 : 1, def.flash.in * soft, '#fff');
     stopSoundscape(0.5);
     stopAmbience(0.5);
     levels.unload();
@@ -64,8 +67,61 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
     await video;
     await fadeTo(1, levels.data.fade.out, '#000');
     duck(0, 'ending');
+    clearSave();
+    await credits(def.credits);
     setCinematic(false);
     toTitle({ finished: true });
+  }
+
+  // Before the last video he rides the Walking Thing toward the light while the savanna
+  // dissolves into white (world.dissolve). If he walked there, the light takes him first and
+  // he is on its back when it lets go.
+  async function intoTheLight(o) {
+    const thing = levels.world?.actors?.[o.ride];
+    if (!thing) return;
+    freezeLook(true);
+    const [tx, , tz] = o.toward;
+    if (player.mount !== thing) {
+      await fadeTo(1, 0.5, '#fff');
+      thing.moveTo([player.pos.x, 0, player.pos.z], Math.atan2(-(tx - player.pos.x), -(tz - player.pos.z)));
+      thing.carry(player);
+      gm.play('kneel', true);
+    }
+    thing.avoid = []; // on past the edge of the savanna
+    thing.look = o.look; // the view eases round to look where it is going
+    thing.walkTo(o.toward, o.pace);
+    fadeTo(0, 1.2).then(() => fadeTo(o.light, o.time - 1.2, '#fff'));
+    await levels.world.dissolve(o.time);
+  }
+
+  // The credits card (the finale's "credits" in levels.json), until a click or a key, or
+  // for `hold` seconds.
+  function credits(c) {
+    const el = document.getElementById('credits');
+    el.querySelector('h1').textContent = c.title;
+    el.querySelector('.by').textContent = c.by;
+    el.querySelector('.lines').replaceChildren(...c.lines.map(([role, who]) => {
+      const p = document.createElement('p');
+      p.innerHTML = '<span></span><b></b>';
+      p.firstChild.textContent = role;
+      p.lastChild.textContent = who;
+      return p;
+    }));
+    el.classList.remove('hidden');
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        removeEventListener('keydown', done);
+        el.removeEventListener('click', done);
+        el.classList.add('hidden');
+        resolve();
+      };
+      const timer = setTimeout(done, c.hold * 1000);
+      setTimeout(() => { // not skipped by a key still held from the game
+        addEventListener('keydown', done);
+        el.addEventListener('click', done);
+      }, 1500);
+    });
   }
 
   story.actions.exit = (it) => goTo(it.to, it.spawn);

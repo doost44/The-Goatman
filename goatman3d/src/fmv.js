@@ -45,6 +45,3 @@ export function playFMV(url, { skipAfter = 1, canSkip = true } = {}) {
     }
   });
 }
-
-// The first frame of the title video, for the title screen backdrop.
-export const posterOf = (url) => url.replace(/\.mp4$/, '-poster.png');

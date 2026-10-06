@@ -2,6 +2,7 @@
   "start": "forest",
   "fade": { "out": 0.85, "in": 0.8 },
   "intro": { "video": "assets/video/title.mp4", "skipAfter": 1 },
+  "title": { "level": "forest", "spawn": "title", "radius": 2.7, "height": 1.35, "look": 1.15, "speed": 0.1, "light": 2.5 },
   "levels": {
     "forest": {
       "title": "I · THE NIGHT FOREST",
@@ -18,7 +19,8 @@
       "ambience": "night",
       "spawns": {
         "start": { "at": [0, 0, 2], "yaw": 0 },
-        "back": { "at": [-14, 0, -134], "yaw": 160 }
+        "back": { "at": [-14, 0, -134], "yaw": 160 },
+        "title": { "at": [0, 0, -4], "yaw": 0 }
       },
       "respawn": [0, 0, 2],
       "voidY": -50,
@@ -185,7 +187,8 @@
         "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
         "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
         "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
-        "drink": { "edge": 3.3, "hold": 2.5, "shot": [4.2, 0.8, 1.4] }
+        "drink": { "edge": 3.3, "hold": 2.5, "shot": [4.2, 0.8, 1.4] },
+        "ending": { "ride": "walkingThing", "toward": [0, 0, -168], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
       }
     },
 
@@ -194,7 +197,21 @@
       "builder": "cutscene",
       "flash": { "in": 0.12, "out": 0.9 },
       "video": "assets/video/finale.mp4",
-      "then": "title"
+      "then": "title",
+      "credits": {
+        "title": "THE GOATMAN",
+        "by": "by Charlie Cilla",
+        "lines": [
+          ["Paintings, drawings and animation", "Charlie Cilla"],
+          ["Videos and soundscapes", "Charlie Cilla"],
+          ["The night forest's sounds", "Synthesised in the browser"],
+          ["Based on", "THE GOATMAN (p5.js) by Charlie Cilla"],
+          ["Moves and menus from", "Automation Map by Charlie Cilla"],
+          ["3D adaptation", "Built with Claude Code from Charlie's art"],
+          ["Drawn with", "three.js"]
+        ],
+        "hold": 15
+      }
     }
   }
 }

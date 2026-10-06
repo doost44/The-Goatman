@@ -59,7 +59,8 @@ export async function createLevels(scene, player, camera) {
     player.level = null;
   }
 
-  async function load(id, spawnName = 'start') {
+  // backdrop: only to look at, behind the title (no sound, no level name, no onEnter).
+  async function load(id, spawnName = 'start', { backdrop = false } = {}) {
     unload();
     const def = data.levels[id];
     levels.id = id;
@@ -93,6 +94,7 @@ export async function createLevels(scene, player, camera) {
     const spawn = def.spawns[spawnName] ?? def.spawns.start;
     player.place(spawn.at, spawn.yaw);
     if (spawn.ride) world.actors[spawn.ride].carry(player, spawn.walkOn); // arriving on its back
+    if (backdrop) return;
     playSoundscape(def.soundscape?.file ?? null, def.soundscape?.volume ?? 1);
     playAmbience(def.ambience ?? null); // synthesised beds for scenes with no track
     levels.onEnter?.(id, def, world);

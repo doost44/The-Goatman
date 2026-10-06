@@ -43,6 +43,8 @@ goatman3d/
   index.html, style.css
   src/                 one short module per concern:
     main.js            the loop, title, intro video, new game, back to title
+    title.js           the title screen: START, CONTINUE, OPTIONS over a slow orbit round GoatMan
+    save.js            remembers the last level reached (localStorage), for CONTINUE
     player.js          walking, jumping, falling into the void (his hooves are player.pos)
     goatman.js         his low-poly body, walk cycle and scripted poses (kneel, drink, stand, pet, lose)
     viewmodel.js       first-person arms, drawn in a second pass
@@ -61,7 +63,8 @@ goatman3d/
                        kneeling, the stomp, carrying a rider
     squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
     bushes.js          the savanna's striped creatures: painted cards that drift, watch and run off
-    story.js, interact.js   what E does (exits, dialogue, petting) and the endings
+    story.js, interact.js   what E does (exits, dialogue, petting) and the endings: the ride into
+                       the light, the finale flash and video, the credits
     rocks.js           pebbles: right click / G picks one up and throws it
     ambience.js        synthesised sound beds for scenes with no track (the night forest)
     terrain.js         ground meshes, their exact surface height, walkPath() and drape()
@@ -85,7 +88,8 @@ goatman3d/
 - `heightAt` from `buildTerrain` is the exact surface of the ground mesh (its flat triangles, not the smooth noise, on rects and discs alike), so flat things laid on it don't sink. Use `drape(geometry, heightAt)` for glows and decals that lie on the ground, and `walkPath(points, spacing)` to place things along a level's path. Terrain options: `hills`, `flat`, `noise`, `rim` (a disc rising to foothills at its edge) and `mottle` (broad darker patches so a tiled texture repeats less obviously).
 - Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
 - Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
-- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn)` WASD drives it (the savanna). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
+- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn)` WASD drives it (the savanna). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
+- `levels.load(id, spawn, { backdrop: true })` builds a level without its sound, story or name card (the title's orbit). A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists.
 - Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option.

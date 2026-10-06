@@ -16,6 +16,8 @@ import { playFMV } from './fmv.js';
 import { startSound, updateSound, stopSoundscape, duck } from './sound.js';
 import { updateHud, fadeTo, showError, showMessage, setCinematic } from './hud.js';
 import { capturePNG } from './capture.js';
+import { createTitle } from './title.js';
+import { writeSave } from './save.js';
 
 // The loop and the frame around the game: title screen, intro video, play, ending.
 // state: 'title' | 'intro' | 'play'
@@ -87,29 +89,45 @@ levels.onEnter = (id, def, world) => {
   view.enter(def, world);
   rocks.place(def, world);
   if (player.mount) gm.play('kneel', true); // arriving on the Walking Thing's back
+  writeSave({ level: id }); // the title offers CONTINUE from here
 };
 const doom = createSquash({ scene, camera, head, player, gm, view, levels });
 story = createStory({ levels, player, gm, arms, view, squash: doom.squash, toTitle });
 levels.flag = (name) => !!story.flags[name]; // so a level can change when the story does (the savanna's exit)
 interact = createInteract({ levels, player, head, controls, story });
-titleEl.style.backgroundImage = 'url(assets/video/title-poster.png)';
+const title = createTitle({ levels, view, player });
 
 // --- Title, intro, new game ---------------------------------------------------------
 
 function showTitle(on) {
-  titleEl.classList.toggle('hidden', !on);
+  if (on) title.show();
+  else titleEl.classList.add('hidden');
   document.body.classList.toggle('on-title', on);
   $('hud').classList.toggle('hidden', on);
 }
+showTitle(true);
 
 $('start').addEventListener('click', async () => {
   if (state !== 'title') return;
   startSound(); // browsers only allow audio to start from a click
   state = 'intro';
+  await title.leave();
   showTitle(false);
   const how = await playFMV(levels.data.intro.video, { skipAfter: levels.data.intro.skipAfter });
   if (how === 'skipped') controls.lock(); // the SKIP click lets us take the mouse straight away
   newGame(levels.data.start);
+});
+
+// CONTINUE: straight into the last level reached, without the intro.
+$('continue').addEventListener('click', async () => {
+  const id = title.saved();
+  if (state !== 'title' || !id) return;
+  startSound();
+  controls.lock(); // while the click still counts
+  state = 'intro';
+  await title.leave();
+  showTitle(false);
+  newGame(id);
 });
 
 async function newGame(id, spawn) {
@@ -169,7 +187,8 @@ renderer.setAnimationLoop(() => {
   updateAmbience(dt, camera);
   updateHud(dt);
   if (state === 'play') view.render();
+  if (state === 'title') title.update(dt, t);
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
-window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, get state() { return state; }, newGame, toTitle };
+window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, title, get state() { return state; }, newGame, toTitle };

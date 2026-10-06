@@ -12,7 +12,9 @@ import { createWalkingThing } from '../walkingthing.js';
 // through, a dark treeline all round, the teal tree with the pool near it, and the striped
 // creatures drifting through the grass. GoatMan arrives on the Walking Thing's back. The
 // way on is the path from under the tree to a gap in the treeline, and it only lights up
-// once the Walking Thing has been petted.
+// once the Walking Thing has been petted. At the very end it all dissolves into the light.
+
+const WHITE = new THREE.Color(1, 1, 1);
 
 export async function buildSavanna(def, { scene, camera, player, lights, flag }) {
   const group = new THREE.Group();
@@ -40,6 +42,15 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
   thing.avoid = [{ ...edge, r: def.walkingThing.bounds }, tree.keepOut, { ...poolCollider, r: def.pool.radius + 3 }];
   group.add(bushes.group, thing.group);
 
+  // The ending's white-out: a white dome just inside the sky, over the sky and the stars.
+  const veil = new THREE.Mesh(
+    new THREE.SphereGeometry(def.stars.radius - 10, 16, 8),
+    new THREE.MeshBasicMaterial({ color: WHITE, side: THREE.BackSide, fog: false, depthWrite: false, transparent: true, opacity: 0 }),
+  );
+  veil.renderOrder = -8;
+  group.add(veil);
+  let dissolving = null;
+
   const fog = new THREE.Color(def.fog.color);
   let opened = 0;
   const world = {
@@ -51,6 +62,11 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
     actors: { walkingThing: thing },
     heightAt,
     time: 0, // seconds in the level: over def.dusk.time the sky, light and fog darken and the stars come out
+    white: 0, // the ending: 0 .. 1 dissolved into the light
+    // Dissolves everything into white over `time` seconds (the prelude to the last video).
+    dissolve(time) {
+      return new Promise((resolve) => { dissolving = { rate: 1 / time, resolve }; });
+    },
     update(dt, t) {
       world.time += dt;
       const k = THREE.MathUtils.smoothstep(world.time, 0, def.dusk.time);
@@ -61,8 +77,24 @@ export async function buildSavanna(def, { scene, camera, player, lights, flag })
       scene.fog?.color.copy(fog).multiplyScalar(dim);
       lights.ambient.intensity = def.ambient.intensity * (0.4 + 0.6 * dim);
       lights.sun.intensity = def.sun.intensity * dim;
+      if (dissolving) {
+        world.white = Math.min(1, world.white + dt * dissolving.rate);
+        if (world.white >= 1) { dissolving.resolve(); dissolving = null; }
+      }
+      const white = world.white; // the fog closes in and turns white, the light swells, the far things fade out
+      if (white > 0) {
+        scene.fog?.color.lerp(WHITE, white);
+        if (scene.fog) {
+          scene.fog.near = THREE.MathUtils.lerp(def.fog.near, 2, white);
+          scene.fog.far = THREE.MathUtils.lerp(def.fog.far, 36, white);
+        }
+        lights.ambient.intensity *= 1 + 2.5 * white;
+      }
+      treeline.material.emissive.setScalar(white);
+      veil.material.opacity = white ** 1.3;
       sky.position.copy(camera.position); // always as far away
       stars.position.copy(camera.position);
+      veil.position.copy(camera.position);
       stars.rotation.y = world.time * 0.004; // the night sky turning, very slowly
 
       grass.update(t, camera.position);

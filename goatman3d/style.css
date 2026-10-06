@@ -62,8 +62,13 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
 #skip { position: absolute; right: 24px; bottom: 24px; transition: opacity 2s; }
 
 /* --- Title screen ----------------------------------------------------------- */
-#title { position: fixed; inset: 0; z-index: 3; background: #000 center / contain no-repeat; image-rendering: pixelated; }
-#title.over-3d { background-color: transparent; background-image: none !important; }
+#title { position: fixed; inset: 0; z-index: 3; }
+/* The title video's first frame; it dissolves into the 3D orbit once that has loaded (title.js). */
+#poster {
+  position: absolute; inset: 0; background: #000 url(assets/video/title-poster.png) center / contain no-repeat;
+  image-rendering: pixelated; transition: opacity 0.4s;
+}
+#title.live #poster { opacity: 0; transition: opacity 3s; }
 #title .panel {
   position: absolute; left: max(16px, 8vw); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 12px; width: min(300px, calc(100vw - 32px)); padding: 22px;
@@ -88,10 +93,14 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
   position: fixed; inset: 0; z-index: 6; background: #000; display: flex; align-items: center; justify-content: center;
   text-align: center; cursor: pointer;
 }
-#credits .box { padding: 28px 40px; max-width: calc(100vw - 32px); }
-#credits h1 { margin: 0 0 14px; font-size: 30px; }
-#credits p { margin: 6px 0; font-size: 14px; }
-#credits .small { font-size: 11px; opacity: 0.7; margin-top: 18px; }
+#credits .box { padding: 28px 40px; max-width: calc(100vw - 32px); animation: credits-in 2s ease-out; }
+#credits h1 { margin: 0 0 6px; font-size: 34px; }
+#credits .by { margin: 0 0 22px; font-size: 16px; }
+#credits .lines p { margin: 10px 0; font-size: 13px; }
+#credits .lines span { display: block; font-size: 10px; opacity: 0.65; }
+#credits .lines b { color: #fff2d0; }
+#credits .small { font-size: 11px; opacity: 0.7; margin-top: 22px; }
+@keyframes credits-in { from { opacity: 0; } }
 
 /* --- Options menu and buttons, same amber terminal style as the HUD ------------- */
 .btn {

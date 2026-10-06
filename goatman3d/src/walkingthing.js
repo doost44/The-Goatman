@@ -556,6 +556,15 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       turning = turn;
       if (forward < 0) cruise = 0;
     },
+    // Somewhere else at once, standing (out of sight, under the ending's white-out).
+    moveTo(point, facing) {
+      pos.set(point[0], 0, point[2]);
+      heading = facing;
+      speed = crouch = rear = 0;
+      axes();
+      for (const leg of legs) { stance(leg, 0, leg.at); leg.k = 1; }
+      update(0);
+    },
     // Left to itself: it stays about here, watching him when he is near.
     settle() {
       mode = 'wander';
