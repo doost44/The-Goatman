@@ -56,12 +56,12 @@
       },
       "woods": {
         "spacing": 4.6, "gap": 1.1, "noise": 0.045, "clearings": -0.45, "clusters": 0.4, "big": [0.08, 0.8, 1.4],
-        "edge": [226, 254], "wall": 250, "logs": 140, "arches": 22, "stones": 2400, "eyeSpots": 1400, "reach": 45
+        "edge": [226, 254], "wall": 250, "logs": 140, "arches": 22, "stones": 2400, "eyeSpots": 1400, "snags": 160, "reach": 45
       },
       "trunks": {
         "seed": 11, "rows": [[3.8, 5.4, 2.6], [5.6, 9, 3], [9, 26, 1.2]],
         "radius": [0.25, 0.8], "height": [18, 30], "lean": 0.12, "cards": 0.35,
-        "leaners": 6, "inPath": 5, "behind": 70
+        "leaners": 6, "inPath": 5, "behind": 70, "toGate": [20, 8, 15, 200]
       },
       "undergrowth": { "count": 9000, "size": [0.8, 2.1], "colors": ["#4a1a3a", "#5a2044", "#2e2458", "#3a2c66", "#62223e", "#40346e"], "stone": "#4a4a62" },
       "grass": { "spacing": 1.2, "from": 1.7, "to": 7, "colors": ["#2a0e1c", "#3b1426", "#1a1030", "#24183e", "#40122a"] },
