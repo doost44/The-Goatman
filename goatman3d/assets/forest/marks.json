@@ -1,0 +1,16 @@
+{
+  "image": "marks.png",
+  "frameW": 32, "frameH": 20, "cols": 3, "rows": 4, "count": 10,
+  "frames": [
+    { "x": 0, "y": 0, "w": 32, "h": 20, "src": "mark0.png" },
+    { "x": 32, "y": 0, "w": 32, "h": 20, "src": "mark1.png" },
+    { "x": 64, "y": 0, "w": 32, "h": 20, "src": "mark2.png" },
+    { "x": 0, "y": 20, "w": 32, "h": 20, "src": "mark3.png" },
+    { "x": 32, "y": 20, "w": 32, "h": 20, "src": "mark4.png" },
+    { "x": 64, "y": 20, "w": 32, "h": 20, "src": "mark5.png" },
+    { "x": 0, "y": 40, "w": 32, "h": 20, "src": "mark6.png" },
+    { "x": 32, "y": 40, "w": 32, "h": 20, "src": "mark7.png" },
+    { "x": 64, "y": 40, "w": 32, "h": 20, "src": "mark8.png" },
+    { "x": 0, "y": 60, "w": 32, "h": 20, "src": "mark9.png" }
+  ]
+}

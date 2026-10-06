@@ -18,6 +18,12 @@ The project demonstrates advanced p5.js techniques including manual pixel-level 
 
 ---
 
+## THE GOATMAN 3D
+
+A first-person 3D version of the game, built from the same paintings, videos and soundscapes, lives in [`goatman3d/`](goatman3d/). Play it in the browser at https://doost44.github.io/ccilla_sidequestt_W3/goatman3d/ (how to run it locally and the controls are in [`goatman3d/README.md`](goatman3d/README.md)).
+
+---
+
 ## Game Structure
 
 **Scene 1:** Initial area with desaturated, high-contrast character visuals. Player moves to left edge to progress.

@@ -1,0 +1,12 @@
+{
+  "image": "kneel.png",
+  "frameW": 104, "frameH": 128, "cols": 3, "rows": 2, "count": 6,
+  "frames": [
+    { "x": 0, "y": 0, "w": 104, "h": 128, "src": "down1.png" },
+    { "x": 104, "y": 0, "w": 104, "h": 128, "src": "down2.png" },
+    { "x": 208, "y": 0, "w": 104, "h": 128, "src": "down3.png" },
+    { "x": 0, "y": 128, "w": 104, "h": 128, "src": "down4.png" },
+    { "x": 104, "y": 128, "w": 104, "h": 128, "src": "down5.png" },
+    { "x": 208, "y": 128, "w": 104, "h": 128, "src": "down6.png" }
+  ]
+}

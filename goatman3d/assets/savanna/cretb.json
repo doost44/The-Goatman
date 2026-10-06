@@ -1,0 +1,10 @@
+{
+  "image": "cretb.png",
+  "frameW": 128, "frameH": 88, "cols": 2, "rows": 2, "count": 4,
+  "frames": [
+    { "x": 0, "y": 0, "w": 128, "h": 88, "src": "cretb1.png" },
+    { "x": 128, "y": 0, "w": 128, "h": 88, "src": "creb2.png" },
+    { "x": 0, "y": 88, "w": 128, "h": 88, "src": "creb3.png" },
+    { "x": 128, "y": 88, "w": 128, "h": 88, "src": "cretb4.png" }
+  ]
+}

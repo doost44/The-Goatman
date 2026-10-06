@@ -1,0 +1,251 @@
+{
+  "start": "forest",
+  "fade": { "out": 0.85, "in": 0.8 },
+  "space": {
+    "stars": 480, "dust": 160, "turn": 0.22, "bob": 0.12, "grade": [1.15, 1.15, 1.05, 0],
+    "ambient": { "color": "#3a3a6a", "intensity": 1.4 },
+    "sun": { "color": "#ffe2c8", "intensity": 2.2, "dir": [-0.6, 0.8, 0.9] },
+    "glow": "255,90,170", "fov": 36, "from": [0, 1.05, 5.2], "look": [0, 0.95, 0], "shift": 0.75, "lift": 0.9
+  },
+  "levels": {
+    "forest": {
+      "title": "I · THE NIGHT FOREST",
+      "builder": "forest",
+      "palette": "forest",
+      "sky": [[0, "#010207"], [0.6, "#04071a"], [1, "#0a0816"]],
+      "fog": { "color": "#0a1030", "near": 2, "far": 30 },
+      "ambient": { "color": "#1a2660", "intensity": 0.3 },
+      "sun": { "color": "#9fb6ff", "intensity": 1.5, "dir": [-0.5, 1, 0.35] },
+      "grade": [1.8, 0.57, 0.9, 0.45],
+      "surface": "forest",
+      "wind": { "volume": 0.9, "pitch": 0.75 },
+      "speed": 1,
+      "soundscape": null,
+      "ambience": "night",
+      "spawns": {
+        "start": { "at": [0, 0, 2], "yaw": 0 },
+        "back": { "at": [-33.6, 0, -165], "yaw": 90 }
+      },
+      "respawn": [0, 0, 2],
+      "voidY": -50,
+      "terrain": {
+        "shape": "rect", "size": [580, 580], "center": [-6, -70], "segments": [80, 80],
+        "noise": 0.6, "noiseScale": 0.08, "rolling": [2.4, 0.022], "hills": [[47, -143, 13, -2.2], [-66, -67, 11, 1.4]],
+        "tile": 5, "texture": "assets/forest/floor.png", "tint": [1.15, 0.75, 0.7]
+      },
+      "path": {
+        "width": 7,
+        "points": [[0, 6], [0, -10], [5, -28], [2, -46], [-7, -62], [-5, -80], [3, -96], [-2, -112], [-12, -126], [-16, -144], [-19, -154]]
+      },
+      "sidePaths": [
+        { "name": "ring", "width": 2.6, "mouth": "leaning", "points": [[6, -30], [16, -27], [27, -31], [38, -26], [50, -29]],
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "ring", "at": [60, -28], "radius": 11, "ring": 8, "trunks": 12 } },
+        { "name": "tree", "width": 2.4, "mouth": "undergrowth", "points": [[-6, -63], [-18, -59], [-30, -64], [-43, -60], [-55, -65]],
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "tree", "at": [-66, -67], "radius": 9, "size": 2.2, "tint": 1.2 } },
+        { "name": "dell", "width": 2.4, "mouth": "leaning", "points": [[2, -97], [13, -102], [23, -112], [30, -125], [39, -135]],
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "eyes", "at": [47, -143], "radius": 9 } },
+        { "name": "loop", "width": 2.2, "mouth": "undergrowth", "points": [[-1, -12], [-12, -15], [-21, -25], [-21, -37], [-11, -46], [0, -47]],
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 } },
+        { "name": "clearing", "width": 2.6, "mouth": "leaning", "points": [[-3, -113], [-15, -109], [-27, -103], [-39, -98]],
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "clearing", "at": [-50, -94], "radius": 13 } }
+      ],
+      "dome": {
+        "wall": "assets/forest/wall.png", "crop": [0, 2, 256, 178], "brightness": 1.5, "weave": "assets/forest/weave.png",
+        "repeat": 6, "zenith": "#02030b", "specks": 40, "radius": 300
+      },
+      "woods": {
+        "spacing": 4.6, "gap": 1.1, "noise": 0.045, "clearings": -0.45, "clusters": 0.4, "big": [0.08, 0.8, 1.4],
+        "edge": [226, 254], "wall": 250, "logs": 140, "arches": 22, "stones": 2400, "eyeSpots": 1400, "reach": 45
+      },
+      "trunks": {
+        "seed": 11, "rows": [[3.8, 5.4, 2.6], [5.6, 9, 3], [9, 26, 1.2]],
+        "radius": [0.25, 0.8], "height": [18, 30], "lean": 0.12, "cards": 0.35,
+        "leaners": 6, "inPath": 5, "behind": 70
+      },
+      "undergrowth": { "count": 9000, "size": [0.8, 2.1], "colors": ["#4a1a3a", "#5a2044", "#2e2458", "#3a2c66", "#62223e", "#40346e"], "stone": "#4a4a62" },
+      "grass": { "spacing": 1.2, "from": 1.7, "to": 7, "colors": ["#2a0e1c", "#3b1426", "#1a1030", "#24183e", "#40122a"] },
+      "marks": {
+        "sheet": "assets/forest/marks", "seed": 3, "spacing": 4.5, "spread": 1.3, "size": 1, "tilt": [0.35, 0.8], "glow": 1.7,
+        "out": { "count": 420, "near": 6, "far": 70, "glow": 0.75 }
+      },
+      "eyes": {
+        "sheet": "assets/forest/marks", "seed": 4, "count": 20, "want": [5, 16], "far": 30,
+        "blink": [2, 6], "away": [1.2, 2.6], "shy": 2.2, "range": 20
+      },
+      "exit": {
+        "at": [-31, -165], "facing": -90, "gap": 2.0, "apex": 3.6, "trunkRadius": 1.0, "reach": 34, "fog": "#3a2340", "tint": 0.4,
+        "glimpse": { "sky": "assets/field/sky.png", "cloud": "assets/field/cloud-front2.png", "peaks": "assets/field/peaks.png", "grass": "assets/field/grass.png" }
+      },
+      "rocks": { "count": 14, "seed": 9 },
+      "interactions": [
+        { "type": "exit", "at": [-32, 0, -165], "radius": 1.7, "look": 60, "prompt": "PRESS E TO ENTER", "to": "field" }
+      ]
+    },
+
+    "field": {
+      "title": "II · THE RED FIELD",
+      "builder": "field",
+      "palette": "field",
+      "seed": 5,
+      "sky": [[0, "#a87c98"], [0.5, "#cd9bb2"], [1, "#e2b4c4"]],
+      "fog": { "color": "#cfa0b6", "near": 40, "far": 340 },
+      "ambient": { "color": "#ffd8e4", "intensity": 1.3 },
+      "sun": { "color": "#fff0e0", "intensity": 1.6, "dir": [0.6, 1, 0.4] },
+      "grade": [1.2, 1.8, 1.0, 0.0],
+      "surface": "grass",
+      "wind": { "volume": 1, "pitch": 1.15 },
+      "speed": 1,
+      "soundscape": { "file": "assets/audio/field-loop.m4a", "volume": 1.2 },
+      "spawns": {
+        "start": { "at": [0, 0, 72], "yaw": 0 }
+      },
+      "respawn": [0, 0, 72],
+      "voidY": -70,
+      "bounds": 165,
+      "terrain": {
+        "shape": "disc", "radius": 330, "segments": [72, 26],
+        "hills": [[-60, -40, 40, 6], [70, -80, 50, 9], [45, 60, 30, 4], [-90, 70, 45, 7], [110, 20, 35, 6], [-30, -120, 40, 5]],
+        "flat": [[0, 0, 45], [0, 74, 14]],
+        "rim": [150, 320, 18],
+        "mottle": [0.3, 0.02],
+        "noise": 1.2, "noiseScale": 0.04, "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
+      },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 600, "repeat": 2 },
+      "peaks": { "texture": "assets/field/peaks.png", "radius": 300, "depth": 60, "height": 80, "ground": 325, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.3)" },
+      "clouds": {
+        "wind": [1, 0.25],
+        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 26, "height": [110, 160], "size": [60, 110], "radius": 480, "speed": 1.5, "tint": "#fff4f0" },
+        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 14, "height": [48, 75], "size": [45, 80], "radius": 320, "speed": 4, "tint": "#ffffff" }
+      },
+      "grass": {
+        "radius": 160, "patch": 60, "tufts": 2600, "tuftSize": [0.45, 1.1], "sprouts": 700, "sproutSize": [0.5, 1],
+        "colors": ["#c3092d", "#d20831", "#8c1b2c", "#b8142b", "#e01a3c"], "sprout": "#16030a"
+      },
+      "gate": { "at": [0, 77], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
+      "walkingThing": {
+        "home": [0, 0, 0], "wander": 30, "height": 22, "speed": 2.5, "frameTime": 0.3,
+        "notice": 32, "lower": 0.15, "shadow": "assets/field/shadow.png", "facing": 0
+      },
+      "interactions": [
+        { "type": "exit", "at": [0, 0, 77], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
+        { "type": "talk", "actor": "walkingThing", "radius": 14, "look": 35, "prompt": "PRESS E", "dialogue": "encounter" }
+      ],
+      "dialogue": {
+        "encounter": {
+          "text": "THE WALKING THING STOPS AND LOOKS DOWN AT YOU.",
+          "choices": [
+            { "label": "Grab Their LEG", "outcome": "squash" },
+            { "label": "Will you be my mount, Walking Thing?", "outcome": "mount" }
+          ]
+        }
+      },
+      "outcomes": {
+        "squash": {
+          "grab": 0.6, "darken": 3, "raise": 2.6, "footSize": 7, "drop": 0.55,
+          "flash": { "in": 0.08, "out": 1.4 }, "shot": 4,
+          "message": "They didn't like that, you were SQUASHED", "hold": 2.5
+        },
+        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [-40, 0, -150], "pace": 1.2, "ride": 7, "to": "savanna" }
+      }
+    },
+
+    "savanna": {
+      "title": "III · THE SAVANNA",
+      "builder": "savanna",
+      "palette": "savanna",
+      "seed": 9,
+      "sky": [[0, "#12030a"], [0.55, "#3b0914"], [1, "#6a1424"]],
+      "fog": { "color": "#4a0d1c", "near": 30, "far": 210 },
+      "ambient": { "color": "#d890b8", "intensity": 1.15 },
+      "sun": { "color": "#ffb0a0", "intensity": 1.3, "dir": [0.35, 0.8, 0.55] },
+      "grade": [1.1, 1.0, 1.0, 0.15],
+      "surface": "purple",
+      "wind": { "volume": 1.1, "pitch": 0.95 },
+      "speed": 1,
+      "soundscape": { "file": "assets/audio/savanna-long-loop.m4a", "volume": 0.6 },
+      "ambience": "bog",
+      "spawns": {
+        "start": { "at": [8, 0, 62], "yaw": 0, "ride": "walkingThing", "walkOn": 5 }
+      },
+      "respawn": [8, 0, 40],
+      "voidY": -70,
+      "bounds": 130,
+      "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
+      "terrain": {
+        "shape": "disc", "radius": 220, "segments": [256, 96],
+        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4]],
+        "flat": [[-6, -34, 22], [8, 62, 14]],
+        "rim": [135, 205, 14],
+        "mottle": [0.35, 0.03],
+        "noise": 0.6, "noiseScale": 0.05, "tile": 4,
+        "texture": "assets/savanna/grass.png", "tint": [1, 0.95, 1.1]
+      },
+      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 600, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
+      "stars": { "texture": "assets/savanna/stars.png", "radius": 590, "repeat": 1.5 },
+      "treeline": {
+        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 160, "depth": 20, "height": 32, "ground": 215,
+        "columns": 384, "repeat": 12, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -160, 52]]
+      },
+      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
+      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126]], "width": 3.4 },
+      "river": {
+        "points": [[172, 30], [136, 22], [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40],
+          [-34, -58], [-16, -68], [6, -70], [28, -76], [48, -92], [62, -114], [70, -140], [78, -168]],
+        "width": 18, "depth": 1, "water": 0.4, "margin": 6, "flow": 0.35, "sky": "#3a1220", "seed": 3,
+        "bog": {
+          "reeds": 400, "tussocks": 140, "tussock": "assets/savanna/blades2.png", "scum": 50,
+          "branches": 12, "stumps": 9, "mist": 26, "reach": 135, "seed": 8
+        }
+      },
+      "grass": {
+        "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
+        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16
+      },
+      "bushes": {
+        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "length": 5, "radius": 1.4,
+        "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6],
+        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4
+      },
+      "exit": { "at": [0, -126], "gap": [0, -168], "gapSize": [70, 44], "pillarSize": [7, 24] },
+      "rocks": { "seed": 4, "count": 8 },
+      "walkingThing": {
+        "home": [8, 0, 62], "facing": 0, "wander": 6, "height": 22, "speed": 2.5, "rideSpeed": 3.2, "hurry": 1.5, "turn": 0.5,
+        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 126
+      },
+      "interactions": [
+        { "type": "dismount", "mounted": true },
+        { "type": "pet", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO PET", "once": "petted" },
+        { "type": "ride", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO RIDE" },
+        { "type": "exit", "at": [0, 0, -126], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
+      ],
+      "outcomes": {
+        "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
+        "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
+        "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
+        "ending": { "ride": "walkingThing", "toward": [0, 0, -168], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
+      }
+    },
+
+    "finale": {
+      "title": null,
+      "builder": "cutscene",
+      "flash": { "in": 0.12, "out": 0.9 },
+      "video": "assets/video/finale.mp4",
+      "then": "title",
+      "credits": {
+        "title": "THE GOATMAN",
+        "by": "by Charlie Cilla",
+        "lines": [
+          ["Paintings, drawings and animation", "Charlie Cilla"],
+          ["Videos and soundscapes", "Charlie Cilla"],
+          ["The night forest's sounds", "Synthesised in the browser"],
+          ["Based on", "THE GOATMAN (p5.js) by Charlie Cilla"],
+          ["Moves and menus from", "Automation Map by Charlie Cilla"],
+          ["3D adaptation", "Built with Claude Code from Charlie's art"],
+          ["Drawn with", "three.js"]
+        ],
+        "hold": 15
+      }
+    }
+  }
+}

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE GOATMAN 3D</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud">
+  <div id="level-name" class="box hidden"></div>
+  <div id="crosshair">+</div>
+  <div id="prompt" class="box hidden"></div>
+  <div id="hint" class="box hidden"></div>
+  <div id="message" class="box hidden"></div>
+  <div id="subtitle" class="hidden"></div>
+  <div id="dialogue" class="box hidden">
+    <p id="dialogue-text"></p>
+    <div id="choices"></div>
+  </div>
+  <div id="error" class="box hidden"></div>
+</div>
+
+<div id="fade"></div>
+
+<div id="fmv" class="hidden">
+  <video playsinline preload="auto"></video>
+  <button id="skip" class="btn hidden">SKIP</button>
+</div>
+
+<div id="title">
+  <div class="panel box">
+    <h1>THE GOATMAN</h1>
+    <h2>by Charlie Cilla · 3D</h2>
+    <button id="start" class="btn big">START</button>
+    <button id="continue" class="btn hidden"></button>
+    <button id="title-options" class="btn">OPTIONS</button>
+    <p class="small">WASD walk · Shift sprint · mouse look · E interact · Space jump · V camera · O options · Esc frees the mouse</p>
+  </div>
+</div>
+
+<div id="paused" class="hidden">
+  <div class="box">
+    <h1>THE GOATMAN</h1>
+    <p>CLICK TO PLAY</p>
+    <p class="small">WASD walk · Shift sprint · mouse look · E interact · Space jump · V first / third person · G pebble · O options · P photo</p>
+  </div>
+</div>
+
+<div id="credits" class="hidden">
+  <div class="box">
+    <h1></h1>
+    <p class="by"></p>
+    <div class="lines"></div>
+    <p class="small">CLICK TO RETURN TO THE TITLE</p>
+  </div>
+</div>
+
+<div id="options" class="hidden">
+  <div class="box">
+    <h2>OPTIONS</h2>
+    <label>CAMERA
+      <select id="opt-camera">
+        <option value="first">FIRST PERSON</option>
+        <option value="third">THIRD PERSON</option>
+      </select>
+    </label>
+    <label>FIELD OF VIEW <span id="opt-fov-val"></span>
+      <input id="opt-fov" type="range" min="60" max="110" step="1">
+    </label>
+    <label>MOUSE SENSITIVITY <span id="opt-sens-val"></span>
+      <input id="opt-sens" type="range" min="0.2" max="3" step="0.1">
+    </label>
+    <label>PIXEL SIZE
+      <select id="opt-pixel"></select>
+    </label>
+    <label>VOLUME <span id="opt-vol-val"></span>
+      <input id="opt-vol" type="range" min="0" max="1" step="0.05">
+    </label>
+    <label>MUSIC AND SOUNDSCAPES <span id="opt-music-val"></span>
+      <input id="opt-music" type="range" min="0" max="1" step="0.05">
+    </label>
+    <label class="check"><input id="opt-mute" type="checkbox"> MUTE</label>
+    <label class="check"><input id="opt-hud" type="checkbox"> SHOW HUD</label>
+    <label class="check"><input id="opt-shake" type="checkbox"> SCREEN SHAKE</label>
+    <label class="check"><input id="opt-flash" type="checkbox"> SOFTEN FLASHES</label>
+    <label class="check"><input id="opt-subs" type="checkbox"> SUBTITLES</label>
+    <div class="row">
+      <button id="opt-full" class="btn"></button>
+      <button id="opt-reset" class="btn">RESET</button>
+      <button id="opt-close" class="btn">BACK</button>
+    </div>
+    <p class="small">O or Esc closes this menu</p>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

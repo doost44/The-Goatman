@@ -1,0 +1,10 @@
+{
+  "image": "cret.png",
+  "frameW": 128, "frameH": 100, "cols": 2, "rows": 2, "count": 4,
+  "frames": [
+    { "x": 0, "y": 0, "w": 128, "h": 100, "src": "cret1.png" },
+    { "x": 128, "y": 0, "w": 128, "h": 100, "src": "cret2.png" },
+    { "x": 0, "y": 100, "w": 128, "h": 100, "src": "cret3.png" },
+    { "x": 128, "y": 100, "w": 128, "h": 100, "src": "cret4.png" }
+  ]
+}
