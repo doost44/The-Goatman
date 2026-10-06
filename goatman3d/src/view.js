@@ -65,6 +65,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
 
   const api = {
     get blend() { return blend; },
+    forceFirst: false, // first person whatever the option says (admin mode's flying)
     // A cutscene camera (the squash): { from, to, yaw } puts the camera at `from` looking
     // at `to`, with all of him showing and facing `yaw`. Null for the normal view.
     shot: null,
@@ -79,7 +80,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       reach = DIST;
     },
     update(dt) {
-      blend = clamp01(blend + (settings.camera === 'third' ? dt : -dt) / SWITCH);
+      blend = clamp01(blend + (settings.camera === 'third' && !api.forceFirst ? dt : -dt) / SWITCH);
       const e = ease(blend);
       turnBody(dt);
       if (api.shot?.yaw !== undefined) yaw = api.shot.yaw;

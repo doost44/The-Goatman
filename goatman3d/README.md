@@ -30,6 +30,27 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | P | save a 1600x1200 photo |
 | Esc | free the mouse (click to carry on) |
 
+## Admin mode
+
+For working on the levels: add `?admin` to the address (for example `.../goatman3d/?admin`, or `?admin&level=savanna` to go straight into a level), then press ` (backquote) to fly. The normal link has none of this.
+
+| Key | Action |
+| --- | --- |
+| ` | admin mode on / off (off drops him onto the ground below) |
+| W / S, A / D | fly where you look, sideways |
+| Space / C or Q | straight up / down |
+| Shift | 4x faster |
+| Mouse wheel | fly speed (2, 5, 10, 20, 40 m/s) |
+| 1 / 2 / 3 | the forest / the field / the savanna |
+| 4 | the finale |
+| F | fog off / on |
+| T | night in the savanna, and back |
+| Y | count the Walking Thing as petted (opens the savanna's way on) |
+| H | hide the HUD and arms, for screenshots (P still saves a photo) |
+| K | copy the camera's position and yaw for levels.json |
+
+The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate and the draw calls.
+
 ## The story
 
 Title video, then four places, as in the original:

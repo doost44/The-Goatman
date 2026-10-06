@@ -45,6 +45,7 @@ goatman3d/
     main.js            the loop, title, intro video, new game, back to title
     title.js           the title screen: START, CONTINUE, OPTIONS over a slow orbit round GoatMan
     save.js            remembers the last level reached (localStorage), for CONTINUE
+    admin.js           admin mode (only loaded with ?admin): fly through everything, coordinates, level keys
     player.js          walking, jumping, falling into the void (his hooves are player.pos)
     goatman.js         his low-poly body, walk cycle and scripted poses (kneel, drink, stand, pet, lose)
     viewmodel.js       first-person arms, drawn in a second pass
@@ -92,6 +93,7 @@ goatman3d/
 - `levels.load(id, spawn, { backdrop: true })` builds a level without its sound, story or name card (the title's orbit). A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists.
+- Admin mode (`?admin`, then `): `admin.fly(dt)` replaces `player.update` while it is on, `interact.update(false)` stops interactions, and `view.forceFirst` keeps first person. Check new level work by flying round it (F turns the fog off, K copies a position for levels.json).
 - Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option.
 - Anything that must go dark in the squash is opaque (cut out with `alphaTest`, `transparent: false`): transparent things draw after the darkening dome and would stay bright.
 - A level with no soundtrack can name a synthesised bed in levels.json (`"ambience": "night"`, built in `ambience.js`). Beds play on the music bus, so they duck and follow the music volume; caption their events with `subtitle()`.

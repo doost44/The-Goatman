@@ -97,6 +97,12 @@ levels.flag = (name) => !!story.flags[name]; // so a level can change when the s
 interact = createInteract({ levels, player, head, controls, story });
 const title = createTitle({ levels, view, player });
 
+// Admin mode (?admin in the address): flying, coordinates, level keys. Not even loaded otherwise.
+const params = new URLSearchParams(location.search);
+const admin = params.has('admin')
+  ? (await import('./admin.js')).createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, playing: () => state === 'play' })
+  : null;
+
 // --- Title, intro, new game ---------------------------------------------------------
 
 function showTitle(on) {
@@ -105,7 +111,14 @@ function showTitle(on) {
   document.body.classList.toggle('on-title', on);
   $('hud').classList.toggle('hidden', on);
 }
-showTitle(true);
+// ?admin&level=savanna goes straight into that level.
+const skipTo = admin && levels.data.levels[params.get('level')]?.spawns ? params.get('level') : null;
+if (skipTo) {
+  showTitle(false);
+  newGame(skipTo);
+} else {
+  showTitle(true);
+}
 
 $('start').addEventListener('click', async () => {
   if (state !== 'title') return;
@@ -176,13 +189,15 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
   if (state === 'play') {
-    player.update(dt);
+    if (admin?.on) admin.fly(dt);
+    else player.update(dt);
     levels.update(dt, t);
-    interact.update();
+    interact.update(!admin?.on);
     doom.update(dt);
     view.update(dt);
     rocks.update(dt);
   }
+  admin?.update(dt);
   updateSound(dt, camera);
   updateAmbience(dt, camera);
   updateHud(dt);
@@ -191,4 +206,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // Handy for debugging in the browser console (and for the Playwright checks).
-window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, title, get state() { return state; }, newGame, toTitle };
+window.goatman = { THREE, renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, rocks, story, interact, settings, title, admin, get state() { return state; }, newGame, toTitle };

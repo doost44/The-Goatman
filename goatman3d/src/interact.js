@@ -43,10 +43,11 @@ export function createInteract({ levels, player, head, controls, story }) {
     return d;
   }
 
-  function update() {
+  // enabled: false while admin mode flies him about (nothing triggers).
+  function update(enabled = true) {
     active = null;
     const list = levels.def?.interactions;
-    if (list && !player.frozen && !levels.busy && controls.isLocked && !story.busy) {
+    if (enabled && list && !player.frozen && !levels.busy && controls.isLocked && !story.busy) {
       let best = Infinity;
       for (const it of list) {
         const d = available(it);
