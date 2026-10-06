@@ -2,25 +2,26 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadImage, toCanvas, canvas, crunchy, grade, glowTexture, rng } from '../textures.js';
 import { drape } from '../terrain.js';
+import { fountain, strandGeometry, swaying } from './strands.js';
 
 // The teal tree, the savanna's landmark (tree.png), as a weeping willow. The painted
 // orange-red trunk divides into a few thick branches that rise and arc outward, each
 // splitting into thinner limbs, and from them hang hundreds of long tendrils in the painted
-// canopy's teal and blue (with its red streaks). Most end in a ragged hem about where the
-// trunk divides, so from afar it still reads as the painting's broad, flat-topped, dripping
-// canopy; the long ones hang on in a thin curtain almost to the ground, and underneath you
-// walk in among them. They sway in the wind, the tips most, and part round GoatMan and the
-// Walking Thing's feet (a few lines added to the material's shader).
+// canopy's teal and blue (with its red streaks), each in a smooth drooping curve. Round the
+// outside they end in a ragged hem about where the trunk divides, so from afar it still
+// reads as the painting's broad, flat-topped, dripping canopy; further in long curtains hang
+// almost to the ground, and underneath you walk in among them. A slow wave runs down them in
+// the wind, the tips moving most, and they part round GoatMan and the Walking Thing's feet.
 //
 // levels.json "tree": { at: [x, z], texture, fork (metres up where the trunk divides),
 //   branches, height (the top of the arcs), reach (how far they spread), spacing (metres
-//   between tendrils along a limb), grade, keepOut (how close the Walking Thing's body comes), seed }
+//   between tendrils along a limb), segment (metres per bend of a tendril), grade, keepOut (how
+//   close the Walking Thing's body comes), seed }
 
 const TRUNK = [113, 132, 186, 254]; // the trunk in the painting: x0, x1, y0, y1
 // Columns of the painted canopy that are mostly teal and blue: the tendrils' colours.
 const COLUMNS = [44, 76, 80, 84, 104, 120, 124, 128, 144, 148, 152, 160, 168, 172, 192];
 const TILES = 8; // tendril textures side by side, 16 x 128 px each
-const ROWS = 8; // segments down a tendril, so it can bend
 const PUSHERS = 3; // GoatMan and the Walking Thing's two feet
 
 // A tapered tube along a smooth curve through `points`, r0 thick at the start and r1 at the
@@ -123,78 +124,33 @@ function tendrilPaint(img, d, r) {
   return crunchy(c);
 }
 
-// The tendrils: a strip of three strands hanging from every few tens of centimetres of the
-// high limbs, turned any way. sway = (how far down the strip, which strip) for the shader.
+// The tendrils, hung every few tens of centimetres along the high limbs. Each leaves its
+// limb outward, arcs over and falls in a smooth curve (strands.js). In layers: round the
+// outside a short fringe ending in a ragged hem about where the trunk divides (from afar the
+// painting's broad dripping canopy), further in long curtains falling almost to the ground,
+// that you walk in among underneath.
 function tendrils(limbs, d, r) {
-  const pos = [], uv = [], sway = [], index = [];
+  const list = [];
   const p = new THREE.Vector3();
-  let n = 0;
   for (const { curve, len } of limbs) {
     for (let s = r() * d.spacing; s < len; s += d.spacing * (0.5 + r())) {
       curve.getPointAt(s / len, p);
       const out = Math.hypot(p.x, p.z);
       if (p.y < d.fork + 3 || out < (p.y > d.fork + 7 ? 1.2 : 2.5)) continue;
-      // Most end in a ragged hem about the height of the fork; the long ones (more round the
-      // outside) hang on almost to the ground, or to about head height underneath.
-      const far = THREE.MathUtils.smoothstep(out, 4, d.reach * 0.75);
-      const bottom = r() < 0.15 + 0.25 * far
-        ? THREE.MathUtils.lerp(1.2 + r() * 1.8, 0.1 + r() * 1.2, far)
-        : Math.min(p.y - 3, d.fork + (r() - 0.3) * 5);
-      const top = p.y + 0.2 + r() * 0.6; // covering the limb
-      const face = r() * Math.PI, ax = Math.cos(face), az = Math.sin(face);
-      const w = 0.5 + r() * 0.35, seed = r();
-      const tile = Math.floor(r() * TILES), u0 = tile / TILES, u1 = (tile + 1) / TILES;
-      // It arches out from the limb, away from the trunk, before it hangs (which also
-      // covers the crown when seen from above).
-      const flip = -az * p.x + ax * p.z < 0 ? -1 : 1, arch = 0.5 + r() * 0.5;
-      const ox = -az * flip * arch, oz = ax * flip * arch;
-      for (let k = -1; k <= ROWS; k++) {
-        const fall = Math.max(0, k / ROWS), y = k ? top - (top - bottom) * fall : top - 0.3;
-        const o = k < 0 ? 0 : 1, v = k ? 1 - fall : 0.97;
-        for (const side of [-0.5, 0.5]) {
-          pos.push(p.x + ax * w * side + ox * o, y, p.z + az * w * side + oz * o);
-          uv.push(side < 0 ? u0 : u1, v);
-          sway.push(k ? fall : 0.03, seed);
-        }
-        if (k > -1) index.push(n - 2, n, n - 1, n - 1, n, n + 1);
-        n += 2;
-      }
+      const inner = 1 - THREE.MathUtils.smoothstep(out, d.reach * 0.35, d.reach * 0.8);
+      const bottom = r() < 0.1 + 0.45 * inner
+        ? 0.3 + r() * 1.6 // a long curtain
+        : Math.min(p.y - 2.5, d.fork + (r() - 0.3) * 5); // the hem
+      const a = Math.atan2(p.z, p.x) + (r() - 0.5) * 1.2; // away from the trunk, more or less
+      const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const tile = Math.floor(r() * TILES);
+      list.push({
+        points: fountain(p.clone().add(new THREE.Vector3(0, 0.2, 0)), dir, p.y - bottom, r),
+        width: 0.6 + r() * 0.4, out: dir, u0: tile / TILES, u1: (tile + 1) / TILES, seed: r(),
+      });
     }
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((_, i) => (i % 3 === 1 ? 1 : 0)), 3)); // lit like the ground
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setAttribute('sway', new THREE.Float32BufferAttribute(sway, 2));
-  geo.setIndex(index);
-  geo.computeBoundingSphere();
-  geo.boundingSphere.radius += 3; // they swing out a little
-  return geo;
-}
-
-// The wind and the parting, added to a Lambert material's vertex shader. uPush: up to three
-// things pushing through (x, z in the tree's space, radius, the height of their top).
-function swaying(mat, uniforms) {
-  mat.customProgramCacheKey = () => 'willow';
-  mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>
-        attribute vec2 sway;
-        uniform float uTime;
-        uniform vec4 uPush[${PUSHERS}];`)
-      .replace('#include <begin_vertex>', `#include <begin_vertex>
-        float bend = sway.x * sway.x; // the tips swing most
-        float gust = 0.6 + 0.4 * sin(uTime * 0.3 + transformed.x * 0.06);
-        transformed.x += bend * gust * (0.9 * sin(uTime * 0.8 + sway.y * 6.28) + 0.25 * sin(uTime * 2.3 + sway.y * 17.0));
-        transformed.z += bend * gust * 0.6 * cos(uTime * 0.63 + sway.y * 9.1);
-        for (int i = 0; i < ${PUSHERS}; i++) {
-          vec2 d = transformed.xz - uPush[i].xy;
-          float dist = max(length(d), 0.001);
-          float k = sway.x * smoothstep(uPush[i].w + 1.0, uPush[i].w - 1.0, transformed.y);
-          transformed.xz += d / dist * max(uPush[i].z - dist, 0.0) * k;
-        }`);
-  };
+  return strandGeometry(list, d.segment ?? 1);
 }
 
 export async function buildTealTree(d, heightAt) {
@@ -213,7 +169,7 @@ export async function buildTealTree(d, heightAt) {
 
   const uniforms = { uTime: { value: 0 }, uPush: { value: Array.from({ length: PUSHERS }, () => new THREE.Vector4(0, 0, 0, -99)) } };
   const leafMat = new THREE.MeshLambertMaterial({ map: tendrilPaint(img, d, r), alphaTest: 0.5, side: THREE.DoubleSide });
-  swaying(leafMat, uniforms);
+  swaying(leafMat, uniforms, { pushers: PUSHERS, key: 'willow' });
   group.add(new THREE.Mesh(tendrils(limbs, d, r), leafMat));
 
   // The trunk alone stops the third-person camera (an invisible stand-in, quick to test).
