@@ -14,7 +14,7 @@ import { pushOut } from './player.js';
 // bigger ("inverted hulls"), like the painted line round the body and down the legs.
 //
 // levels.json "walkingThing": { home, wander, height, speed, frameTime, notice, lower, ... }
-// and for riding it: rideSpeed, turn (radians a second).
+// and for riding it: rideSpeed, hurry (Shift: rideSpeed times this), turn (radians a second).
 
 const SHEET = 'assets/field/wboy';
 const BODY_ROWS = 56; // in the 256 px drawings its legs start below this row
@@ -238,7 +238,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
   let target = null; // where it is walking to
   let rest = rnd(1, 3); // seconds before it sets off again
   const home = new THREE.Vector3(...def.home); // where it wanders round
-  let drive = 0, turning = 0; // ridden: his keys (W/S, A/D)
+  let drive = 0, turning = 0, hurry = false; // ridden: his keys (W/S, A/D, Shift)
   let cruise = 0; // ridden: seconds it walks on by itself (arriving in a new level)
   const tweens = []; // scripted changes, run in game time
   const colliders = legs.map(() => ({ kind: 'circle', x: 0, z: 0, r: 0.45 * k + 0.1 }));
@@ -368,7 +368,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     }
     if (mode === 'ridden') { // he steers: W walks on, S stops, A and D turn it
       heading += turning * def.turn * dt;
-      want = drive > 0 || cruise > 0 ? def.rideSpeed : 0;
+      want = drive > 0 || cruise > 0 ? def.rideSpeed * (hurry && drive > 0 ? def.hurry ?? 1.5 : 1) : 0;
       cruise = Math.max(0, cruise - dt);
     } else if (mode === 'script') { // kneeling, carrying him off, the squash
       if (target) {
@@ -390,7 +390,7 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
     // The stride: a foot sets off at the start of each half of the cycle.
     const before = phase;
     phase = (phase + (dt * speed) / (def.speed * cycle)) % 1;
-    const swingTime = cycle * SWING;
+    const swingTime = (cycle * SWING) / Math.max(1, speed / def.speed); // quicker steps going faster
     const ahead = speed * swingTime + 0.29 * speed * cycle;
     for (const leg of legs) {
       if (leg.held) continue;
@@ -551,9 +551,10 @@ export async function createWalkingThing(def, { heightAt, camera, player }) {
       if (walkOn) speed = def.rideSpeed; // arriving mid-stride
       rider.mount = thing;
     },
-    steer(forward, turn) {
+    steer(forward, turn, fast = false) {
       drive = forward;
       turning = turn;
+      hurry = fast;
       if (forward < 0) cruise = 0;
     },
     // Somewhere else at once, standing (out of sight, under the ending's white-out).

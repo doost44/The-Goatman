@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { CYCLE } from './goatman.js';
 
 // First-person arms, Half-Life style: GoatMan's two long red arms dangle at the bottom
-// of the screen and swing with his stride. They live in their own little scene, drawn
-// after the world with the depth buffer cleared, so they never poke into walls.
-// They use his body's materials, so the level's colour grade applies to them too.
+// of the screen and swing with his stride the way his body's arms do (goatman-poses.js):
+// the elbows bend as they swing, most going forward, and the hands trail. Sprinting, they
+// come up bent and pump. They live in their own little scene, drawn after the world with
+// the depth buffer cleared, so they never poke into walls. They use his body's materials,
+// so the level's colour grade applies to them too.
 
 const SHOULDER = [0.5, -0.36, 0.05]; // right shoulder, in camera space (the left is mirrored)
 const REACH = 1.35; // how far forward the arms hang (radians from straight down)
@@ -54,6 +56,7 @@ export function createArms(materials) {
   let hold = 0; // 0..1 raising the right hand with a pebble in it
   let fling = 1; // a throw, 0..1 (1 = done)
   let patting = 1; // petting, 0..1 (1 = done)
+  let air = 0; // off the ground, 0..1
 
   const api = {
     scene,
@@ -73,7 +76,7 @@ export function createArms(materials) {
     },
     // pitch: where the view points (negative looking down). lower: 0..1 slides the arms
     // out of sight while the camera moves out to third person.
-    update(dt, { stride, speed, grounded, pitch, lower, fov, aspect }) {
+    update(dt, { stride, speed, sprint, grounded, pitch, lower, fov, aspect }) {
       t += dt;
       camera.fov = fov;
       camera.aspect = aspect;
@@ -87,11 +90,15 @@ export function createArms(materials) {
       patting = Math.min(1, patting + dt / PAT.time);
       const reach = Math.sin(Math.PI * patting) ** 0.5; // up, held there, down
       const tap = Math.sin(patting * Math.PI * 8) * 0.12 * reach;
+      air += ((grounded ? 0 : 1) - air) * Math.min(1, dt * 8);
+      const amp = 0.18 * Math.min(1, speed) + 0.3 * sprint;
+      const arm = ph - 0.3; // a little behind the legs
       for (const a of arms) {
-        const swing = Math.cos(ph) * a.side * 0.18 * speed + 0.03 * Math.sin(t * 1.1 + a.side);
-        a.shoulder.rotation.set(hang + swing + (grounded ? 0 : -0.3), 0, -INWARD * a.side);
-        a.elbow.rotation.x = ELBOW + Math.max(0, swing) * 0.5;
-        a.wrist.rotation.x = WRIST - swing * 0.6;
+        const swing = Math.cos(arm) * a.side * amp + 0.03 * Math.sin(t * 1.1 + a.side);
+        const trail = Math.sin(arm) * a.side * amp; // the hand lags the way the arm swings
+        a.shoulder.rotation.set(hang + swing - 0.3 * air + 0.3 * sprint, 0, -(INWARD + 0.1 * sprint) * a.side);
+        a.elbow.rotation.x = ELBOW + 0.8 * sprint + amp * (0.5 + 1.2 * Math.max(0, Math.cos(arm) * a.side));
+        a.wrist.rotation.x = WRIST + 0.4 * sprint + trail * 0.9;
         if (a.side === 1) { // the pebble hand comes up into view; a throw whips it forward
           a.shoulder.rotation.x += (HOLD.shoulder - a.shoulder.rotation.x) * hold + whip * 0.9;
           a.shoulder.rotation.z -= HOLD.inward * hold;

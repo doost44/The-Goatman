@@ -46,8 +46,11 @@ goatman3d/
     title.js           the start screen: GoatMan floating in space, START, CONTINUE and OPTIONS on the left
     save.js            remembers the last level reached (localStorage), for CONTINUE
     admin.js           admin mode (only loaded with ?admin): fly through everything, coordinates, level keys
-    player.js          walking, jumping, falling into the void (his hooves are player.pos)
-    goatman.js         his low-poly body, walk cycle and scripted poses (kneel, drink, stand, pet, lose)
+    player.js          walking, sprinting, jumping, falling into the void (his hooves are player.pos)
+    goatman.js         his low-poly body: tapered limbs, the head that comes off, colour grades
+    goatman-head.js    his shaped head: skull rings wearing the painted face and profile, a tousled hair cap
+    goatman-poses.js   his joint angles: standing, the walk and sprint cycle (two-bone IK goat legs),
+                       the scripted poses (kneel, drink, stand, pet, lose), all eased by damped springs
     viewmodel.js       first-person arms, drawn in a second pass
     view.js            first/third-person camera, chase-camera pull-in, which way his body faces, rendering
     levels.js          loads levels.json, runs a level's builder (worlds/*.js), sky, fog, lights
@@ -89,7 +92,7 @@ goatman3d/
 - `heightAt` from `buildTerrain` is the exact surface of the ground mesh (its flat triangles, not the smooth noise, on rects and discs alike), so flat things laid on it don't sink. Use `drape(geometry, heightAt)` for glows and decals that lie on the ground, and `walkPath(points, spacing)` to place things along a level's path. Terrain options: `hills`, `flat`, `noise`, `rim` (a disc rising to foothills at its edge) and `mottle` (broad darker patches so a tiled texture repeats less obviously).
 - Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
 - Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
-- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn)` WASD drives it (the savanna). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
+- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn, fast)` WASD drives it (the savanna; Shift hurries it to `rideSpeed` times its `hurry`). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
 - A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists.
@@ -99,7 +102,8 @@ goatman3d/
 - A level with no soundtrack can name a synthesised bed in levels.json (`"ambience": "night"`, built in `ambience.js`). Beds play on the music bus, so they duck and follow the music volume; caption their events with `subtitle()`.
 - Merging geometry (`mergeGeometries`) needs every piece indexed the same way with the same attributes; trunks and grass are merged into a few meshes per level to keep draw calls low.
 - GoatMan's scripted poses come from the paintings: `gm.play('kneel')` (down1-6), `'drink'` (head1-15: the head sinks to the ground on blue strands), `'stand'`, `'pet'`, `'lose'` (head1-15 then backhead1-13, the SQUASHED death). Each returns a promise; kneel, drink and lose hold their last pose until the next one.
-- `STRIDE` in player.js is one footstep; his walk cycle is two of them split into the 18 painted walk frames, so footstep sounds land with his hooves.
+- `STRIDE` in player.js is one footstep and his walk cycle is two of them, as one continuous phase, so footstep sounds land with his hooves. Sprinting steps are `SPRINT_STEP` times longer, and the stride keeps counting in the air so his legs keep their rhythm through a jump. All the movement numbers (speed, sprint, its ramp, the sprint FOV) sit together at the top of player.js.
+- GoatMan's pose is a set of joint angles (`STAND` in goatman-poses.js). Everything eases towards its target through a critically damped spring (`SMOOTH` seconds), and the walk cycle is added on top, so nothing snaps; his legs are worked out from where the hooves go (`leg()`), the knee forward and the hock back.
 - Copy and adapt modules from automation-map/src/ rather than reinventing them.
 - Keep modules short and readable for a student; comment only what is non-obvious.
 - Check work in a real browser with Playwright (Chromium is preinstalled; jsDelivr may be blocked in the cloud container, so route the import-map URLs to a local copy of three@0.160.0 from npm). Screenshot each level touched for the PR.

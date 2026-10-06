@@ -298,14 +298,15 @@ const SURFACES = {
 
 export const sfx = {
   // GoatMan's step: a hoof on the ground plus the surface's rustle; left/right alternate.
-  step(surface = 'grass', vol = 1) {
+  // heavy (0..1, sprinting): a deeper, longer thump.
+  step(surface = 'grass', vol = 1, heavy = 0) {
     const s = SURFACES[surface] ?? SURFACES.grass;
     stepSide = -stepSide;
     const pan = stepSide * 0.15;
     noise({ dur: s.swish ? rnd(0.16, 0.22) : rnd(0.08, 0.12), filter: 'bandpass', freq: rnd(...s.rustle), to: s.to, q: 0.7, vol: s.vol * vol, pan, attack: s.swish ? 0.04 : 0.01 });
     for (let i = 0; i < s.ticks; i++) noise({ dur: 0.012, filter: 'highpass', freq: rnd(...s.tickFreq), vol: 0.022 * vol, pan, delay: rnd(0, 0.06) });
-    noise({ dur: 0.05, filter: 'lowpass', freq: 160, vol: s.thump * vol, pan });
-    tone({ freq: rnd(150, 190), to: 90, dur: 0.04, vol: 0.03 * vol, pan }); // hoof knock
+    noise({ dur: 0.05 + 0.04 * heavy, filter: 'lowpass', freq: 160 - 50 * heavy, vol: s.thump * vol * (1 + heavy), pan });
+    tone({ freq: rnd(150, 190) * (1 - 0.25 * heavy), to: 90 - 30 * heavy, dur: 0.04 + 0.03 * heavy, vol: 0.03 * vol, pan }); // hoof knock
   },
   jump(surface = 'grass') {
     const s = SURFACES[surface] ?? SURFACES.grass;

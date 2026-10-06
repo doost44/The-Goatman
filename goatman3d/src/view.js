@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { settings } from './options.js';
+import { SPRINT_FOV } from './player.js';
 
 // Where the camera goes, and drawing the frame.
 // First person: the camera is GoatMan's head, his arms are drawn over the world
@@ -81,6 +82,8 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
     },
     update(dt) {
       blend = clamp01(blend + (settings.camera === 'third' && !api.forceFirst ? dt : -dt) / SWITCH);
+      const fov = settings.fov + SPRINT_FOV * player.sprint; // a little wider sprinting
+      if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       const e = ease(blend);
       turnBody(dt);
       if (api.shot?.yaw !== undefined) yaw = api.shot.yaw;
@@ -91,7 +94,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       bodyPos.set(player.pos.x - Math.sin(yaw) * ahead, player.pos.y, player.pos.z - Math.cos(yaw) * ahead);
       gm.update(dt, {
         pos: bodyPos, yaw, speed: player.speed, stride: player.stride,
-        grounded: player.grounded, vy: player.vel.y,
+        grounded: player.grounded, vy: player.vel.y, sprint: player.sprint,
         ground: player.groundAt(player.pos.x, player.pos.z, player.pos.y, 0.3, 40),
       });
       camera.position.lerpVectors(head.position, chase(dt), e);
@@ -104,7 +107,7 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       }
       if (lights) arms.light(lights);
       arms.update(dt, {
-        stride: player.stride, speed: player.speed, grounded: player.grounded,
+        stride: player.stride, speed: player.speed, sprint: player.sprint, grounded: player.grounded,
         pitch: head.rotation.x, lower: e, fov: camera.fov, aspect: camera.aspect,
       });
     },

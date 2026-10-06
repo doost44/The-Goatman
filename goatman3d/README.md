@@ -19,9 +19,10 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | Key | Action |
 | --- | --- |
 | WASD / arrow keys | walk |
+| Shift (held, walking forward) | sprint |
 | Mouse | look |
 | E | interact (enter, talk, pet, drink, ride, get down) |
-| W / S / A / D while riding | walk on / stop / turn |
+| W / S / A / D while riding | walk on / stop / turn (Shift: hurry) |
 | 1 / 2 or mouse + click | pick a choice |
 | Space | jump |
 | G / right click | pick up or throw a pebble |

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { sfx, loopsLevel, duck } from './sound.js';
 import { showHint } from './hud.js';
+import { settings } from './options.js';
 
 // GoatMan's body: walking, jumping, falling into the void and dropping back in.
 // Ported from automation-map/src/player.js; the circular island is replaced by the
@@ -9,9 +10,14 @@ import { showHint } from './hud.js';
 // player.pos is where his hooves are; the head object (turned by the mouse) sits
 // EYE above it and the camera module decides where the camera goes from there.
 
+// How he moves: walking, sprinting and jumping, all in one place.
 export const EYE = 1.7;
 const RIDE_EYE = 1.2; // kneeling on the Walking Thing's back
-const SPEED = 3.6; // he is stooped and slow
+const SPEED = 4.5; // walking, metres a second
+const SPRINT = 1.8; // Shift: this many times faster, on the ground going forward
+const SPRINT_UP = 0.3, SPRINT_DOWN = 0.2; // seconds to reach a full sprint and to drop back
+export const SPRINT_STEP = 1.5; // sprinting, each footstep is this much longer
+export const SPRINT_FOV = 6; // degrees the view widens at a full sprint
 const GRAVITY = 20;
 const MAX_FALL = 40; // terminal velocity
 const WRAP_HEIGHT = 90; // how far above the respawn point a fall into the void comes back in
@@ -22,11 +28,11 @@ const JUMP = 7; // upward speed of a jump (about 1.2 units high)
 const AIR_CONTROL = 5; // how quickly WASD steers you in the air
 const BODY = 0.4; // his radius, for colliders
 const STEP_UP = 0.6; // highest ledge he walks straight up
-export const STRIDE = 1; // metres per footstep (goatman.js times his stride to it)
+export const STRIDE = 1.1; // metres per footstep walking (goatman-poses.js times his stride to it)
 const BOB = 0.05;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const RIDE_HINT = 'RIDING · W WALK · S STOP · A/D TURN · E GET DOWN';
+const RIDE_HINT = 'RIDING · W WALK · SHIFT HURRY · S STOP · A/D TURN · E GET DOWN';
 
 // Nearest point to (x, z) on a polyline of [x, z] points, and how far away it is.
 export function nearestOnPath(points, x, z) {
@@ -97,6 +103,7 @@ export function createPlayer(head, controls, keys) {
   let dip = 1; // landing dip progress, 0..1 (1 = standing)
   let dipDepth = 0;
   let stunned = 0; // seconds of no air control after being knocked
+  let ramp = 0; // sprinting, 0..1 at a steady rate (player.sprint is it eased)
 
   const player = {
     pos,
@@ -106,8 +113,9 @@ export function createPlayer(head, controls, keys) {
     wrapped: false, // falling back in from above
     frozen: false, // cutscenes and dialogue: no walking
     mount: null, // the creature being ridden (it moves the player)
-    stride: 0, // metres walked, drives the walk animation and view bob
-    speed: 0, // current ground speed, 0..1 of a walk
+    stride: 0, // footsteps taken, times STRIDE: drives the walk animation and view bob
+    speed: 0, // current ground speed: 1 is a walk, SPRINT a full sprint
+    sprint: 0, // 0..1, easing in and out with Shift
     bob: 0,
     update,
     place,
@@ -134,6 +142,7 @@ export function createPlayer(head, controls, keys) {
     head.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0, 'YXZ');
     player.grounded = true;
     player.wrapped = false;
+    player.sprint = ramp = 0;
     dip = 1;
     syncHead(0);
   }
@@ -167,6 +176,12 @@ export function createPlayer(head, controls, keys) {
     pushOut(pos, player.level.colliders);
   }
 
+  // Shift with W: only walking forward (and not backing up at the same time).
+  function sprinting() {
+    if (!controls.isLocked || player.frozen) return false;
+    return !!(keys.ShiftLeft || keys.ShiftRight) && !!(keys.KeyW || keys.ArrowUp) && !(keys.KeyS || keys.ArrowDown);
+  }
+
   // WASD as a direction on the ground plane, relative to where the head faces.
   const forward = new THREE.Vector3();
   const right = new THREE.Vector3();
@@ -183,8 +198,9 @@ export function createPlayer(head, controls, keys) {
 
   function syncHead(dt) {
     if (dip < 1) dip = Math.min(1, dip + dt / DIP_TIME);
-    // The view dips as each hoof lands.
-    player.bob = player.grounded ? (Math.abs(Math.sin(player.stride * Math.PI / STRIDE)) - 0.5) * BOB * player.speed : 0;
+    // The view dips as each hoof lands, harder sprinting (unless screen shake is off).
+    const bob = Math.min(player.speed, settings.shake ? SPRINT : 1);
+    player.bob = player.grounded ? (Math.abs(Math.sin(player.stride * Math.PI / STRIDE)) - 0.5) * BOB * bob : 0;
     const eye = player.mount ? RIDE_EYE : EYE;
     head.position.set(pos.x, pos.y + eye - dipDepth * Math.sin(dip * Math.PI) + player.bob, pos.z);
   }
@@ -211,7 +227,7 @@ export function createPlayer(head, controls, keys) {
     const steering = !!mount.steer && !player.frozen;
     if (mount.steer) {
       const on = steering && controls.isLocked;
-      mount.steer(on ? key('KeyW', 'ArrowUp') - key('KeyS', 'ArrowDown') : 0, on ? key('KeyA', 'ArrowLeft') - key('KeyD', 'ArrowRight') : 0);
+      mount.steer(on ? key('KeyW', 'ArrowUp') - key('KeyS', 'ArrowDown') : 0, on ? key('KeyA', 'ArrowLeft') - key('KeyD', 'ArrowRight') : 0, on && !!key('ShiftLeft', 'ShiftRight'));
     }
     hint(steering);
     mount.seat(pos);
@@ -226,7 +242,7 @@ export function createPlayer(head, controls, keys) {
     if (player.mount) { // riding: the creature carries him, kneeling on its back (walkingthing.js)
       ride(dt);
       vel.set(0, 0, 0);
-      player.speed = 0;
+      player.speed = player.sprint = ramp = 0;
       player.grounded = true;
       loopsLevel.wind(0);
       syncHead(dt);
@@ -235,7 +251,10 @@ export function createPlayer(head, controls, keys) {
     carried = ridden = null;
     hint(false);
     const wish = wishDir();
-    const speed = SPEED * (player.level.speed ?? 1);
+    // Sprinting eases in and out; in the air it stays as it was, so a jump carries the speed.
+    if (player.grounded) ramp = THREE.MathUtils.clamp(ramp + (sprinting() ? dt / SPRINT_UP : -dt / SPRINT_DOWN), 0, 1);
+    const sprint = player.sprint = THREE.MathUtils.smoothstep(ramp, 0, 1);
+    const speed = SPEED * (player.level.speed ?? 1) * (1 + (SPRINT - 1) * sprint);
 
     if (player.grounded) {
       loopsLevel.wind(0);
@@ -253,10 +272,11 @@ export function createPlayer(head, controls, keys) {
         pos.y = ground;
       }
       const walked = Math.hypot(pos.x - before.x, pos.z - before.z);
-      player.speed = THREE.MathUtils.lerp(player.speed, Math.min(1, walked / dt / SPEED), Math.min(1, dt * 10));
+      if (dt > 0) player.speed = THREE.MathUtils.lerp(player.speed, walked / dt / SPEED, Math.min(1, dt * 10));
+      // Sprinting, each footstep is longer (and heavier).
       const steps = Math.floor(player.stride / STRIDE);
-      player.stride += walked;
-      if (player.grounded && Math.floor(player.stride / STRIDE) > steps) sfx.step(player.level.surface);
+      player.stride += walked / (1 + (SPRINT_STEP - 1) * sprint);
+      if (player.grounded && Math.floor(player.stride / STRIDE) > steps) sfx.step(player.level.surface, 1 + 0.3 * sprint, sprint);
 
       if (player.grounded && keys.Space && controls.isLocked && !player.frozen) {
         sfx.jump(player.level.surface);
@@ -286,6 +306,7 @@ export function createPlayer(head, controls, keys) {
     }
     pos.addScaledVector(vel, dt);
     collide();
+    player.stride += (Math.hypot(vel.x, vel.z) * dt) / (1 + (SPRINT_STEP - 1) * sprint); // his legs keep their rhythm in a jump
     const fall = Math.min(1, Math.max(0, -vel.y - 4) / 30); // wind builds as you fall faster
     loopsLevel.wind(fall);
     duck(fall * 0.8, 'fall');
