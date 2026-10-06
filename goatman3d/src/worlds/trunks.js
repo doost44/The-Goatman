@@ -138,7 +138,7 @@ function lying(x, y, z, yaw, pitch, sx, sy, sz) {
 
 // Puts everything woods.js planned into the scatter. blush(x, z): 0-1, how much the pink
 // light of the way out tints the wood there. Returns the merged arches, the same arches one
-// by one for raycasts, and the scatter kinds the camera and pebbles bump into.
+// by one for raycasts, the scatter kinds the camera and pebbles bump into, and the materials.
 export async function buildTrunks(plan, scatter, blush = () => 0) {
   const bark = await loadTexture('assets/forest/bark.png', 1);
   const atlas = await cardAtlas();
@@ -153,7 +153,7 @@ export async function buildTrunks(plan, scatter, blush = () => 0) {
   });
   const dark = kinds(barkMat), pale = kinds(paleMat);
   const cards = atlas.cards.map((card) => scatter.kind(card.geometry, cardMat));
-  const logs = scatter.kind(logGeometry(), paleMat);
+  const logs = scatter.kind(logGeometry(), paleMat), darkLogs = scatter.kind(logGeometry(), barkMat);
 
   const color = new THREE.Color(), pink = new THREE.Color();
   const tint = (x, z, k) => color.setRGB(k, k, k * 1.06).lerp(pink.setRGB(1.7 * k, 0.85 * k, 1.25 * k), blush(x, z));
@@ -172,7 +172,7 @@ export async function buildTrunks(plan, scatter, blush = () => 0) {
   for (const l of plan.logs) {
     const len = Math.hypot(l.bx - l.ax, l.bz - l.az);
     const yaw = Math.atan2(-(l.bz - l.az), l.bx - l.ax), pitch = Math.atan2(l.yb - l.ya, len);
-    scatter.add(logs, lying(l.x, (l.ya + l.yb) / 2, l.z, yaw, pitch, len, l.r, l.r), tint(l.x, l.z, l.tint));
+    scatter.add(l.dark ? darkLogs : logs, lying(l.x, (l.ya + l.yb) / 2, l.z, yaw, pitch, len, l.r, l.r), tint(l.x, l.z, l.tint));
   }
 
   // The arches: tubes bent along their curves, tinted through their vertex colours.
@@ -186,7 +186,7 @@ export async function buildTrunks(plan, scatter, blush = () => 0) {
   // Raycasts (the chase camera, pebbles) use each arch on its own, never drawn, so a ray only
   // works through the triangles of an arch it comes near.
   const archBlockers = geos.map((g) => new THREE.Mesh(g, arches.material));
-  return { arches, archBlockers, solid: [...dark.sizes, ...pale.sizes, ...cards, logs] };
+  return { arches, archBlockers, solid: [...dark.sizes, ...pale.sizes, ...cards, logs, darkLogs], mats: { bark: barkMat, pale: paleMat } };
 }
 
 // A few big bark trunks on their own, merged into one mesh (the field's way back).

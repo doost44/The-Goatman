@@ -3,8 +3,9 @@ import { settings } from './options.js';
 import { SPRINT_FOV } from './player.js';
 
 // Where the camera goes, and drawing the frame.
-// First person: the camera is GoatMan's head, his arms are drawn over the world
-// (viewmodel.js) and looking down shows his legs. Third person (V, or the options
+// First person: the camera is between GoatMan's eyes, his body is drawn round it with the
+// head and neck hidden (looking down shows his chest, belly, legs and hooves) and his arms
+// are drawn over the world (viewmodel.js). Third person (V, or the options
 // menu): a chase camera behind and above him that the mouse swings round, pulled in
 // when a trunk or wall is in the way. Switching eases between the two.
 
@@ -12,7 +13,7 @@ const DIST = 3.4; // chase camera distance
 const LIFT = 0.5; // and how far above his shoulders
 const SHOULDERS = 1.45;
 const SWITCH = 0.5; // seconds to ease between first and third person
-const LEGS_AHEAD = 0.2; // first person: his legs sit a little in front, so looking down finds them
+const CLEAR = 0.18; // first person: the top of his chest stays at least this far below the camera
 const SWING_UP = 0.25; // looking up further than this, the chase camera stops swinging down and only tilts
 const WIDE = 0.3; // the chase camera also looks this far to each side of the line back from him
 const RIDE_ROLL = 1.5; // first person on the Walking Thing: the view rolls with its sway, a bit more
@@ -26,7 +27,9 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
   const dir = new THREE.Vector3();
   const chasePos = new THREE.Vector3();
   const side = new THREE.Vector3();
-  const bodyPos = new THREE.Vector3();
+  const eyes = new THREE.Vector3();
+  const collar = new THREE.Vector3();
+  const shift = new THREE.Vector3();
   const ray = new THREE.Raycaster();
   const orbit = new THREE.Euler(0, 0, 0, 'YXZ');
   let blockers = []; // what the chase camera can't see through
@@ -110,16 +113,27 @@ export function createView({ renderer, scene, camera, head, player, gm, arms }) 
       const e = ease(blend);
       turnBody(dt);
       if (api.shot?.yaw !== undefined) yaw = api.shot.yaw;
-      // In first person, or with the chase camera squeezed up behind him, his upper body
-      // would fill the screen: only his legs are drawn.
-      gm.setFirstPerson(blend < 0.2 || reach < 1.1);
-      const ahead = LEGS_AHEAD * (1 - e);
-      bodyPos.set(player.pos.x - Math.sin(yaw) * ahead, player.pos.y, player.pos.z - Math.cos(yaw) * ahead);
+      // In first person his head and arms are hidden; with the chase camera squeezed up behind
+      // him, all but his lower legs.
+      const squeezed = blend >= 0.2 && reach < 1.1;
+      gm.setFirstPerson(blend < 0.2 || squeezed, squeezed);
+      const first = api.shot ? 0 : 1 - e; // a cutscene shows all of him, standing as he does
+      gm.first = first;
       gm.update(dt, {
-        pos: bodyPos, yaw, speed: player.speed, stride: player.stride,
+        pos: player.pos, yaw, speed: player.speed, stride: player.stride,
         grounded: player.grounded, vy: player.vel.y, sprint: player.sprint,
         ground: player.groundAt(player.pos.x, player.pos.z, player.pos.y, 0.3, 40),
       });
+      // First person: his body moves so his eyes are where the camera is, across the ground.
+      // Up and down his hooves stay on the ground, unless the camera dips (landing, wading)
+      // further than he does: then he drops with it, so it never goes inside his chest.
+      if (first > 0) {
+        gm.eyes(eyes);
+        gm.collar(collar);
+        shift.set(head.position.x - eyes.x, Math.min(0, head.position.y - CLEAR - collar.y), head.position.z - eyes.z);
+        gm.group.position.addScaledVector(shift, first);
+        gm.group.updateMatrixWorld(true);
+      }
       camera.position.lerpVectors(head.position, chase(dt), e);
       camera.quaternion.copy(head.quaternion);
       if (player.mount?.sway) camera.rotateZ(player.mount.sway * RIDE_ROLL * (1 - e));

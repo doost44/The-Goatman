@@ -1,29 +1,36 @@
 import * as THREE from 'three';
 import { canvas, crunchy, rng } from '../textures.js';
 import { sfx } from '../sfx.js';
+import { createSplashes } from './splash.js';
 import { subtitle } from '../hud.js';
 
 // The savanna's low, boggy river: the dark red band at the bottom of ground1.png.
 // riverCourse() is its shape: it carves a shallow channel into the ground with soft muddy
-// banks (buildTerrain's reshape and shade) and answers where the water is and how deep.
-// buildRiver() is the water itself: dark red-brown to nearly black, painted with the dusk's
-// reds and a few pale glints, flowing slowly with faint ripples, plus the splashes (his
-// hooves, the Walking Thing's feet, pebbles) and the odd bubble. bog.js dresses its banks.
+// banks (the terrain's reshape and shade) and answers where the water is and how deep. The
+// marsh's tidal creeks are courses too, narrower. buildRiver() is the water itself, for all
+// the courses and the still water of waters.js (bays, the swamp): dark red-brown to nearly
+// black, painted with the dusk's reds and a few pale glints, flowing slowly with faint
+// ripples, plus the splashes (his hooves, the Walking Thing's feet, pebbles) and the odd
+// bubble. bog.js dresses its banks.
 //
-// levels.json "river": { points: [[x, z], ...] (from treeline to treeline), width (bank to
-//   bank), depth (of the channel), water (how far below the banks the water sits), margin
-//   (metres over which the banks blend into the ground), flow (metres a second), sky (the
-//   colour it shows looking along it), seed, bog (bog.js) }
+// levels.json "river": { points: [[x, z, width?, depth?], ...] (from treeline to marsh; the
+//   optional third and fourth numbers scale the width and depth there: wide and shallow at
+//   the ford, wider still into the marsh), width (bank to bank), depth (of the channel),
+//   water (how far below the banks the water sits), margin (metres over which the banks
+//   blend into the ground), flow (metres a second), sky (the colour it shows looking along
+//   it), seed, bog (bog.js) }. "creeks": [{ points, width?, depth? }, ...] the same, with
+//   the river's numbers for anything left out.
 
 const STEP = 2; // metres between samples along it
 const TILE = 3; // metres of water to one tile of its paint
 const CELL = 16; // size of the squares used to find the nearest stretch quickly
+const TILE_SQUARE = 192; // metres: the water is drawn in squares this big, so what is out of view isn't
 const clamp = THREE.MathUtils.clamp;
 
 export function riverCourse(d, natural) {
   const curve = new THREE.CatmullRomCurve3(d.points.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
   const n = Math.ceil(curve.getLength() / STEP);
-  const pts = curve.getSpacedPoints(n).map((p) => ({ x: p.x, z: p.z, level: natural(p.x, p.z) }));
+  const pts = curve.getSpacedPoints(n).map((p) => ({ x: p.x, z: p.z, level: natural(p.x, p.z), ...scales(d, p.x, p.z) }));
   // The banks' level along it: the ground's own height, smoothed over a long stretch so
   // the water only rises and falls gently.
   for (let pass = 0; pass < 3; pass++) {
@@ -34,9 +41,14 @@ export function riverCourse(d, natural) {
       p.level = sum / 17;
     });
   }
-  const R = d.width / 2;
-  const edge = (R * Math.acos((2 * d.water) / d.depth - 1)) / Math.PI; // where the water meets the banks
-  const reach = R + d.margin;
+  // How wide and deep it is at each point, and where the water meets the banks.
+  for (const p of pts) {
+    p.R = (d.width * p.w) / 2;
+    p.depth = Math.max(d.depth * p.dd, d.water * 1.25); // always some water in it
+    p.edge = (p.R * Math.acos((2 * d.water) / p.depth - 1)) / Math.PI;
+  }
+  const reach = Math.max(...pts.map((p) => p.R)) + d.margin;
+  const lerp = (a, b, k, key) => a[key] + (b[key] - a[key]) * k;
 
   // Each square of the ground lists the stretches of river near it.
   const cells = new Map();
@@ -52,7 +64,7 @@ export function riverCourse(d, natural) {
     }
   }
   // The nearest point on the middle of the river, or null if it is far off:
-  // { x, z, d (how far), i (the stretch), level (of the banks there) }.
+  // { x, z, d (how far), i (the stretch), level (of the banks there), R, edge, depth (there) }.
   function nearest(x, z) {
     const list = cells.get(key(Math.floor(x / CELL), Math.floor(z / CELL)));
     if (!list) return null;
@@ -65,14 +77,16 @@ export function riverCourse(d, natural) {
       const d2 = (x - px) ** 2 + (z - pz) ** 2;
       if (!best || d2 < best.d2) best = { x: px, z: pz, d2, i, k };
     }
+    const a = pts[best.i], b = pts[best.i + 1];
     best.d = Math.sqrt(best.d2);
-    best.level = pts[best.i].level + (pts[best.i + 1].level - pts[best.i].level) * best.k;
+    for (const name of ['level', 'R', 'edge', 'depth']) best[name] = lerp(a, b, best.k, name);
     return best;
   }
-  const carve = (dist) => (dist < R ? d.depth * (0.5 + 0.5 * Math.cos((Math.PI * dist) / R)) : 0);
+  const carve = (dist, q) => (dist < q.R ? q.depth * (0.5 + 0.5 * Math.cos((Math.PI * dist) / q.R)) : 0);
 
   return {
-    pts, edge, R,
+    pts,
+    edge: pts[0].edge, R: pts[0].R, // as wide as it is where it starts (each point has its own)
     water: d.water,
     flow: d.flow,
     length: n * STEP,
@@ -84,39 +98,60 @@ export function riverCourse(d, natural) {
         const e = (pts[i].x - x) ** 2 + (pts[i].z - z) ** 2;
         if (e < d2) { d2 = e; best = pts[i]; }
       }
-      return best;
+      return { ...best, d: Math.sqrt(d2) };
     },
     // `across` metres to the side of its middle, `s` metres along: { x, z, level, dx, dz
-    // (the way it flows) }.
+    // (the way it flows), R, edge (how wide it is there) }.
     at(s, across = 0) {
       const f = clamp(s / STEP, 0, n - 1e-6), i = Math.floor(f), k = f - i;
       const a = pts[i], b = pts[i + 1];
       const len = Math.hypot(b.x - a.x, b.z - a.z), dx = (b.x - a.x) / len, dz = (b.z - a.z) / len;
-      return { x: a.x + (b.x - a.x) * k - dz * across, z: a.z + (b.z - a.z) * k + dx * across, level: a.level + (b.level - a.level) * k, dx, dz };
+      return {
+        x: a.x + (b.x - a.x) * k - dz * across, z: a.z + (b.z - a.z) * k + dx * across,
+        level: lerp(a, b, k, 'level'), R: lerp(a, b, k, 'R'), edge: lerp(a, b, k, 'edge'), dx, dz,
+      };
     },
     // The ground across it, levelled to the banks and carved into a channel.
     reshape(x, z, h) {
       const q = nearest(x, z);
-      if (!q || q.d > reach) return h;
-      return THREE.MathUtils.lerp(h, q.level, 1 - THREE.MathUtils.smoothstep(q.d, R, reach)) - carve(q.d);
+      if (!q || q.d > q.R + d.margin) return h;
+      return THREE.MathUtils.lerp(h, q.level, 1 - THREE.MathUtils.smoothstep(q.d, q.R, q.R + d.margin)) - carve(q.d, q);
     },
-    // Mud: the ground darkens toward the water to the painting's dark red-brown.
-    shade(x, z) {
+    // Mud: how much the ground darkens toward the water (0..1).
+    mud(x, z) {
       const q = nearest(x, z);
-      const k = q ? 1 - THREE.MathUtils.smoothstep(q.d, edge + 1, R + 3) : 0;
-      return [1 - 0.6 * k, 1 - 0.76 * k, 1 - 0.7 * k];
+      return q ? 1 - THREE.MathUtils.smoothstep(q.d, q.edge + 1, q.R + 3) : 0;
     },
     // How deep the water is over ground at height y (0 out of it).
     depth(x, z, y) {
       const q = nearest(x, z);
-      return q && q.d < R ? Math.max(0, q.level - d.water - y) : 0;
+      return q && q.d < q.R ? Math.max(0, q.level - d.water - y) : 0;
     },
     // The water's height near (x, z), or null away from it.
     surface(x, z) {
       const q = nearest(x, z);
-      return q && q.d < edge + 1 ? q.level - d.water : null;
+      return q && q.d < q.edge + 1 ? q.level - d.water : null;
+    },
+    // In the water, or within `margin` metres of it.
+    wet(x, z, margin = 1) {
+      const q = nearest(x, z);
+      return !!q && q.d < q.edge + margin;
     },
   };
+}
+
+// How much wider and deeper than usual the river is at (x, z): from the scales given with
+// its points ([x, z, width, depth]), along the line between the nearest two.
+function scales(d, x, z) {
+  let best = { d2: Infinity, w: 1, dd: 1 };
+  for (let i = 0; i < d.points.length - 1; i++) {
+    const [ax, az, aw = 1, ad = 1] = d.points[i], [bx, bz, bw = 1, bd = 1] = d.points[i + 1];
+    const dx = bx - ax, dz = bz - az;
+    const k = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1);
+    const d2 = (x - ax - dx * k) ** 2 + (z - az - dz * k) ** 2;
+    if (d2 < best.d2) best = { d2, w: aw + (bw - aw) * k, dd: ad + (bd - ad) * k };
+  }
+  return { w: best.w, dd: best.dd };
 }
 
 // The water's paint, in the river band's colours: long streaks along the flow in dark
@@ -142,31 +177,50 @@ function waterPaint(r) {
   return crunchy(c, [1, 1]);
 }
 
-export function buildRiver(d, course, camera) {
+// waters (waters.js): { courses (the river and the creeks), pools (still water: { at,
+//   outline(angle) -> metres, level }), surface(x, z) (the water's height there, or null) }.
+export function buildRiver(d, waters, camera) {
   const r = rng(d.seed ?? 3);
-  const { pts, edge } = course;
   const group = new THREE.Group();
 
-  // The water: a strip along the middle, wide enough that its edges go in under the banks,
-  // the paint TILE metres to a tile.
-  const W = edge + 1;
-  const pos = [], uv = [], index = [];
-  pts.forEach((p, i) => {
-    for (let k = 0; k <= 4; k++) {
-      const across = (k / 4 - 0.5) * 2 * W, at = course.at(i * STEP, across);
-      pos.push(at.x, p.level - d.water, at.z);
-      uv.push(across / TILE, (i * STEP) / TILE);
+  // The water, in squares TILE_SQUARE metres across so what is out of view isn't drawn. Each
+  // course is a strip along its middle, wide enough that its edges go in under the banks,
+  // the paint TILE metres to a tile, flowing; each pool a flat fan, barely drifting.
+  const tiles = new Map();
+  const tile = (x, z) => {
+    const k = `${Math.floor(x / TILE_SQUARE)},${Math.floor(z / TILE_SQUARE)}`;
+    if (!tiles.has(k)) tiles.set(k, { pos: [], uv: [], drift: [], index: [] });
+    return tiles.get(k);
+  };
+  const vertex = (t, x, y, z, u, v, drift) => {
+    t.pos.push(x, y, z);
+    t.uv.push(u, v);
+    t.drift.push(drift);
+    return t.pos.length / 3 - 1;
+  };
+  for (const course of waters.courses) {
+    const { pts } = course;
+    for (let i = 1; i < pts.length; i++) {
+      const t = tile((pts[i - 1].x + pts[i].x) / 2, (pts[i - 1].z + pts[i].z) / 2);
+      const row = (j) => [0, 1, 2, 3, 4].map((k) => {
+        const W = pts[j].edge + 1, across = (k / 4 - 0.5) * 2 * W, at = course.at(j * STEP, across);
+        return vertex(t, at.x, pts[j].level - d.water, at.z, across / TILE, (j * STEP) / TILE, 1);
+      });
+      const A = row(i - 1), B = row(i);
+      for (let k = 0; k < 4; k++) t.index.push(A[k], A[k + 1], B[k], A[k + 1], B[k + 1], B[k]); // facing up
     }
-    if (i > 0) for (let k = 0; k < 4; k++) {
-      const A = (i - 1) * 5 + k, B = i * 5 + k;
-      index.push(A, A + 1, B, A + 1, B + 1, B); // facing up
+  }
+  for (const pool of waters.pools) {
+    const [cx, cz] = pool.at, n = 36;
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2, a1 = ((k + 1) / n) * Math.PI * 2;
+      const r0 = pool.outline(a0) + 1, r1 = pool.outline(a1) + 1;
+      const x0 = cx + Math.cos(a0) * r0, z0 = cz + Math.sin(a0) * r0, x1 = cx + Math.cos(a1) * r1, z1 = cz + Math.sin(a1) * r1;
+      const t = tile((cx + x0 + x1) / 3, (cz + z0 + z1) / 3);
+      const v = (x, z) => vertex(t, x, pool.level, z, x / TILE, z / TILE, 0.15);
+      t.index.push(v(cx, cz), v(x1, z1), v(x0, z0));
     }
-  });
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setIndex(index);
-  geo.computeVertexNormals();
+  }
   // The paint is read twice, flowing at two speeds and sizes, so the two drift through each
   // other as faint ripples; looking along it, it takes on the sky's colour.
   const flow = { value: 0 };
@@ -177,68 +231,36 @@ export function buildRiver(d, course, camera) {
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, { uFlow: flow, uSky: sky });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying float vGraze;')
+      .replace('#include <common>', '#include <common>\nattribute float drift;\nvarying float vGraze, vDrift;')
       .replace('#include <fog_vertex>', `#include <fog_vertex>
+        vDrift = drift;
         vec3 up = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
         vGraze = 1.0 - abs(dot(normalize(-mvPosition.xyz), up));`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uFlow;\nuniform vec3 uSky;\nvarying float vGraze;')
+      .replace('#include <common>', '#include <common>\nuniform float uFlow;\nuniform vec3 uSky;\nvarying float vGraze, vDrift;')
       .replace('#include <map_fragment>', `
-        vec4 slow = texture2D(map, vMapUv + vec2(0.0, -uFlow));
-        vec4 fast = texture2D(map, vMapUv * 1.37 + vec2(0.37, -uFlow * 1.8));
+        vec4 slow = texture2D(map, vMapUv + vec2(0.0, -uFlow * vDrift));
+        vec4 fast = texture2D(map, vMapUv * 1.37 + vec2(0.37, -uFlow * 1.8 * vDrift));
         diffuseColor *= max(slow, fast * 0.85);
         diffuseColor.rgb = mix(diffuseColor.rgb, uSky, pow(vGraze, 3.0) * 0.5);`);
   };
-  const water = new THREE.Mesh(geo, mat);
-  water.userData.sinks = true; // pebbles go in and are gone
-  water.userData.onRock = (hit) => splash(hit.point.x, hit.point.z, 0.7);
-  group.add(water);
-
-  // Splashes: a ring spreading on the water and a few drops thrown up.
-  const ringGeo = new THREE.RingGeometry(0.8, 1, 18).rotateX(-Math.PI / 2);
-  const rings = Array.from({ length: 10 }, () => {
-    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xc88898, transparent: true, depthWrite: false }));
-    m.visible = false;
-    group.add(m);
-    return m;
+  const meshes = [...tiles.values()].map((t) => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(t.pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(t.uv, 2));
+    geo.setAttribute('drift', new THREE.Float32BufferAttribute(t.drift, 1));
+    geo.setIndex(t.index);
+    geo.computeVertexNormals();
+    const water = new THREE.Mesh(geo, mat);
+    water.userData.sinks = true; // pebbles go in and are gone
+    water.userData.onRock = (hit) => splash(hit.point.x, hit.point.z, 0.7);
+    group.add(water);
+    return water;
   });
-  const DROPS = 80;
-  const dropPos = new Float32Array(DROPS * 3).fill(-999);
-  const dropVel = new Float32Array(DROPS * 3), dropFloor = new Float32Array(DROPS);
-  const dropGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(dropPos, 3));
-  const drops = new THREE.Points(dropGeo, new THREE.PointsMaterial({ color: 0xd8a8b4, size: 0.12 }));
-  drops.frustumCulled = false;
-  group.add(drops);
-  let nextDrop = 0, nextRing = 0;
 
-  // Left (-1) to right (1) of the camera, and how loud (quieter further off).
-  const right = new THREE.Vector3(), to = new THREE.Vector3();
-  function heard(x, z) {
-    right.set(1, 0, 0).applyQuaternion(camera.quaternion);
-    to.set(x - camera.position.x, 0, z - camera.position.z);
-    const dist = to.length();
-    return { pan: clamp(to.dot(right) / (dist || 1), -1, 1), loud: clamp(1.2 - dist / 40, 0, 1) };
-  }
-  function ripple(x, y, z, size) {
-    const m = rings[nextRing++ % rings.length];
-    m.position.set(x, y + 0.04, z);
-    m.userData = { life: 0, size };
-    m.visible = true;
-  }
-  // size: about 0.4 for his hoof, 0.7 a pebble, 1.5 the Walking Thing's foot.
-  function splash(x, z, size = 0.5, sound = true) {
-    const y = course.surface(x, z);
-    if (y === null) return;
-    ripple(x, y, z, size);
-    for (let n = 0; n < 3 + size * 5; n++) {
-      const i = nextDrop++ % DROPS, a = r() * Math.PI * 2, out = (0.6 + r()) * size;
-      dropPos.set([x, y + 0.05, z], i * 3);
-      dropVel.set([Math.cos(a) * out, (2 + r() * 2.5) * Math.sqrt(size), Math.sin(a) * out], i * 3);
-      dropFloor[i] = y;
-    }
-    const s = heard(x, z);
-    if (sound && s.loud > 0) sfx.splash(s.pan, s.loud, size);
-  }
+  // Splashes: his hooves, the Walking Thing's feet, pebbles.
+  const { splash, ripple, heard, ...splashes } = createSplashes({ surface: waters.surface, camera, r });
+  group.add(splashes.group);
 
   // Now and then, somewhere near him, a bubble swells up out of the water and pops.
   const bubbles = Array.from({ length: 4 }, () => {
@@ -249,9 +271,10 @@ export function buildRiver(d, course, camera) {
   });
   let bubbleIn = 2, nextBubble = 0, captioned = false;
   function bubble() {
+    const course = waters.courses.find((c) => c.nearest(camera.position.x, camera.position.z)?.d < 40);
+    if (!course) return;
     const near = course.nearest(camera.position.x, camera.position.z);
-    if (!near || near.d > 40) return;
-    const at = course.at((near.i + (r() - 0.5) * 20) * STEP, (r() - 0.5) * 1.4 * edge);
+    const at = course.at((near.i + (r() - 0.5) * 20) * STEP, (r() - 0.5) * 1.4 * near.edge);
     const b = bubbles[nextBubble++ % bubbles.length];
     b.position.set(at.x, at.level - d.water, at.z);
     b.userData = { life: 0, size: 0.1 + r() * 0.14 };
@@ -260,27 +283,13 @@ export function buildRiver(d, course, camera) {
 
   return {
     group,
-    water,
+    meshes, // what pebbles sink into
     splash,
     update(dt, t, dim) {
       flow.value = (t * d.flow) / TILE;
       mat.color.setScalar(0.55 + 0.45 * dim);
       sky.value.copy(skyColor).multiplyScalar(dim);
-      for (const m of rings) {
-        if (!m.visible) continue;
-        m.userData.life += dt / (0.7 + 0.4 * m.userData.size);
-        const k = m.userData.life;
-        m.scale.setScalar((0.3 + 1.7 * k) * m.userData.size);
-        m.material.opacity = 0.55 * (1 - k) * dim;
-        if (k >= 1) m.visible = false;
-      }
-      for (let i = 0; i < DROPS; i++) {
-        if (dropPos[i * 3 + 1] < -900) continue;
-        dropVel[i * 3 + 1] -= 12 * dt;
-        for (let a = 0; a < 3; a++) dropPos[i * 3 + a] += dropVel[i * 3 + a] * dt;
-        if (dropPos[i * 3 + 1] < dropFloor[i]) dropPos[i * 3 + 1] = -999;
-      }
-      dropGeo.attributes.position.needsUpdate = true;
+      splashes.update(dt, dim);
 
       if ((bubbleIn -= dt) <= 0) { bubble(); bubbleIn = 1.5 + r() * 3.5; }
       for (const b of bubbles) {

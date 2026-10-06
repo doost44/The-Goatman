@@ -29,6 +29,14 @@
       },
       "respawn": [0, 0, 2],
       "voidY": -50,
+      "places": [
+        { "name": "start", "at": [0, 2], "yaw": 0 },
+        { "name": "ring of pale trunks", "at": [52, -28], "yaw": -90 },
+        { "name": "big white tree", "at": [-56, -66], "yaw": 90 },
+        { "name": "clearing", "at": [-42, -96], "yaw": 90 },
+        { "name": "eyes' dell", "at": [40, -137], "yaw": -130 },
+        { "name": "the way out", "at": [-22, -165], "yaw": 90 }
+      ],
       "terrain": {
         "shape": "rect", "size": [580, 580], "center": [-6, -70], "segments": [80, 80],
         "noise": 0.6, "noiseScale": 0.08, "rolling": [2.4, 0.022], "hills": [[47, -143, 13, -2.2], [-66, -67, 11, 1.4]],
@@ -40,15 +48,22 @@
       },
       "sidePaths": [
         { "name": "ring", "width": 2.6, "mouth": "leaning", "points": [[6, -30], [16, -27], [27, -31], [38, -26], [50, -29]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "ring", "at": [60, -28], "radius": 11, "ring": 8, "trunks": 12 } },
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "ring", "at": [60, -28], "radius": 11, "ring": 8, "trunks": 12,
+            "find": { "kind": "stones", "count": 9, "radius": 3.5, "color": "#7f9cff" } } },
         { "name": "tree", "width": 2.4, "mouth": "undergrowth", "points": [[-6, -63], [-18, -59], [-30, -64], [-43, -60], [-55, -65]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "tree", "at": [-66, -67], "radius": 9, "size": 2.2, "tint": 1.2 } },
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "tree", "at": [-66, -67], "radius": 9, "size": 2.2, "tint": 1.2,
+            "find": { "kind": "hollow", "at": [-62, -84], "length": 10, "radius": 2.2 } } },
         { "name": "dell", "width": 2.4, "mouth": "leaning", "points": [[2, -97], [13, -102], [23, -112], [30, -125], [39, -135]],
-          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "eyes", "at": [47, -143], "radius": 9 } },
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "eyes", "at": [47, -143], "radius": 9, "find": { "kind": "hush", "radius": 3 } } },
         { "name": "loop", "width": 2.2, "mouth": "undergrowth", "points": [[-1, -12], [-12, -15], [-21, -25], [-21, -37], [-11, -46], [0, -47]],
           "marks": { "from": 9, "spacing": 6, "glow": 0.45 } },
         { "name": "clearing", "width": 2.6, "mouth": "leaning", "points": [[-3, -113], [-15, -109], [-27, -103], [-39, -98]],
-          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "clearing", "at": [-50, -94], "radius": 13 } }
+          "marks": { "from": 9, "spacing": 6, "glow": 0.45 }, "end": { "kind": "clearing", "at": [-50, -94], "radius": 13 } },
+        { "name": "east", "width": 2.4, "mouth": "undergrowth", "points": [[-3, -84], [12, -88], [28, -92], [46, -96], [64, -102], [82, -108], [97, -111]],
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "clearing", "at": [110, -114], "radius": 14 } },
+        { "name": "west", "width": 2.4, "mouth": "leaning", "points": [[-15, -141], [-30, -146], [-50, -151], [-72, -148], [-95, -140], [-118, -132]],
+          "marks": { "from": 9, "spacing": 7, "glow": 0.4 }, "end": { "kind": "clearing", "at": [-130, -129], "radius": 10,
+            "find": { "kind": "high", "from": [-133, -121], "to": [-148, -100], "top": 9, "radius": 0.7 } } }
       ],
       "dome": {
         "wall": "assets/forest/wall.png", "crop": [0, 2, 256, 178], "brightness": 1.5, "weave": "assets/forest/weave.png",
@@ -56,12 +71,12 @@
       },
       "woods": {
         "spacing": 4.6, "gap": 1.1, "noise": 0.045, "clearings": -0.45, "clusters": 0.4, "big": [0.08, 0.8, 1.4],
-        "edge": [226, 254], "wall": 250, "logs": 140, "arches": 22, "stones": 2400, "eyeSpots": 1400, "reach": 45
+        "edge": [226, 254], "wall": 250, "logs": 140, "arches": 22, "stones": 2400, "eyeSpots": 1400, "snags": 160, "reach": 45
       },
       "trunks": {
         "seed": 11, "rows": [[3.8, 5.4, 2.6], [5.6, 9, 3], [9, 26, 1.2]],
         "radius": [0.25, 0.8], "height": [18, 30], "lean": 0.12, "cards": 0.35,
-        "leaners": 6, "inPath": 5, "behind": 70
+        "leaners": 6, "inPath": 5, "behind": 70, "toGate": [20, 8, 15, 200]
       },
       "undergrowth": { "count": 9000, "size": [0.8, 2.1], "colors": ["#4a1a3a", "#5a2044", "#2e2458", "#3a2c66", "#62223e", "#40346e"], "stone": "#4a4a62" },
       "grass": { "spacing": 1.2, "from": 1.7, "to": 7, "colors": ["#2a0e1c", "#3b1426", "#1a1030", "#24183e", "#40122a"] },
@@ -77,6 +92,25 @@
         "at": [-31, -165], "facing": -90, "gap": 2.0, "apex": 3.6, "trunkRadius": 1.0, "reach": 34, "fog": "#3a2340", "tint": 0.4,
         "glimpse": { "sky": "assets/field/sky.png", "cloud": "assets/field/cloud-front2.png", "peaks": "assets/field/peaks.png", "grass": "assets/field/grass.png" }
       },
+      "mushrooms": {
+        "from": 25, "color": "#8af0d0", "glow": [1.0, 2.2], "spacing": [4, 1.5], "size": [0.22, 0.55], "ring": 14, "seed": 6,
+        "trails": [
+          { "to": "ring", "from": [3, -44] },
+          { "to": "tree", "from": [-7, -74] },
+          { "to": "dell", "from": [-3, -110] },
+          { "to": "clearing", "from": [-6, -70] },
+          { "to": "glade", "from": [-3, -86] },
+          { "to": "far", "from": [-1, -104] }
+        ]
+      },
+      "ponds": {
+        "bank": 3, "water": 0.25, "reeds": 25, "stumps": 3, "branches": 3, "mist": 4, "mistColor": "150, 165, 220", "sky": "#1a2660", "seed": 5,
+        "list": [
+          { "name": "blackwater", "at": [-50, -94], "radius": 6.5, "depth": 0.9 },
+          { "name": "glade", "at": [28, -70], "radius": 8, "depth": 1.0 },
+          { "name": "far", "at": [110, -114], "radius": 9, "depth": 1.0 }
+        ]
+      },
       "rocks": { "count": 14, "seed": 9 },
       "interactions": [
         { "type": "exit", "at": [-32, 0, -165], "radius": 1.7, "look": 60, "prompt": "PRESS E TO ENTER", "to": "field" }
@@ -89,7 +123,8 @@
       "palette": "field",
       "seed": 5,
       "sky": [[0, "#a87c98"], [0.5, "#cd9bb2"], [1, "#e2b4c4"]],
-      "fog": { "color": "#cfa0b6", "near": 40, "far": 340 },
+      "fog": { "color": "#cfa0b6", "near": 120, "far": 900 },
+      "view": 4500,
       "ambient": { "color": "#ffd8e4", "intensity": 1.3 },
       "sun": { "color": "#fff0e0", "intensity": 1.6, "dir": [0.6, 1, 0.4] },
       "grade": [1.2, 1.8, 1.0, 0.0],
@@ -98,37 +133,98 @@
       "speed": 1,
       "soundscape": { "file": "assets/audio/field-loop.m4a", "volume": 1.2 },
       "spawns": {
-        "start": { "at": [0, 0, 72], "yaw": 0 }
+        "start": { "at": [0, 0, 560], "yaw": 0 }
       },
-      "respawn": [0, 0, 72],
+      "respawn": [0, 0, 560],
       "voidY": -70,
-      "bounds": 165,
+      "places": [
+        { "name": "arrival", "at": [0, 560], "yaw": 0 },
+        { "name": "lookout hill", "at": [262, 384], "yaw": 30, "up": 2 },
+        { "name": "dip with tall grass", "at": [230, 60], "yaw": 0 },
+        { "name": "ring of flattened grass", "at": [-280, 230], "yaw": 0, "up": 40 },
+        { "name": "Walking Thing's ground", "at": [20, 160], "yaw": 0 },
+        { "name": "lone rock", "at": [380, -115], "yaw": 180 },
+        { "name": "fallen leg", "at": [-70, -420], "yaw": -100, "up": 6 },
+        { "name": "valley under the leg", "at": [-80, -470], "yaw": -95 },
+        { "name": "north foothills", "at": [0, -700], "yaw": 180, "up": 2 },
+        { "name": "west foothills", "at": [-700, 0], "yaw": -90, "up": 2 }
+      ],
+      "bounds": 730,
       "terrain": {
-        "shape": "disc", "radius": 330, "segments": [72, 26],
-        "hills": [[-60, -40, 40, 6], [70, -80, 50, 9], [45, 60, 30, 4], [-90, 70, 45, 7], [110, 20, 35, 6], [-30, -120, 40, 5]],
-        "flat": [[0, 0, 45], [0, 74, 14]],
-        "rim": [150, 320, 18],
-        "mottle": [0.3, 0.02],
-        "noise": 1.2, "noiseScale": 0.04, "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
+        "shape": "chunks", "size": [1792, 1792], "center": [0, 0], "chunk": 256,
+        "lods": [[220, 32], [520, 16], [1e9, 8]], "view": 1000, "cache": 70, "budget": 2,
+        "hills": [
+          [-380, 260, 260, 16], [320, -260, 280, 20], [-260, -420, 220, 14], [420, 420, 200, 10], [0, 200, 240, -8],
+          [262, 384, 90, 38], [-560, -120, 110, 30],
+          [-160, -470, 50, -16], [-70, -480, 50, -24], [20, -475, 50, -24], [110, -465, 50, -16]
+        ],
+        "flat": [[0, 563, 24]],
+        "noise": 8, "noiseScale": 0.005,
+        "rim": [540, 1000, 170],
+        "mottle": [0.3, 0.01],
+        "tile": 6, "texture": "assets/field/grass.png", "tint": [1, 1, 1]
       },
-      "skyDome": { "texture": "assets/field/sky.png", "radius": 600, "repeat": 2 },
-      "peaks": { "texture": "assets/field/peaks.png", "radius": 300, "depth": 60, "height": 80, "ground": 325, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.3)" },
+      "dips": [
+        { "at": [-170, 300], "radius": 40, "depth": 7 },
+        { "at": [230, 60], "radius": 45, "depth": 8 },
+        { "at": [-320, -160], "radius": 50, "depth": 8 },
+        { "at": [140, -300], "radius": 38, "depth": 6 },
+        { "at": [-80, 120], "radius": 35, "depth": 6 }
+      ],
+      "ring": { "at": [-280, 140], "radius": 70, "width": 12 },
+      "fallenLeg": { "joints": [[-35, -560, 5], [-15, -395, 4.2], [30, -320, 2.8], [48, -292, 1.8]], "pad": 1.9 },
+      "horizon": { "size": 9000, "segments": 80, "color": "#7a2434", "haze": [1, 0.55], "sink": 6 },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 4200, "repeat": 2 },
+      "peaks": { "texture": "assets/field/peaks.png", "radius": 3300, "depth": 300, "height": 700, "ground": 1100, "columns": 144, "repeat": 4, "haze": "rgba(205,150,178,0.55)" },
+      "landmarkLook": { "color": "#3a1822", "swap": 500, "haze": [100, 3600, 0.75] },
+      "landmarks": [
+        { "kind": "peak", "at": [-600, -1400], "size": [380, 560] },
+        { "kind": "peak", "at": [-280, -1480], "size": [260, 330], "seed": 3 },
+        { "kind": "peak", "at": [300, -1650], "size": [480, 700] },
+        { "kind": "peak", "at": [700, -1500], "size": [300, 380], "seed": 5 },
+        { "kind": "peak", "at": [1300, -700], "size": [350, 480] },
+        { "kind": "peak", "at": [1250, -380], "size": [240, 290], "seed": 8 },
+        { "kind": "peak", "at": [1500, 400], "size": [400, 520] },
+        { "kind": "peak", "at": [-1450, -300], "size": [420, 600] },
+        { "kind": "peak", "at": [-1380, -720], "size": [280, 360], "seed": 11 },
+        { "kind": "peak", "at": [-1200, 900], "size": [300, 420] },
+        { "kind": "peak", "at": [700, 1450], "size": [360, 450] },
+        { "kind": "peak", "at": [-250, 1500], "size": [300, 340], "seed": 13 },
+        { "kind": "stone", "at": [-420, 380], "size": [6, 22], "color": "#24121a" },
+        { "kind": "spire", "at": [380, -150], "size": [9, 34], "color": "#24121a" },
+        { "kind": "stone", "at": [-120, -230], "size": [5, 18], "color": "#24121a" },
+        { "kind": "spire", "at": [500, 300], "size": [7, 26], "color": "#24121a" },
+        { "kind": "stone", "at": [-520, -380], "size": [6, 24], "color": "#24121a" },
+        { "kind": "stone", "at": [90, 260], "size": [4, 14], "color": "#24121a" }
+      ],
+      "giants": {
+        "look": { "body": "#efe2dc", "legs": "#e4cfca", "haze": [100, 3600, 0.7] },
+        "walkers": [
+          { "from": [-900, -1100], "to": [-300, -1250], "height": 140, "speed": 3 },
+          { "from": [1100, -200], "to": [1150, 500], "height": 110, "speed": 2.5 },
+          { "from": [-1150, 500], "to": [-1000, 1100], "height": 160, "speed": 3.5 }
+        ]
+      },
       "clouds": {
         "wind": [1, 0.25],
-        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 26, "height": [110, 160], "size": [60, 110], "radius": 480, "speed": 1.5, "tint": "#fff4f0" },
-        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 14, "height": [48, 75], "size": [45, 80], "radius": 320, "speed": 4, "tint": "#ffffff" }
+        "shadows": { "scale": 90, "speed": 6, "dark": 0.28 },
+        "far": { "art": "assets/field/cloud-back", "cards": 12, "count": 22, "height": [180, 300], "size": [120, 220], "radius": 1200, "speed": 3, "tint": "#fff4f0" },
+        "near": { "art": "assets/field/cloud-front", "cards": 6, "count": 12, "height": [80, 130], "size": [70, 130], "radius": 700, "speed": 6, "tint": "#ffffff" }
       },
       "grass": {
-        "radius": 160, "patch": 60, "tufts": 2600, "tuftSize": [0.45, 1.1], "sprouts": 700, "sproutSize": [0.5, 1],
+        "reach": 140, "tile": 48, "cache": 60, "budget": 2,
+        "tufts": 0.022, "tuftSize": [0.45, 1.1], "sprouts": 0.005, "sproutSize": [0.5, 1],
+        "tall": { "per": 0.45, "size": [2.4, 3.4] }, "flat": 0.5,
         "colors": ["#c3092d", "#d20831", "#8c1b2c", "#b8142b", "#e01a3c"], "sprout": "#16030a"
       },
-      "gate": { "at": [0, 77], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
+      "stones": { "count": 1800, "size": [0.2, 1.6], "reach": 160, "color": "#2e1a20" },
+      "gate": { "at": [0, 565], "gap": 2.8, "trunkRadius": 2.4, "height": 40, "wall": "assets/forest/wall.png" },
       "walkingThing": {
-        "home": [0, 0, 0], "wander": 30, "height": 22, "speed": 2.5, "frameTime": 0.3,
+        "home": [20, 0, 160], "wander": 280, "roam": 430, "hear": 650, "farLegs": { "color": "#b0283c", "haze": [150, 1400, 0.6] }, "height": 22, "speed": 2.5, "frameTime": 0.3,
         "notice": 32, "lower": 0.15, "shadow": "assets/field/shadow.png", "facing": 0
       },
       "interactions": [
-        { "type": "exit", "at": [0, 0, 77], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
+        { "type": "exit", "at": [0, 0, 565], "radius": 4, "prompt": "PRESS E TO GO BACK", "to": "forest", "spawn": "back" },
         { "type": "talk", "actor": "walkingThing", "radius": 14, "look": 35, "prompt": "PRESS E", "dialogue": "encounter" }
       ],
       "dialogue": {
@@ -146,7 +242,7 @@
           "flash": { "in": 0.08, "out": 1.4 }, "shot": 4,
           "message": "They didn't like that, you were SQUASHED", "hold": 2.5
         },
-        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [-40, 0, -150], "pace": 1.2, "ride": 7, "to": "savanna" }
+        "mount": { "kneel": 3, "climb": 2.4, "rise": 3.2, "rideTo": [40, 0, -1200], "pace": 1.2, "ride": 7, "to": "savanna" }
       }
     },
 
@@ -156,7 +252,8 @@
       "palette": "savanna",
       "seed": 9,
       "sky": [[0, "#12030a"], [0.55, "#3b0914"], [1, "#6a1424"]],
-      "fog": { "color": "#4a0d1c", "near": 30, "far": 210 },
+      "fog": { "color": "#4a0d1c", "near": 60, "far": 600 },
+      "view": 2100,
       "ambient": { "color": "#d890b8", "intensity": 1.15 },
       "sun": { "color": "#ffb0a0", "intensity": 1.3, "dir": [0.35, 0.8, 0.55] },
       "grade": [1.1, 1.0, 1.0, 0.15],
@@ -170,60 +267,117 @@
       },
       "respawn": [8, 0, 40],
       "voidY": -70,
-      "bounds": 130,
+      "places": [
+        { "name": "arrival", "at": [8, 62], "yaw": 0 },
+        { "name": "willow", "at": [-6, -22], "yaw": 0 },
+        { "name": "river and oaks", "at": [60, 30], "yaw": -60 },
+        { "name": "herd by the river", "at": [42, -36], "yaw": 0 },
+        { "name": "the ford", "at": [-14, -52], "yaw": -120 },
+        { "name": "pine flats", "at": [-190, -110], "yaw": 60, "up": 2 },
+        { "name": "herd on the flats", "at": [-225, -110], "yaw": 30 },
+        { "name": "carolina bay", "at": [-250, -200], "yaw": 50, "up": 2 },
+        { "name": "the marsh", "at": [230, -300], "yaw": -130, "up": 6 },
+        { "name": "second willow", "at": [205, -395], "yaw": 135 },
+        { "name": "cypress swamp", "at": [470, -190], "yaw": -120, "up": 2 },
+        { "name": "sandy hills", "at": [-170, 350], "yaw": -120, "up": 4 },
+        { "name": "herd in the hills", "at": [260, 270], "yaw": -135 },
+        { "name": "treeline edge", "at": [-420, -440], "yaw": 135 },
+        { "name": "the way on", "at": [0, -590], "yaw": 0 }
+      ],
+      "bounds": 680,
       "dusk": { "time": 180, "dim": 0.5, "stars": 0.9 },
+      "night": { "time": 720, "dim": 0.72, "stars": 0.85, "repeat": 2.6, "fog": [40, 380] },
       "terrain": {
-        "shape": "disc", "radius": 220, "segments": [256, 96],
-        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4]],
-        "flat": [[-6, -34, 22], [8, 62, 14]],
-        "rim": [135, 205, 14],
-        "mottle": [0.35, 0.03],
-        "noise": 0.6, "noiseScale": 0.05, "tile": 4,
+        "shape": "chunks", "size": [1536, 1536], "center": [0, 0], "chunk": 128,
+        "lods": [[130, 40], [300, 20], [1e9, 5]], "view": 640, "cache": 220, "budget": 3,
+        "hills": [[75, 55, 40, 4], [-90, -5, 45, 5], [100, -68, 35, 3], [-55, 85, 40, 4],
+          [-380, 120, 150, 20], [-250, 430, 170, 28], [300, 340, 160, 18], [560, -80, 110, 14],
+          [-560, -330, 140, 20], [180, -580, 120, 14], [-120, -300, 90, 6], [420, 520, 120, 12]],
+        "flat": [[-6, -34, 22], [8, 62, 14], [180, -420, 18]],
+        "rim": [600, 900, 30],
+        "mottle": [0.35, 0.02],
+        "noise": 1.6, "noiseScale": 0.012, "tile": 4, "sand": [7, 17],
         "texture": "assets/savanna/grass.png", "tint": [1, 0.95, 1.1]
       },
-      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 600, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
-      "stars": { "texture": "assets/savanna/stars.png", "radius": 590, "repeat": 1.5 },
+      "skyDome": { "texture": "assets/savanna/sky.png", "radius": 1900, "repeat": 4, "grade": [1.15, 1.1, 1.5, 0], "zenith": "#2a0610" },
+      "stars": { "texture": "assets/savanna/stars.png", "radius": 1880, "repeat": 1.5 },
       "treeline": {
-        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 160, "depth": 20, "height": 32, "ground": 215,
-        "columns": 384, "repeat": 12, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -160, 52]]
+        "texture": "assets/savanna/treeline.png", "crop": [0.5, 1], "radius": 800, "depth": 30, "height": 46, "ground": 790,
+        "columns": 512, "repeat": 24, "haze": "rgba(74,13,28,0.3)", "gaps": [[0, -800, 90]]
       },
-      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
-      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126]], "width": 3.4 },
+      "tree": { "at": [-6, -34], "texture": "assets/savanna/tree.png", "fork": 9, "branches": 7, "height": 25, "reach": 12.5, "spacing": 0.35, "segment": 1, "grade": [1.15, 1.4, 1.6, 0], "keepOut": 15, "seed": 5 },
+      "willows": [
+        { "at": [180, -420], "fork": 8, "branches": 6, "height": 21, "reach": 11, "spacing": 0.6, "keepOut": 13, "seed": 11 }
+      ],
+      "path": { "points": [[-2, -26], [0, -45], [4, -70], [-3, -98], [0, -126], [-12, -180], [6, -250], [-8, -330], [12, -410], [-2, -490], [-10, -560], [0, -626]], "width": 3.4 },
+      "marsh": { "at": [360, -390], "size": [210, 160], "level": -2.2, "edge": 70 },
       "river": {
-        "points": [[172, 30], [136, 22], [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40],
-          [-34, -58], [-16, -68], [6, -70], [28, -76], [48, -92], [62, -114], [70, -140], [78, -168]],
+        "points": [[720, 60], [640, 92], [560, 76], [480, 40], [410, 52], [330, 78], [260, 52], [200, 34], [172, 30], [136, 22],
+          [100, 14], [66, 2], [36, -8], [12, -14], [-10, -16], [-28, -24], [-40, -40], [-34, -58], [-16, -68], [6, -70, 1.7, 0.7],
+          [28, -76], [48, -92], [62, -114], [70, -140], [80, -172], [104, -210], [142, -244], [188, -272, 1.3], [238, -304, 1.7],
+          [292, -346, 2.2], [350, -392, 2.6], [410, -440, 2.8], [460, -490, 2.6], [500, -540, 2.4]],
         "width": 18, "depth": 1, "water": 0.4, "margin": 6, "flow": 0.35, "sky": "#3a1220", "seed": 3,
         "bog": {
-          "reeds": 400, "tussocks": 140, "tussock": "assets/savanna/blades2.png", "scum": 50,
-          "branches": 12, "stumps": 9, "mist": 26, "reach": 135, "seed": 8
+          "reeds": 2600, "tussocks": 1000, "tussock": "assets/savanna/blades2.png", "scum": 160,
+          "branches": 60, "stumps": 50, "mist": 120, "reach": 690, "near": 150, "seed": 8
         }
       },
+      "creeks": [
+        { "points": [[300, -350], [270, -390], [290, -430], [250, -470], [262, -510], [230, -545]], "width": 9, "depth": 1.2 },
+        { "points": [[420, -446], [470, -420], [520, -430], [560, -395], [590, -350]], "width": 10, "depth": 1.2 },
+        { "points": [[330, -372], [380, -330], [440, -320], [480, -290], [510, -262]], "width": 8, "depth": 1.2 },
+        { "points": [[380, -415], [350, -460], [380, -500], [350, -545]], "width": 7, "depth": 1.1 }
+      ],
+      "bays": [
+        { "at": [545, -235], "size": [95, 60], "turn": 30, "deep": 2.2, "water": 1.1, "rim": 0, "swamp": true },
+        { "at": [-300, -250], "size": [70, 40], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [-470, -40], "size": [50, 30], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [210, 230], "size": [60, 34], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [-150, 360], "size": [46, 28], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 },
+        { "at": [140, -370], "size": [40, 24], "turn": 45, "deep": 1.6, "water": 0.6, "rim": 1.2 }
+      ],
+      "lowcountry": {
+        "seed": 13, "reach": 640, "near": 380,
+        "pines": { "count": 420, "gap": 22, "tall": [20, 30],
+          "areas": [[-300, -220, 230], [-60, -420, 170], [-430, 150, 170], [180, 420, 170], [-200, 500, 120], [420, 150, 150]] },
+        "oaks": { "count": 22, "gap": 20, "size": [0.8, 1.15],
+          "areas": [[60, 0, 70], [-60, -40, 50], [140, 30, 60], [-30, 60, 40], [200, -440, 40]] },
+        "cypress": { "count": 45, "gap": 6, "tall": [14, 22] },
+        "snags": { "count": 40, "gap": 8, "tall": [6, 13] },
+        "band": { "from": 610, "to": 770, "count": 6500, "gap": 6, "tall": 22, "opening": [0, -700, 60], "texture": "assets/savanna/treeline.png", "reach": 260 },
+        "giants": [
+          { "kind": "cypress", "at": [560, -215], "tall": 60, "seed": 9 },
+          { "kind": "pine", "at": [-250, 430], "tall": 50, "seed": 4 }
+        ]
+      },
       "grass": {
-        "art": "assets/savanna/blades", "cards": 4, "count": 5200, "radius": 135,
-        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16
+        "art": "assets/savanna/blades", "cards": 4, "density": 0.09, "cell": 32, "reach": 130,
+        "width": 2.2, "size": [0.7, 1.3], "tint": [1.5, 1.4, 1.6], "sway": 0.16,
+        "marsh": { "tint": [0.9, 1.2, 2.2], "size": 1.5, "density": 1.6 }
       },
       "bushes": {
-        "at": [[28, 10], [42, -46], [-36, 22], [-34, -74]], "roam": 14, "length": 5, "radius": 1.4,
+        "at": [[28, 10], [42, -46], [-36, 22], [-250, -140], [-235, -165], [-262, -118], [280, 300], [300, 322]],
+        "roam": 14, "length": 5, "radius": 1.4,
         "speed": 0.9, "notice": 24, "wary": 14, "closing": 2.4, "personal": 5.5, "flee": [4.5, 2.6],
-        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4
+        "babies": [1, 3], "babyScale": [0.3, 0.4], "follow": 2.2, "catchUp": 2.4, "sleep": 0.45, "seen": 220
       },
-      "exit": { "at": [0, -126], "gap": [0, -168], "gapSize": [70, 44], "pillarSize": [7, 24] },
+      "exit": { "at": [0, -626], "gap": [0, -800], "gapSize": [150, 95], "pillarSize": [7, 24] },
       "rocks": { "seed": 4, "count": 8 },
       "walkingThing": {
         "home": [8, 0, 62], "facing": 0, "wander": 6, "height": 22, "speed": 2.5, "rideSpeed": 3.2, "hurry": 1.5, "turn": 0.5,
-        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 126
+        "frameTime": 0.3, "notice": 30, "lower": 0.15, "shadow": "assets/field/shadow.png", "bounds": 670
       },
       "interactions": [
         { "type": "dismount", "mounted": true },
         { "type": "pet", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO PET", "once": "petted" },
         { "type": "ride", "actor": "walkingThing", "mounted": false, "radius": 10, "look": 40, "prompt": "PRESS E TO RIDE" },
-        { "type": "exit", "at": [0, 0, -126], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
+        { "type": "exit", "at": [0, 0, -626], "radius": 6, "prompt": "PRESS E TO ENTER", "to": "finale", "requires": "petted" }
       ],
       "outcomes": {
         "dismount": { "kneel": 2.4, "ahead": 7, "climb": 1.8, "rise": 3 },
         "ride": { "kneel": 2.4, "climb": 2.2, "rise": 2.8 },
         "pet": { "message": "They liked that", "hold": 2, "nuzzle": 4.5 },
-        "ending": { "ride": "walkingThing", "toward": [0, 0, -168], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
+        "ending": { "ride": "walkingThing", "toward": [0, 0, -720], "time": 7, "pace": 0.8, "look": -0.05, "light": 0.5 }
       }
     },
 
@@ -247,6 +401,57 @@
         ],
         "hold": 15
       }
+    },
+
+    "expanse": {
+      "title": "TEST · THE EXPANSE",
+      "builder": "expanse",
+      "palette": "field",
+      "test": true,
+      "seed": 11,
+      "sky": [[0, "#9c7f93"], [0.5, "#c69fae"], [1, "#dcbcc0"]],
+      "fog": { "color": "#cfa9b3", "near": 60, "far": 900 },
+      "view": 4500,
+      "ambient": { "color": "#ffe0e4", "intensity": 1.3 },
+      "sun": { "color": "#fff0e0", "intensity": 1.5, "dir": [0.5, 0.8, 0.3] },
+      "grade": [1.2, 1.8, 1.0, 0.0],
+      "surface": "grass",
+      "wind": { "volume": 1, "pitch": 1 },
+      "speed": 1,
+      "spawns": { "start": { "at": [0, 0, 900], "yaw": 0 } },
+      "respawn": [0, 0, 900],
+      "voidY": -250,
+      "places": [
+        { "name": "south edge", "at": [0, 900], "yaw": 0 },
+        { "name": "middle", "at": [0, 0], "yaw": 0 },
+        { "name": "spire", "at": [300, -130], "yaw": 180 },
+        { "name": "mesa", "at": [-500, -120], "yaw": 0 },
+        { "name": "north-west corner", "at": [-950, -950], "yaw": -135, "up": 40 },
+        { "name": "north-east corner", "at": [950, -950], "yaw": 135, "up": 40 }
+      ],
+      "terrain": {
+        "shape": "chunks", "size": [2048, 2048], "center": [0, 0], "chunk": 128,
+        "lods": [[220, 32], [480, 16], [1e9, 8]], "view": 1000, "cache": 260, "budget": 3,
+        "hills": [[-300, 300, 220, 30], [350, -400, 260, 45], [600, 500, 200, -18], [-650, -350, 280, 38], [100, -800, 180, 25]],
+        "noise": 9, "noiseScale": 0.007,
+        "rim": [950, 2600, 420],
+        "mottle": [0.35, 0.012],
+        "tile": 6, "texture": "assets/field/grass.png", "tint": [0.8, 0.8, 0.8]
+      },
+      "horizon": { "size": 9000, "segments": 120, "color": "#7c5f6a", "haze": [1, 0.55], "sink": 4 },
+      "skyDome": { "texture": "assets/field/sky.png", "radius": 4200, "repeat": 2 },
+      "landmarkLook": { "color": "#5b4752", "swap": 450, "haze": [80, 3600, 0.82] },
+      "landmarks": [
+        { "kind": "peak", "at": [-900, -1500], "size": [420, 620] },
+        { "kind": "peak", "at": [700, -1700], "size": [520, 760] },
+        { "kind": "peak", "at": [1700, 200], "size": [380, 520] },
+        { "kind": "spire", "at": [300, -200], "size": [26, 190] },
+        { "kind": "mesa", "at": [-500, 100], "size": [170, 110] },
+        { "kind": "stone", "at": [150, 550], "size": [5, 28] },
+        { "kind": "stone", "at": [-700, 750], "size": [7, 40] }
+      ],
+      "stones": { "count": 6000, "size": [0.25, 2.5], "reach": 320, "color": "#6d5e66" },
+      "interactions": []
     }
   }
 }

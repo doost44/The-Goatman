@@ -4,7 +4,7 @@ A first-person 3D version of THE GOATMAN, Charlie Cilla's p5.js game, built from
 
 ## Play
 
-Online: https://doost44.github.io/ccilla_sidequestt_W3/goatman3d/
+Online: https://doost44.github.io/The-Goatman/goatman3d/
 
 Locally, from the root of this repository:
 
@@ -22,7 +22,7 @@ then open http://localhost:8000/goatman3d/ in Chrome, Edge, Firefox or Safari. I
 | Shift (held, walking forward) | sprint |
 | Mouse | look |
 | E | interact (enter, talk, pet, ride, get down) |
-| W / S / A / D while riding | walk on / stop / turn (Shift: hurry) |
+| W / S / A / D while riding | walk on / stop / turn (Shift: hurry; held on dry ground it breaks into a long stride) |
 | 1 / 2 or mouse + click | pick a choice |
 | Space | jump |
 | G / right click | pick up or throw a pebble |
@@ -60,21 +60,24 @@ For working on the levels: add `?admin` to the address (for example `.../goatman
 | Mouse wheel | fly speed (2, 5, 10, 20, 40 m/s) |
 | 1 / 2 / 3 | the forest / the field / the savanna |
 | 4 | the finale |
+| 5 | the expanse: a 2 km test level for big worlds (not part of the story) |
 | F | fog off / on |
 | T | night in the savanna, and back |
 | Y | count the Walking Thing as petted (opens the savanna's way on) |
 | H | hide the HUD and arms, for screenshots (P still saves a photo) |
 | K | copy the camera's position and yaw for levels.json |
 | N | night vision in the forest, flying or walking: everything green and lifted out of the dark, and the fog further off |
+| M | the map, flying or walking: the whole level from above, then a close-up round him, then hidden |
+| [ / ] | the level's places (named in levels.json), back and forward, flying or walking |
 
-The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate and the draw calls.
+The box in the top right shows the level, the camera's position and yaw, the fly speed, the frame rate, draw calls and triangles, what the graphics card is holding (geometries and textures) and the page's memory, and in a big level how many ground chunks are drawn, kept and freed.
 
 ## The story
 
 GoatMan floating in space on the start screen, then four places, as in the original:
 
-1. **The night forest.** Follow the glowing marks or wander off them: the woods go on in every direction and hide a few paths of their own. The way out is a low gap somewhere in the trees, given away by a faint pink light.
-2. **The red field.** Meet the Walking Thing. What you say to it matters.
+1. **The night forest.** Follow the glowing marks or wander off them: the woods go on in every direction and hide a few paths of their own. The pale trunks all lean toward the way out, a low gap somewhere in the trees given away by a faint pink light. Away from the start, faint glowing mushrooms lead to the hidden places: a ring of standing stones, a hollow trunk to walk through, a fallen giant to climb, and still black ponds to wade in.
+2. **The red field.** A red land a mile and more across, mountains on every side. Somewhere in it wanders the Walking Thing: look for its long legs over the grass and listen for its footfalls. What you say to it matters.
 3. **The savanna.** Wade the bog, be kind to the Walking Thing, then leave toward the horizon.
 4. **The end.**
 
@@ -87,7 +90,7 @@ GitHub Pages serves the game from this repository: each push to the branch it se
 3. In the **Actions** tab, wait for the **pages build and deployment** run to finish with a green tick.
 4. Only then delete the build branch, if you want to: Pages would have nothing to serve while it still points at a deleted branch.
 
-The address stays the same, and the 2D original stays at https://doost44.github.io/ccilla_sidequestt_W3/.
+The address stays the same, and the 2D original stays at https://doost44.github.io/The-Goatman/.
 
 ## How it is made
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { walkPath, valueNoise } from '../terrain.js';
 import { nearestOnPath } from '../player.js';
+import { planFinds } from './finds.js';
 
 // Where everything in the night forest goes (forest.js and trunks.js build it): an open forest
 // spreading out from the main path in every direction, thick along the paths' edges, gathered
@@ -8,28 +9,32 @@ import { nearestOnPath } from '../player.js';
 // lean, a few arch over and some have fallen; the big ones have roots; dark undergrowth and
 // stones lie everywhere; and there are spots for the eyes to look out from, more of them
 // deeper in. Only numbers here: { trunks, logs, arches, roots, growth, stones, spots, near,
-// crowded, wall }.
+// crowded, wall, finds (finds.js: what the hidden paths' ends have besides their place) }.
 //
 // levels.json "woods": { spacing (metres between trunks in the open), gap (the narrowest gap
 //   left to walk through), noise (scale of the clusters and clearings), clearings and clusters
 //   (noise levels below and above which), big: [share, min, max] (big trunks), edge: [from, to]
 //   (where they close in), wall (an invisible ring behind the closed edge, just in case), logs,
-//   arches, stones, eyeSpots, reach (how far from the camera things are drawn) }
-// "trunks": { rows (along the main path), radius, height, lean, cards, leaners, inPath, behind }
+//   arches, stones, eyeSpots, snags (pale dead trunks standing about), reach (how far from the
+//   camera things are drawn) }
+// "trunks": { rows (along the main path), radius, height, lean, cards, leaners, inPath, behind,
+//   toGate: [degrees, degrees, from, to] (every pale trunk leans toward the way out: the first
+//   angle up to `from` metres from it, easing to the second by `to`) }
 // "undergrowth": { count, size }
 // "sidePaths": [{ points, width, mouth: "leaning" | "undergrowth", end: { kind, at, radius (of the
-//   clearing), ring and trunks (a ring's), size and tint (a tree's) } }]
+//   clearing), ring and trunks (a ring's), size and tint (a tree's), find (finds.js) } }]
 
 const lerp = THREE.MathUtils.lerp;
 const CELL = 8; // metres per square of the grid things are sorted into, to find neighbours
 
-export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [] } = {}) {
+export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [], wet = () => false } = {}) {
   const W = def.woods, T = def.trunks;
   const [cx, cz] = def.terrain.center;
   const side = def.sidePaths ?? [];
   const paths = [def.path, ...side].map((p) => ({ points: p.points, half: p.width / 2 }));
   const clear = [...keepClear, ...side.filter((p) => p.end).map((p) => [...p.end.at, p.end.radius])];
   const trunks = [], logs = [], arches = [], roots = [], growth = [], stones = [], spots = [];
+  const bare = []; // [x, z, radius] where no undergrowth or stones go (inside the hollow trunk)
   const grid = new Map(); // "ix,iz" -> solid things there: { x, z, room, collider }
   const toCentre = (x, z) => Math.hypot(x - cx, z - cz);
   const onPath = (x, z, room) => paths.some((p) => nearestOnPath(p.points, x, z).d < p.half + room);
@@ -78,6 +83,8 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
 
   for (const t of fixed) { trunks.push(t); remember(t); } // the way out's (gate.js)
   features(def, side, heightAt, r, add, spots);
+  const finds = planFinds(def, heightAt, r, { add, remember, clear, bare, logs });
+  const isBare = (x, z) => bare.some(([bx, bz, br]) => Math.hypot(x - bx, z - bz) < br);
 
   // Rows along both sides of the main path, then closer ones along the side paths.
   const rows = (points, list) => {
@@ -111,6 +118,13 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
     add(sx + Math.cos(a) * d, sz + Math.sin(a) * d);
   }
 
+  // Pale dead snags standing about the forest, here and there.
+  for (let n = 0, tries = 0; n < (W.snags ?? 0) && tries < W.snags * 20; tries++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * (W.edge[0] - 10);
+    const t = add(cx + Math.cos(a) * d, cz + Math.sin(a) * d, { card: false, radius: lerp(0.3, 0.6, r()), height: lerp(7, 16, r()), noRoots: true });
+    if (t) { Object.assign(t, { pale: true, tint: 0.55 + r() * 0.3 }); n++; }
+  }
+
   // The open forest: a trunk on each square of a jittered grid, none in the clearings (where
   // the noise is low) and three where it gathers into clusters (where it is high).
   const S = W.spacing;
@@ -139,7 +153,20 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
     rad += 2 * radius + 0.4;
   }
 
-  const tools = { onPath, inClearing, crowded, remember, toCentre };
+  // Every pale trunk leans toward the way out, the nearer the more, so the whole forest
+  // points the way once you notice it.
+  const [gx, gz] = def.exit.at, [most, least, from, to] = T.toGate ?? [0, 0, 0, 1];
+  for (const t of trunks) {
+    if (!t.pale) continue;
+    t.lean = THREE.MathUtils.degToRad(lerp(most, least, THREE.MathUtils.smoothstep(Math.hypot(gx - t.x, gz - t.z), from, to)));
+    t.leanDir = Math.atan2(gz - t.z, gx - t.x);
+    t.y -= t.radius * Math.sin(t.lean); // so the raised side of its foot stays in the ground
+    const out = Math.tan(t.lean) * 1.2; // the collider goes where the trunk is at his chest
+    t.collider.x = t.x + Math.cos(t.leanDir) * out;
+    t.collider.z = t.z + Math.sin(t.leanDir) * out;
+  }
+
+  const tools = { onPath, inClearing, crowded, remember, toCentre }; // (the ponds are clearings too)
   plantLogs(def, heightAt, r, logs, tools);
   plantArches(def, heightAt, r, arches, tools);
   // Roots round the big trunks, tipped so their ends reach the ground.
@@ -150,7 +177,8 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
       const a = turn0 + ((i + (r() - 0.5) * 0.6) / n) * Math.PI * 2;
       const reach = t.radius * 2.9;
       const drop = heightAt(t.x + Math.cos(a) * reach, t.z + Math.sin(a) * reach) - heightAt(t.x, t.z);
-      roots.push({ x: t.x, z: t.z, y: t.y + 0.3, yaw: a, size: t.radius * (0.85 + r() * 0.3) * (t.giant ? 1.6 : 1), tilt: Math.atan2(drop, reach), shape: Math.floor(r() * 2), tint: t.tint, pale: t.pale });
+      const lean = t.pale ? Math.sin(t.lean) * t.radius * 0.7 : 0; // a leaning trunk's roots go with it
+      roots.push({ x: t.x + Math.cos(t.leanDir) * lean, z: t.z + Math.sin(t.leanDir) * lean, y: heightAt(t.x, t.z), yaw: a, size: t.radius * (0.85 + r() * 0.3) * (t.giant ? 1.6 : 1), tilt: Math.atan2(drop, reach), shape: Math.floor(r() * 2), tint: t.tint, pale: t.pale });
     }
   }
   // Undergrowth everywhere off the paths, thickest over the mouths of the hidden ones; and
@@ -166,7 +194,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
   };
   for (let i = 0; i < U.count; i++) {
     const [x, z] = anywhere();
-    if (!onPath(x, z, 0.4)) clump(x, z);
+    if (!onPath(x, z, 0.4) && !wet(x, z) && !isBare(x, z)) clump(x, z);
   }
   for (const p of side.filter((q) => q.mouth === 'undergrowth')) {
     for (const s of walkPath(p.points, 0.8).slice(0, 8)) {
@@ -175,7 +203,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
   }
   for (let i = 0; i < W.stones; i++) {
     const [x, z] = anywhere();
-    if (onPath(x, z, 0.3) || crowded(x, z, 0.3, 0)) continue;
+    if (onPath(x, z, 0.3) || crowded(x, z, 0.3, 0) || wet(x, z) || isBare(x, z)) continue;
     stones.push({ x, z, y: heightAt(x, z), size: 0.15 + r() * r() * 0.5, yaw: r() * Math.PI * 2, tilt: (r() - 0.5) * 0.6 });
   }
   // Where eyes can look out from: beside trunks, low down or up the trunk, more of them the
@@ -203,7 +231,7 @@ export function planForest(def, heightAt, r, { keepClear = [], trunks: fixed = [
     }
     return [...out];
   }
-  return { trunks, logs, arches, roots, growth, stones, spots, near, crowded, wall: { kind: 'ring', x: cx, z: cz, r: W.wall } };
+  return { trunks, logs, arches, roots, growth, stones, spots, near, crowded, finds, wall: { kind: 'ring', x: cx, z: cz, r: W.wall } };
 }
 
 // What the side paths lead to (levels.json "end"): a ring of trunks round a clearing, an old
@@ -241,7 +269,7 @@ function features(def, side, heightAt, r, add, spots) {
 
 // Fallen trunks lying on the ground: thin ones to step over, thick ones to climb onto.
 function plantLogs(def, heightAt, r, logs, { onPath, inClearing, crowded, remember, toCentre }) {
-  const W = def.woods, [cx, cz] = def.terrain.center;
+  const W = def.woods, [cx, cz] = def.terrain.center, [gx, gz] = def.exit.at;
   // Its middle line, from end a to end b, sits 0.6 of its radius above the ground there.
   const lay = (ax, az, bx, bz, radius) => ({ ax, az, bx, bz, ya: heightAt(ax, az) + radius * 0.6, yb: heightAt(bx, bz) + radius * 0.6, r: radius, tint: 0.55 + r() * 0.4 });
   // Lying along the ground all the way (not floating over a dip or buried in a bump), and
@@ -274,7 +302,7 @@ function plantLogs(def, heightAt, r, logs, { onPath, inClearing, crowded, rememb
   for (let tries = 0; logs.length < W.logs && tries < W.logs * 30; tries++) {
     const a = r() * Math.PI * 2, d = Math.sqrt(r()) * (W.edge[0] - 10);
     const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
-    const turn = r() * Math.PI, half = 3 + r() * 5, radius = 0.26 + r() * 0.34;
+    const turn = Math.atan2(gz - z, gx - x) + (r() - 0.5) * 0.6, half = 3 + r() * 5, radius = 0.26 + r() * 0.34; // pale, so pointing the way out too
     const dx = Math.cos(turn) * half, dz = Math.sin(turn) * half;
     if ([-1, -0.5, 0, 0.5, 1].some((k) => onPath(x + dx * k, z + dz * k, radius + 0.5) || inClearing(x + dx * k, z + dz * k, radius))) continue;
     const log = lay(x - dx, z - dz, x + dx, z + dz, radius);
@@ -284,7 +312,7 @@ function plantLogs(def, heightAt, r, logs, { onPath, inClearing, crowded, rememb
 
 // Trunks bent over into arches with both ends in the ground: a few over the main path, high
 // enough to walk under, and more through the forest.
-function plantArches(def, heightAt, r, arches, { onPath, crowded, remember, toCentre }) {
+function plantArches(def, heightAt, r, arches, { onPath, inClearing, crowded, remember, toCentre }) {
   const W = def.woods, [cx, cz] = def.terrain.center;
   function bend(ax, az, bx, bz, top) {
     const r0 = 0.42 + r() * 0.12, r1 = r0 * 0.55;
@@ -313,7 +341,7 @@ function plantArches(def, heightAt, r, arches, { onPath, crowded, remember, toCe
     const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
     const turn = r() * Math.PI, half = 2.5 + r() * 2.5;
     const dx = Math.cos(turn) * half, dz = Math.sin(turn) * half;
-    if ([-1, 0, 1].some((k) => onPath(x + dx * k, z + dz * k, 1)) || toCentre(x, z) > W.edge[0]) continue;
+    if ([-1, 0, 1].some((k) => onPath(x + dx * k, z + dz * k, 1) || inClearing(x + dx * k, z + dz * k, 1)) || toCentre(x, z) > W.edge[0]) continue;
     bend(x - dx, z - dz, x + dx, z + dz, 2.6 + r() * 2);
   }
 }

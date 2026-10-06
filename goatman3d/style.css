@@ -119,8 +119,9 @@ body.cinematic #crosshair, body.cinematic #prompt, body.cinematic #hint { displa
 #options .check input { accent-color: #ffb43c; margin-right: 8px; }
 #options .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 #options .small { font-size: 11px; opacity: 0.75; margin: 12px 0 0; }
-body.no-hud #hud > :not(#crosshair):not(#dialogue):not(#subtitle):not(#message):not(#admin) { display: none; }
+body.no-hud #hud > :not(#crosshair):not(#dialogue):not(#subtitle):not(#message):not(#admin):not(#admin-map) { display: none; }
 
 /* Admin mode (?admin): where the camera is, top right. H hides everything for screenshots. */
 #admin { position: absolute; right: 16px; top: 16px; font-size: 12px; line-height: 1.45; white-space: pre; text-transform: none; }
 body.admin-clean #hud { display: none; }
+#admin-map { position: absolute; left: 16px; top: 16px; image-rendering: pixelated; border: 2px solid rgba(255,180,60,0.5); }

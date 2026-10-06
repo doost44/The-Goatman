@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildForest } from './worlds/forest.js';
 import { buildField } from './worlds/field.js';
 import { buildSavanna } from './worlds/savanna.js';
+import { buildExpanse } from './worlds/expanse.js';
 import { fadeTo, showLevelName } from './hud.js';
 import { playSoundscape, duck, tuneWind } from './sound.js';
 import { playAmbience } from './ambience.js';
@@ -15,6 +16,7 @@ const BUILDERS = {
   forest: buildForest,
   field: buildField,
   savanna: buildSavanna,
+  expanse: buildExpanse, // the big-world test level (admin mode)
 };
 
 const fetchJSON = async (url) => {
@@ -77,6 +79,8 @@ export async function createLevels(scene, player, camera) {
     if (scene.background?.isTexture) scene.background.dispose();
     scene.background = gradientTexture(def.sky);
     scene.fog = new THREE.Fog(def.fog.color, def.fog.near, def.fog.far);
+    camera.far = def.view ?? 800; // big levels see landmarks and far land kilometres off
+    camera.updateProjectionMatrix();
     world.lights = lights;
     world.group.add(ambient, sun);
     scene.add(world.group);

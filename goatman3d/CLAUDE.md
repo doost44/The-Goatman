@@ -45,14 +45,18 @@ goatman3d/
     main.js            the loop, the start screen, new game, back to the start screen
     title.js           the start screen: GoatMan floating in space, START, CONTINUE and OPTIONS on the left
     save.js            remembers the last level reached (localStorage), for CONTINUE
-    admin.js           admin mode (only loaded with ?admin): fly through everything, coordinates, level keys
+    admin.js           admin mode (only loaded with ?admin): fly through everything, coordinates, level keys,
+                       places, the frame rate, triangles and memory readout
+    adminmap.js        admin mode's map (M): the level from above in amber lines
     nightvision.js     admin mode's night vision (N): the frame through a green intensifier shader
     player.js          walking, sprinting, jumping, falling into the void (his hooves are player.pos)
     goatman.js         his low-poly body: tapered limbs, the head that comes off, colour grades
+    goatman-hand.js    his hands: a narrow palm and long thin three-jointed fingers and a thumb, one
+                       skinned mesh each; they curl, close round a pebble, splay and stroke
     goatman-head.js    his shaped head: skull rings wearing the painted face and profile, a tousled hair cap
     goatman-poses.js   his joint angles: standing, the walk and sprint cycle (two-bone IK goat legs),
-                       the scripted poses (kneel, drink, stand, pet, lose), all eased by damped springs
-    viewmodel.js       first-person arms, drawn in a second pass
+                       the scripted poses (kneel, ride, drink, stand, pet, lose), all eased by damped springs
+    viewmodel.js       first-person arms (with his hands), drawn in a second pass
     view.js            first/third-person camera, chase-camera pull-in, which way his body faces, rendering
     levels.js          loads levels.json, runs a level's builder (worlds/*.js), sky, fog, lights
     worlds/            one builder per level, plus their parts:
@@ -66,17 +70,43 @@ goatman3d/
       undergrowth.js   ferns and bushes painted on crossed cards, half-sunk stones, tufts by the path
       gate.js          the way out: a gap under a trunk leaning on another, its pink haze and the
                        glimpse of level 2 through it
-      marks.js         the glowing ground marks and the eyes that watch, blink and move
-      field.js         level 2: sky dome, ring of painted peaks, two cloud layers, red grass, the gate back
-      savanna.js       level 3: dusk falling to stars, the path and the light at its end
-      river.js         the savanna's bog river: its course (carved into the ground along a spline),
-                       the murky flowing water, splashes and bubbles
-      bog.js           the river's dressing: swaying reeds and tussocks, dead wood, floating scum, dusk mist
+      marks.js         the glowing ground marks and the eyes that watch, blink, move and all shut
+                       at once in the hush; glowFog() for anything that should glow through fog
+      mushrooms.js     glowing mushroom trails leading to the forest's places, shivering as he passes
+      ponds.js         the forest's still black ponds: their bowls in the ground, the water, reeds,
+                       dead wood and mist
+      finds.js         what waits at the side paths' ends: standing stones, the hollow trunk, the
+                       high trunk on its stump
+      field.js         level 2, 1.5 km of it: chunked red swells, mountains and the painted peaks far off,
+                       two cloud layers and their shadows, the Walking Thing (and its far-off leg lines),
+                       the gate back
+      redgrass.js      the field's grass in merged tiles round him: tufts, sprouts, tall grass in the
+                       dips, the ring of flattened grass
+      giants.js        the field's sense of scale: giant Walking Things pacing the far ridges, and a
+                       giant's fallen leg across a valley that he can walk along
+      savanna.js       level 3: 1.5 km of chunked lowcountry, dusk falling to deep night, the path and
+                       the light at its end
+      waters.js        the savanna's wet ground: the salt marsh, Carolina bays, the cypress swamp, and
+                       everything the level asks about water (depth, surface, wet, the ground's tint)
+      river.js         a winding course (the river, the marsh's creeks): carved along a spline, widening
+                       where its points say; the murky water in 192 m tiles, splashes and bubbles
+      bog.js           the water's dressing: reeds and tussocks (a scatter), dead wood, scum, mist
+                       (its reeds, stumps and mist are shared with the forest's ponds)
+      splash.js        splashes and ripples on any water (the river, the creeks and the ponds)
+      lowcountry.js    the savanna's South Carolina trees put in place: longleaf pines, live oaks,
+                       cypress in the swamp, dead snags in the water, the band of forest to ride into
+      lowcountry-trees.js  those trees' low-poly shapes (strands.js makes their Spanish moss)
       pool.js          the orange and blue swirl pool (thepool.png), kept for the final level
-      horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees
+      horizon.js       far things: painted sky domes, the stars, rings of painted peaks or trees; for big
+                       levels the far land past the fog and haze() for things seen beyond it
+      landmarks.js     big levels' landmarks: peaks, spires, mesas, stones (real up close, coarse far off)
+      expanse.js       the big-world test level (admin only): 2 km of chunked land, far land, landmarks
       tealtree.js      the savanna's teal tree as a weeping willow: trunk, arcing boughs, hanging
                        tendrils that sway and part round GoatMan and the Walking Thing's feet
-      clumps.js        the savanna's grass clumps: crossed cards in a scatter, swaying in the shader
+      strands.js       hanging strands (the willow's tendrils, the moss): smooth tapered ribbons and
+                       their travelling-wave sway
+      clumps.js        the savanna's grass: crossed cards grown a square at a time round the camera
+                       (each square from its own seed), swaying and shrinking away in the shader
     walkingthing.js    the Walking Thing: wandering, watching, its 11-drawing stride (dipping and leaning
                        onto each foot), carrying a rider
     walkingthing-acts.js   its scripted moves: kneeling, walking off, the stomp, climbing on and off, nuzzling
@@ -85,6 +115,7 @@ goatman3d/
     squash.js          "Grab Their LEG": dark sky, the giant foot, white-out, the death shot (from doom.js)
     bushes.js          the savanna's striped creatures and their babies: creep, watch him, run off
     bushes-body.js     their lumpy bodies, swept from the side drawing (cret1-4) like the Walking Thing's
+    bushes-paint.js    their skin painted round the whole body from the drawing's colours, and their eyes
     story.js, interact.js   what E does (exits, dialogue, petting) and the endings: the ride into
                        the light, the finale flash and video, the credits
     rocks.js           pebbles: right click / G picks one up and throws it
@@ -92,6 +123,7 @@ goatman3d/
     sound.js           the sound engine: buses, echo, the building blocks (tone, noise, synth), tracks, ducking
     sfx.js             every sound effect, synthesised from sound.js's building blocks
     terrain.js         ground meshes, their exact surface height, walkPath() and drape()
+    chunks.js          big levels' ground in chunks built and freed round the camera, with a bounded cache
     options.js, mouse.js, hud.js, fmv.js, capture.js, textures.js
   data/levels.json     ALL level content: positions, prompts, dialogue, colours, audio per level
   data/palettes.json   sky/fog/ground + 8 accent colours per scene, sampled from the art (generated)
@@ -115,14 +147,23 @@ goatman3d/
 - Things that move in the shader (the willow's tendrils, the grass, the reeds and tussocks, the water's flow, the mist, the creatures breathing) patch a Lambert/Basic material in `onBeforeCompile` and set a `customProgramCacheKey` of their own, so differently patched materials never share a program; their `uTime`-style uniforms are updated by the level each frame.
 - Painted art wrapped round a ring (the sky dome, the peaks) is mirrored every other repeat, and the repeat count must be even or a seam shows where the ring closes.
 - Cutscene cameras: set `view.shot = { from, to, yaw? }` (the camera sits at `from` looking at `to`, with all of GoatMan drawn); `null` gives the normal view back. A new level clears it.
-- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn, fast)` WASD drives it (the savanna; Shift hurries it to `rideSpeed` times its `hurry`). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
+- Riding: `player.mount` is anything with `heading` and `seat(out)` (the Walking Thing, or a stand-in while he climbs on). It carries him, the view turns when it turns, and an optional `look` pitch eases the view round to face its way. With `steer(forward, turn, fast)` WASD drives it (the savanna; Shift hurries it to `rideSpeed` times its `hurry`, and held on dry ground it settles over a few seconds into a long-distance stride, `LONG` times faster, its steps getting longer rather than quicker past `CADENCE` times its walking pace; all at the top of walkingthing.js). The Walking Thing's `carry(rider)`, `climbOn`, `climbOff(rider, ahead, time)` and `settle()` put him on and off it, and `moveTo(point, facing)` stands it somewhere at once; a spawn with `"ride": "walkingThing"` starts the level on its back (`walkOn` seconds walking on), and `gm.play('kneel', true)` jumps straight to the riding pose.
 - A world can have `white` (0-1) and `dissolve(seconds)`: the savanna melts into white fog and light for the ride into the light before the finale.
 - Interactions with `"mounted": true` or `false` only work while riding or on foot; one with no `at` or actor works anywhere (getting down). The first in the list wins when two are as close.
 - `pushOut(point, colliders, radius)` in player.js keeps any point out of the colliders: the creatures and the Walking Thing use it with their own `avoid` lists. A `line` collider is a fallen trunk (`ax, az, bx, bz, r` and the heights of its top at each end, `ya, yb`): he steps over it when it is lower than `STEP_UP` under his hooves and walks on it through a ground object whose `userData.surface` gives its top. A step that would leave him wedged between colliders (a gap narrower than his body) is undone, so he can't squeeze through.
-- Big levels (the forest is a disc 500 m across): put the thousands of things in a `createScatter` (scatter.js), one InstancedMesh per kind, refilled each frame with the copies within `reach` that are in view, nearest first (the savanna's grass too, with `reach: Infinity`: its fog is far off). Fog is by depth, so things at the sides of the view fade later: `reach` must be past the fog's far distance by about 1 / cos(half the horizontal field of view). Collisions come from a grid of what is solid near him (woods.js `near()`), refreshed as he moves, never from the whole level.
+- Big levels (the forest is a disc 500 m across): put the thousands of things in a `createScatter` (scatter.js), one InstancedMesh per kind, refilled each frame with the copies within `reach` that are in view, nearest first (the savanna's grass is grown and forgotten a square at a time in clumps.js instead). Fog is by depth, so things at the sides of the view fade later: `reach` must be past the fog's far distance by about 1 / cos(half the horizontal field of view). Collisions come from a grid of what is solid near him (woods.js `near()`), refreshed as he moves, never from the whole level.
 - The forest's sky is a dome that moves with the camera (so trunks never show outside it); its painting melts into the live fog colour near the horizon, so it follows the fog's pink near the way out.
-- Forest layout lives in levels.json: `woods` (spacing, clearings and clusters, the edge rings, how many logs, arches, stones), `sidePaths` (each with its points, `mouth` hidden by `leaning` trunks or `undergrowth`, faint `marks` and an `end`: a `ring` of pale trunks, a pale giant `tree`, the `eyes` dell or a `clearing`), `dome`, `undergrowth`, `marks.out` (fainter marks thinning away from the path) and `exit`.
-- Admin mode (`?admin`, then `): `admin.fly(dt)` replaces `player.update` while it is on, `interact.update(false)` stops interactions, and `view.forceFirst` keeps first person. Check new level work by flying round it (F turns the fog off, K copies a position for levels.json). N is night vision, in a level with `nightVision` in levels.json (the forest): the frame is drawn into a render target and through a shader onto the screen, and the fog is pushed back and the light turned up while it is on; main.js draws through `admin.nightVision.render(draw)`, and a level's scatter `reach` follows the fog's far distance.
+- Forest layout lives in levels.json: `woods` (spacing, clearings and clusters, the edge rings, how many logs, arches, stones, snags), `sidePaths` (each with its points, `mouth` hidden by `leaning` trunks or `undergrowth`, faint `marks` and an `end`: a `ring` of pale trunks, a pale giant `tree`, the `eyes` dell or a `clearing`, with an optional `find`), `dome`, `undergrowth`, `marks.out` (fainter marks thinning away from the path) and `exit`.
+- The forest's pale trunks lean toward the gate (`trunks.toGate`: [max degrees at the gate, min degrees, metres where it is greatest, metres where it is least]); their roots and colliders follow the lean, and `woods.snags` adds pale dead snags. Fallen trunks point toward it too.
+- `mushrooms` in levels.json: trails (`to` a side path's or pond's name, starting at `from` or the nearest point of the main path) past `from` metres from the spawn, brighter and closer together near their place, with a ring of clumps round it. They are scatter kinds; their shader reads `uPlayer` to shiver and dim near him.
+- `ponds` in levels.json: each pond `{ name, at, radius, depth }` plus shared dressing counts. `pondCourse()` works on the forest's coarse height: under each pond its ground is lowered out of the way and a finer basin mesh (a bowl) is laid on top, so `heightAt` is the basin there and the coarse ground everywhere else. The ponds give the forest `wet`, `waterDepth`, `splash` and `soundAt` (the nearest pond, for the night bed's frogs and drips). Each pond is its own group, hidden when past the fog.
+- A side path's `end.find` (finds.js): `stones`, `hollow`, `high` or `hush`. Collider heights `y0`/`y1` let him walk over a collider (the high trunk's stump) when he is above it.
+- When he is up high in the forest (the high trunk), the fog lifts a little so he can look out over it.
+- Big levels (1.5 km and more, sections 3 and 4 of version 2; `expanse` is the test level): terrain `"shape": "chunks"` goes to `createChunkedTerrain` (chunks.js), not `buildTerrain`. Its `group` goes in the level's group, its `ground` (a stand-in whose `userData.surface` is the exact height of whichever chunk is drawn there) in `ground`, and the world calls `update(camera)` from `beforeRender` and `dispose()` from its own `dispose`. `heightAt` is the finest grid (for placing things), `height` the smooth function (for the far land beyond the level), and the world returns the terrain as `chunks` so the admin box and map can show it. Chunks are 128 m squares at a few levels of detail (`lods`, finest first) out to `view` metres; a chunk keeps its detail until it is a quarter chunk past a boundary, at most `budget` chunks are rebuilt a frame (a missing one is built at once, so there is never a hole), and skirts hang from every edge to hide cracks between details. Memory: built chunks stay in a cache of `cache` chunks and the one unused longest is freed (`geometry.dispose()`) past that, so the graphics card's geometries (the admin box's GPU line) level off however far he goes; the material is shared and freed with the level. Past the fog, `buildFarLand` (horizon.js) draws one coarse grid of the land out to the horizon (not drawn within `cut` of the camera, where the chunks are) and `buildLandmarks` (landmarks.js) the big shapes, both hazed toward the fog colour by `haze()` instead of fogged out; set the level's `view` (the camera's far plane, 800 by default) past them. The level's scatter `reach` stays near what the fog lets you see of small things, not the whole fog distance.
+- The red field (version 2, section 3) is built that way at 1.8 km (`"chunk": 256`), with its own parts in levels.json: `dips` (hollows carved into the ground where tall grass grows over his head), `ring` (the flattened grass, also a paler band in the ground's `shade`), `fallenLeg` (joints from hip to hoof; line colliders and a walkable top like the forest's fallen trunks), `giants` (far walkers on the far land, hazed), `landmarks` (the mountains and lone dark rocks), `peaks` (the painted ring, now 3.3 km out on the far land), `clouds.shadows` (noise patched into the ground's and the grass's shaders, drifting downwind) and the Walking Thing's `hear` (metres its footfalls carry, fading out, captioned `[distant heavy footfalls]`) and `farLegs` (a one-pixel line down each leg, hazed, so it shows from hundreds of metres). Its grass is merged tiles (redgrass.js), not a scatter: SwiftShader draws instanced copies very slowly (see docs/version2/baseline.md).
+- `haze()` mixes its colour in after the output colour conversion, as three.js does fog, so it converts the colour (`linearToOutputTexel`) or far things come out darker than the fog they should melt into.
+- Places: each level's `places` in levels.json (`name`, `at: [x, z]`, `yaw`, `up` metres above eye height) are named points admin mode visits with [ and ]; the map numbers them. Add one for anything new worth flying to.
+- Admin mode (`?admin`, then `): `admin.fly(dt)` replaces `player.update` while it is on, `interact.update(false)` stops interactions, and `view.forceFirst` keeps first person. Check new level work by flying round it (F turns the fog off, K copies a position for levels.json, M shows the map, [ and ] go to the places). The box shows frame rate, draw calls and triangles (both passes), what the graphics card holds (`renderer.info.memory`), the page's JavaScript memory (Chrome) and, in big levels, the chunks drawn, kept and freed. A level with `"test": true` (expanse; 5 while flying) is never saved for CONTINUE. N is night vision, in a level with `nightVision` in levels.json (the forest): the frame is drawn into a render target and through a shader onto the screen, and the fog is pushed back and the light turned up while it is on; main.js draws through `admin.nightVision.render(draw)`, and a level's scatter `reach` follows the fog's far distance.
 - Screen shake goes through `shake(amount)` in hud.js, which respects the screen-shake option. A new white flash should do what squash.js and story.js do with `settings.flash` (soften flashes: only 70% white, four times slower).
 - Captions: any sound that tells the player something gets `subtitle('[heavy footfalls]', seconds, again)` from hud.js, in square brackets; `again` is how many seconds before the same caption may show again, for sounds that keep coming. They show only with the subtitles option on; dialogue, prompts and messages always show.
 - The chase camera looks back along three lines from his shoulders (its own and one `WIDE` to each side): something right on its line pulls it in at once, something beside it eases it in, and it eases back out slowly. A level's `blockers` are what it can't see through; terrain is checked by its height along the line.
@@ -131,7 +172,9 @@ goatman3d/
 - A level can name a synthesised bed in levels.json (`"ambience": "night"` or `"bog"`, built in `ambience.js`), with or without a soundtrack. Beds play on the music bus, so they duck and follow the music volume; caption their events with `subtitle()`. A bed can come from somewhere: the level's `world.soundAt(cameraPosition)` gives the point (the bog: the nearest point of the river), and the bed is panned there and fades with distance.
 - Sound effects are all in `sfx.js` (footsteps per surface, splashes, calls, thuds...), built from `synthKit` (sound.js's building blocks), so modules import `sfx` from sfx.js and only the music and ducking from sound.js.
 - Merging geometry (`mergeGeometries`) needs every piece indexed the same way with the same attributes; trunks and grass are merged into a few meshes per level to keep draw calls low.
-- Frame rate: every triangle of a mesh is worked on each frame it is drawn, even the parts off screen, and a see-through thing costs as much as a solid one. So thousands of small things go in a scatter, ground meshes stay as coarse as still looks right (the forest's 580 m square is 80 x 80), and anything faded right out is hidden (`visible = false`). Raycasts cost too (the chase camera casts three a frame, a flying pebble one): all of a mesh's triangles are tested whenever the ray passes through its bounding sphere, so a blocker is a scatter kind (its raycast only looks at the copies near the ray) or a small mesh of its own (the forest's arches, one by one for raycasts and merged for drawing), never one big merged mesh. Compare a level's frame rate and draw calls (the admin box) before and after a change to it.
+- Frame rate: every triangle of a mesh is worked on each frame it is drawn, even the parts off screen, and a see-through thing costs as much as a solid one. So thousands of small things go in a scatter, ground meshes stay as coarse as still looks right (the forest's 580 m square is 80 x 80), and anything faded right out is hidden (`visible = false`). Raycasts cost too (the chase camera casts three a frame, a flying pebble one): all of a mesh's triangles are tested whenever the ray passes through its bounding sphere, so a blocker is a scatter kind (its raycast only looks at the copies near the ray) or a small mesh of its own (the forest's arches, one by one for raycasts and merged for drawing), never one big merged mesh. Compare a level's frame rate and draw calls (the admin box) before and after a change to it, and with `docs/version2/baseline.md` (the numbers on main before version 2, measured as it describes).
+- First person draws his real body round the camera (view.js): the body is moved across the ground so his eyes (`gm.eyes()`) are where the camera is, and down (never up) only when the camera dips so close that the top of his chest (`gm.collar()`) would come within `CLEAR` of it. His head, neck and arms are hidden; the arms on screen are viewmodel.js's. Nobody sees him in first person, so his pose there is adjusted (`UPRIGHT` in goatman-poses.js, scaled by `gm.first`): back straighter, knees bent more and hooves set further forward (`foot`), so looking down finds his legs and hooves past his chest. A cutscene shot (`view.shot`) always shows his own pose.
+- Riding uses `gm.play('ride')`: sitting astride the Walking Thing's back, a leg out to each side (`straddle` spreads the thighs).
 - GoatMan's scripted poses come from the paintings: `gm.play('kneel')` (down1-6), `'drink'` (head1-15: the head sinks to the ground on blue strands), `'stand'`, `'pet'`, `'lose'` (head1-15 then backhead1-13, the SQUASHED death). Each returns a promise; kneel, drink and lose hold their last pose until the next one.
 - The swirl pool and drinking from it are kept for the final level but are in no level for now (revision pass 1): `buildPool` in worlds/pool.js, `story.actions.drink` (an interaction `{ "type": "drink", "at" }` with an outcome `"drink": { edge, hold, shot }`), `sfx.drink()` and `gm.play('drink')`.
 - `STRIDE` in player.js is one footstep and his walk cycle is two of them, as one continuous phase, so footstep sounds land with his hooves. Sprinting steps are `SPRINT_STEP` times longer, and the stride keeps counting in the air so his legs keep their rhythm through a jump. All the movement numbers (speed, sprint, its ramp, the sprint FOV) sit together at the top of player.js.

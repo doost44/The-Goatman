@@ -63,6 +63,38 @@ function helpers(ctx) {
   return { envelope, burst };
 }
 
+// A frog: a few rough, nasal pulses (rib-bit), into dest.
+function frog(ctx, envelope, dest, t, rate, n) {
+  for (let i = 0; i < n; i++) {
+    const at = t + i * rnd(0.14, 0.22), dur = rnd(0.06, 0.12);
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(rate, at);
+    o.frequency.linearRampToValueAtTime(rate * 0.8, at + dur);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = rnd(500, 850);
+    f.Q.value = 5;
+    const g = envelope(at, 0.35, 0.01, dur, 0.05);
+    o.connect(f);
+    f.connect(g);
+    g.connect(dest);
+    o.start(at);
+    o.stop(at + dur + 0.1);
+  }
+}
+// A drip: a small plink, rising.
+function plink(ctx, envelope, dest, t, vol = 0.12) {
+  const o = ctx.createOscillator(), f = rnd(900, 1600);
+  o.frequency.setValueAtTime(f, t);
+  o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.06);
+  const g = envelope(t, vol, 0.002, 0, 0.12);
+  o.connect(g);
+  g.connect(dest);
+  o.start(t);
+  o.stop(t + 0.2);
+}
+
 // Move a panner to a point, smoothly.
 function moveTo(ctx, panner, { x, y, z }) {
   if (panner.positionX) {
@@ -76,8 +108,9 @@ function moveTo(ctx, panner, { x, y, z }) {
 
 // --- The night forest ---------------------------------------------------------------------
 // Low wind through the trunks, a creak now and then, soft knocking far off, and
-// footsteps in the leaves that go round and round you, stopping when you listen.
-function night() {
+// footsteps in the leaves that go round and round you, stopping when you listen. Near a
+// pond (source(camera position): the nearest one), slow drips and a frog or two.
+function night(source) {
   const ctx = kit.ctx();
   const out = ctx.createGain();
   out.gain.setValueAtTime(0, ctx.currentTime);
@@ -194,6 +227,24 @@ function night() {
   let creakIn = rnd(4, 8);
   let knockIn = rnd(9, 16);
 
+  const pond = new PannerNode(ctx, { panningModel: 'HRTF', distanceModel: 'linear', refDistance: 4, maxDistance: 45 });
+  pond.connect(out);
+  let frogIn = rnd(3, 8), dripIn = rnd(1, 3), heard = false;
+  function atPond(dt, p) {
+    const at = source?.(p);
+    if (!at) return;
+    moveTo(ctx, pond, at);
+    const t = ctx.currentTime, near = Math.hypot(at.x - p.x, at.z - p.z) < 25;
+    if ((dripIn -= dt) <= 0) { plink(ctx, envelope, pond, t, 0.25); dripIn = rnd(0.7, 3); }
+    if ((frogIn -= dt) <= 0) {
+      frog(ctx, envelope, pond, t, rnd(26, 38), 2 + Math.floor(Math.random() * 2));
+      if (Math.random() < 0.3) frog(ctx, envelope, pond, t + rnd(0.7, 1.3), rnd(18, 24), 2); // another, lower
+      if (near && !heard) { subtitle('[a frog croaks in the pond]', 2.5); heard = true; }
+      frogIn = rnd(5, 12);
+    }
+    if (!near) heard = false; // captioned again at the next pond
+  }
+
   return {
     name: 'night',
     update(dt, camera) {
@@ -222,6 +273,7 @@ function night() {
       if (creakIn <= 0) { creak(); creakIn = rnd(6, 14); }
       knockIn -= dt;
       if (knockIn <= 0) { knocks(); knockIn = rnd(10, 22); }
+      atPond(dt, p);
     },
     stop(fade) {
       out.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
@@ -272,37 +324,8 @@ function bog(source) {
     keep(kit.noiseInto(trill, 'bandpass', freq, 7));
   }
 
-  // A frog: a few rough, nasal pulses (rib-bit), sometimes answered by another lower down.
-  function croak(t, rate, n) {
-    for (let i = 0; i < n; i++) {
-      const at = t + i * rnd(0.14, 0.22), dur = rnd(0.06, 0.12);
-      const o = ctx.createOscillator();
-      o.type = 'square';
-      o.frequency.setValueAtTime(rate, at);
-      o.frequency.linearRampToValueAtTime(rate * 0.8, at + dur);
-      const f = ctx.createBiquadFilter();
-      f.type = 'bandpass';
-      f.frequency.value = rnd(500, 850);
-      f.Q.value = 5;
-      const g = envelope(at, 0.35, 0.01, dur, 0.05);
-      o.connect(f);
-      f.connect(g);
-      g.connect(panner);
-      o.start(at);
-      o.stop(at + dur + 0.1);
-    }
-  }
-  // A drip: a small plink, rising.
-  function drip(t) {
-    const o = ctx.createOscillator(), f = rnd(900, 1600);
-    o.frequency.setValueAtTime(f, t);
-    o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.06);
-    const g = envelope(t, 0.12, 0.002, 0, 0.12);
-    o.connect(g);
-    g.connect(panner);
-    o.start(t);
-    o.stop(t + 0.2);
-  }
+  const croak = (t, rate, n) => frog(ctx, envelope, panner, t, rate, n);
+  const drip = (t) => plink(ctx, envelope, panner, t);
   // A gurgle: bubbles coming up in a quick run, and a soft glug under them.
   function gurgle(t) {
     for (let i = 0, n = 3 + Math.floor(Math.random() * 4); i < n; i++) {

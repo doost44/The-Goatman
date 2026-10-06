@@ -143,3 +143,57 @@ export async function buildSkyline(d, heightAt) {
   tex.wrapS = THREE.RepeatWrapping;
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, flatShading: true, fog: false, side: THREE.DoubleSide }));
 }
+
+// Haze for things seen from much further than the fog reaches (big levels' landmarks and
+// far land): the material ignores the scene's fog and is mixed toward `color` by distance
+// instead, from `a` at `from` metres to `b` at `to`. With `cut`, nothing is drawn nearer
+// than that (on the ground plane): the far land leaves the middle to the terrain chunks.
+// color is a THREE.Color the level keeps in step with its fog (it can change, as at dusk);
+// it is mixed in after the output colour conversion, as fog is, so it is converted too.
+export function haze(material, { color, from, to, a = 0, b = 0.85, cut = 0 }) {
+  const uniforms = {
+    uHaze: { value: color }, uHazeRamp: { value: new THREE.Vector4(from, to, a, b) }, uHazeCut: { value: cut },
+  };
+  material.fog = false;
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vHazeAt;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvHazeAt = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vHazeAt;\nuniform vec3 uHaze;\nuniform vec4 uHazeRamp;\nuniform float uHazeCut;')
+      .replace('void main() {', 'void main() {\n  if (length(vHazeAt.xz - cameraPosition.xz) < uHazeCut) discard;')
+      .replace('#include <fog_fragment>', `#include <fog_fragment>
+  float hazeK = smoothstep(uHazeRamp.x, uHazeRamp.y, distance(vHazeAt, cameraPosition));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uHaze, 1.0)).rgb, mix(uHazeRamp.z, uHazeRamp.w, hazeK));`);
+  };
+  material.customProgramCacheKey = () => `haze${cut > 0 ? '-cut' : ''}`;
+  return uniforms;
+}
+
+// The land beyond the terrain chunks, out to the horizon: one coarse grid fixed in the world
+// (so it never shifts as he moves), heights from the level's own height function (its rim
+// rises into far hills), lit by hand in its vertex colours and hazed toward the fog. Within
+// `cut` metres of the camera it isn't drawn: the chunks are there.
+// levels.json "horizon": { size (metres across), segments, color, haze: [near, far], sink }
+export function buildFarLand(d, height, { center = [0, 0], cut, fogColor, sun }) {
+  const geo = new THREE.PlaneGeometry(d.size, d.size, d.segments, d.segments).rotateX(-Math.PI / 2);
+  geo.translate(center[0], 0, center[1]);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, height(pos.getX(i), pos.getZ(i)) - (d.sink ?? 4));
+  geo.computeVertexNormals();
+  const base = new THREE.Color(d.color), light = new THREE.Vector3(...sun).normalize(), n = new THREE.Vector3();
+  const colors = [];
+  for (let i = 0; i < pos.count; i++) {
+    n.fromBufferAttribute(geo.attributes.normal, i);
+    const k = 0.7 + 0.45 * Math.max(0, n.dot(light));
+    colors.push(base.r * k, base.g * k, base.b * k);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  const [a, b] = d.haze ?? [1, 0.7];
+  haze(mat, { color: fogColor, from: cut, to: d.size / 2, a, b, cut });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = -5; // after the sky, before the near ground
+  return mesh;
+}
