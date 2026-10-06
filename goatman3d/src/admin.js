@@ -10,7 +10,7 @@ import { createMap } from './adminmap.js';
 // the top right shows where the camera is, ready to copy into levels.json.
 //   W/S fly along the view, A/D sideways, Space up, C or Q down, Shift 4x, wheel: speed
 //   1 2 3 forest, field, savanna · 4 the finale · F fog · T night (savanna) · Y petted
-//   H hide the HUD and arms · K copy the position · 5 the big-world test level
+//   H hide the HUD · K copy the position · 5 the big-world test level
 // Flying or not: N night vision (the forest), M the map, [ and ] the level's places.
 // The box also shows the frame rate, draw calls and triangles, what the graphics card holds
 // (geometries, textures), the page's memory and, in big levels, the terrain chunks built.
@@ -22,19 +22,19 @@ const deg = (rad) => Math.round(THREE.MathUtils.radToDeg(Math.atan2(Math.sin(rad
 const fixed = (v) => Math.round(v * 10) / 10;
 const kilo = (n) => (n >= 1e4 ? `${Math.round(n / 1000)}K` : `${n}`);
 
-export function createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, arms, view, story, playing }) {
+export function createAdmin({ renderer, scene, camera, head, controls, keys, player, levels, gm, view, story, playing }) {
   const box = document.createElement('div');
   box.id = 'admin';
   box.className = 'box hidden';
   document.getElementById('hud').append(box);
-  renderer.info.autoReset = false; // the world and the arms are two renders: count both
+  renderer.info.autoReset = false; // night vision draws a frame in two renders: count both
   const nightVision = createNightVision({ renderer, scene, levels });
   const map = createMap(document.getElementById('hud'));
 
   let on = false;
   let speed = 2; // index into SPEEDS
   let fogOff = false;
-  let clean = false; // HUD and arms hidden for screenshots
+  let clean = false; // HUD hidden for screenshots
   let night = null; // the savanna's clock before T made it night
   let fps = 60, calls = 0, triangles = 0;
   let place = -1; // which of the level's places [ and ] last went to
@@ -97,7 +97,6 @@ export function createAdmin({ renderer, scene, camera, head, controls, keys, pla
   function setClean(c) {
     clean = c;
     document.body.classList.toggle('admin-clean', c);
-    arms.visible = !c;
   }
 
   // T: the savanna's dusk jumps to deep night, and back to where it was.

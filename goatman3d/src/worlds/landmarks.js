@@ -8,7 +8,8 @@ import { haze } from './horizon.js';
 // the fog by distance rather than hidden by it.
 //
 // levels.json "landmarks": [{ kind, at: [x, z], size: [radius, height], color?, seed? }]
-//   and "landmarkLook": { color, swap (metres where the real one takes over), haze: [from, to, most] }
+//   and "landmarkLook": { color, swap (metres where the real one takes over), haze: [from, to, most],
+//   low (optional: [y0, y1], the haze thickening toward the ground, see haze()) }
 
 // Profiles: [height 0..1, radius 0..1] from the ground up, and how many sides.
 const KINDS = {
@@ -63,7 +64,7 @@ export function buildLandmarks(list = [], look, heightAt, fogColor) {
     if (!mats.has(color)) {
       const m = new THREE.MeshLambertMaterial({ color, flatShading: true });
       const [from, to, most] = look.haze;
-      haze(m, { color: fogColor, from, to, a: 0, b: most });
+      haze(m, { color: fogColor, from, to, a: 0, b: most, low: look.low });
       mats.set(color, m);
     }
     return mats.get(color);

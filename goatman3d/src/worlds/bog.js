@@ -185,6 +185,8 @@ function tiled(pieces, material, square = 192) {
 
 // waters: waters.js (its river, creeks and pools); marsh(x, z) 0..1 on the marsh flats.
 export async function buildBog(d, waters, heightAt, marsh) {
+  // The water's height where a course's water is at y: out on the marsh, its sheet is over it.
+  const surface = (x, z, y) => (waters.sheet?.(x, z) ? Math.max(y, waters.level) : y);
   const r = rng(d.seed ?? 8);
   const time = { value: 0 };
   const meshes = [];
@@ -251,7 +253,7 @@ export async function buildBog(d, waters, heightAt, marsh) {
     wood.push(stump(r, p.x, heightAt(p.x, p.z), p.z));
   }
   for (let i = 0; i < d.branches; i++) {
-    const p = spot(() => 0, (q) => q.edge * 0.9, [0.2, 0.9]), top = p.level - waters.river.water;
+    const p = spot(() => 0, (q) => q.edge * 0.9, [0.2, 0.9]), top = surface(p.x, p.z, p.level - waters.river.water);
     const a = r() * Math.PI * 2, len = 2.5 + r() * 3, dx = Math.cos(a), dz = Math.sin(a);
     const at = (k, up, side = 0) => V(p.x + dx * len * k - dz * side, top + up, p.z + dz * len * k + dx * side);
     const branch = limb([at(0, -0.5), at(0.4, 0.1, 0.2), at(0.75, 0.6, -0.1), at(1, 1 + r() * 0.8, 0.2)], 0.16, 0.04, 5);
@@ -280,7 +282,7 @@ export async function buildBog(d, waters, heightAt, marsh) {
       y = heightAt(p.x, p.z) + 0.4 + r() * 0.8;
     } else {
       p = spot(() => 0, (q) => q.edge * 0.8, [0.1, 0.8]);
-      y = p.level - waters.river.water + 0.3 + r() * 0.6;
+      y = surface(p.x, p.z, p.level - waters.river.water) + 0.3 + r() * 0.6;
     }
     puffs.push({ x: p.x, y, z: p.z, w: 7 + r() * 9, h: 1.4 + r() * 1.4 });
   }
@@ -297,7 +299,7 @@ export async function buildBog(d, waters, heightAt, marsh) {
       for (const [i, p] of patches.entries()) {
         p.s = (p.s + dt * p.course.flow) % p.course.length;
         const here = p.course.at(p.s), at = p.course.at(p.s, p.across * here.edge);
-        dummy.position.set(at.x, at.level - waters.river.water + 0.05, at.z);
+        dummy.position.set(at.x, surface(at.x, at.z, at.level - waters.river.water) + 0.05, at.z);
         dummy.rotation.set(0, p.spin + t * p.turn, 0);
         dummy.scale.setScalar(p.size);
         dummy.updateMatrix();

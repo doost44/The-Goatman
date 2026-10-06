@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-// GoatMan's hands, for his body (goatman.js) and his first-person arms (viewmodel.js): a
+// GoatMan's hands, for his body (goatman.js), first person and third: a
 // narrow palm and long thin fingers like the paintings' (Goatman Himself/1-18.png), three
 // joints each, and a thumb. One skinned mesh per hand (one draw call): every piece of
 // it follows one bone, and the bones are what move.

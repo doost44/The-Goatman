@@ -1,16 +1,24 @@
 import * as THREE from 'three';
 import { valueNoise } from '../terrain.js';
 import { riverCourse } from './river.js';
+import { nearestOnPath } from '../player.js';
 
 // The savanna's wet ground, put together (South Carolina's lowcountry in the painting's
-// colours): the salt marsh, a broad lowland flattened to just above the water; the river and
-// the marsh's tidal creeks winding through it (river.js); and still water in shallow round
-// hollows: the Carolina bays out on the open land, each with a sandy rim on its south-east
-// side, and the cypress swamp. Everything the level asks about water comes from here: the
-// ground's height and tint, how deep the water is, whether a spot is wet.
+// colours). Most of the land is tidal salt marsh: a sheet of shallow water broken into
+// hundreds of winding hummocks of marsh grass, with dry islands rising out of it (where he
+// arrives, the pine flats, the sandy hills, the swamp) and the path crossing it on an old
+// raised dike. The river and the marsh's tidal creeks wind through it (river.js), and there
+// is still water in shallow round hollows on the islands: the Carolina bays, each with a
+// sandy rim on its south-east side, and the cypress swamp. Everything the level asks about
+// water comes from here: the ground's height and tint, how deep the water is, whether a spot
+// is wet.
 //
-// levels.json "marsh": { at: [x, z], size: [rx, rz], level (the flats' height), edge (metres
-//   the land takes to come down to it) }
+// levels.json "marsh": { level (the water's height), reach (metres from the middle the marsh
+//   fills, before the forest at the edge), edge (metres the land takes to come down to it),
+//   islands: [[x, z, radius], ...] (dry land), hummocks: { scale (how many to a metre),
+//   cover (-1..1: higher, fewer), rise (metres their tops stand out of the water), shallow
+//   (how deep the water is between them), tint ([r, g, b] of the grass on top) }, dike
+//   (metres either side of the path it raises) }
 // "bays": [{ at, size: [long, short] (to the waterline), turn (degrees; Carolina bays all
 //   lie north-west to south-east), deep (the hollow), water (how deep in the middle), rim
 //   (the sandy rim's height), swamp (true: the cypress swamp) }]
@@ -60,48 +68,78 @@ function bay(b, ground) {
 
 // natural(x, z): the land's own height (terrain.js terrainHeight).
 export function createWaters(def, natural) {
-  const m = def.marsh;
-  const [mx, mz] = m.at, [rx, rz] = m.size;
-  // 0 out on the land, 1 on the marsh flats (its edge wavers a little).
+  const m = def.marsh, hm = m.hummocks;
+  const bed = m.level - hm.shallow; // the mud between the hummocks
+  // 0 on dry land, 1 out on the marsh (its edges waver a little).
   const marsh = (x, z) => {
-    const e = Math.hypot((x - mx) / rx, (z - mz) / rz) * (1 + 0.12 * valueNoise(x * 0.012, z * 0.012));
-    return 1 - smooth(e, 1, 1 + m.edge / Math.min(rx, rz));
+    const wob = 1 + 0.12 * valueNoise(x * 0.012, z * 0.012);
+    let land = smooth(Math.hypot(x, z) * wob, m.reach, m.reach + m.edge);
+    for (const [ix, iz, ir] of m.islands) land = Math.max(land, 1 - smooth(Math.hypot(x - ix, z - iz) * wob, ir, ir + m.edge));
+    return 1 - land;
   };
-  const lowland = (x, z, h = natural(x, z)) => THREE.MathUtils.lerp(h, m.level, marsh(x, z));
+  // 0 in the water, 1 on a hummock: winding shapes from noise pushed about by broader noise,
+  // drawn out twice as long one way as the other (the way slowly turning across the marsh).
+  const hummock = (x, z) => {
+    const wx = x + 30 * valueNoise(x * 0.013 + 7, z * 0.013), wz = z + 30 * valueNoise(x * 0.013, z * 0.013 - 3);
+    const a = 1.6 * valueNoise(x * 0.004 + 3, z * 0.004), c = Math.cos(a), s = Math.sin(a);
+    const u = (wx * c + wz * s) * 0.5, v = wz * c - wx * s;
+    const n = valueNoise(u * hm.scale, v * hm.scale) + 0.45 * valueNoise(u * hm.scale * 2.3 + 11, v * hm.scale * 2.3);
+    return smooth(n, hm.cover - 0.06, hm.cover + 0.06);
+  };
+  // 1 on the dike the path crosses the marsh on.
+  const dike = (x, z) => 1 - smooth(nearestOnPath(def.path.points, x, z).d, m.dike, m.dike + 3);
+  // The marsh's ground: the hummocks (or, flat, just the mud), and the dike over them.
+  const flats = (x, z, bumps) => {
+    const top = m.level + hm.rise;
+    return THREE.MathUtils.lerp(bumps ? bed + (top - bed) * hummock(x, z) : bed, top + 0.1, dike(x, z));
+  };
+  const lowland = (x, z, h = natural(x, z), bumps = true) => {
+    const k = marsh(x, z);
+    return k > 0 ? THREE.MathUtils.lerp(h, flats(x, z, bumps), k) : h;
+  };
   const pools = (def.bays ?? []).map((b) => bay(b, lowland));
-  const dug = (x, z, h) => pools.reduce((g, p) => p.reshape(x, z, g), lowland(x, z, h));
-  // The river and creeks take their banks' level from the land as it is by then.
-  const river = riverCourse(def.river, dug);
-  const creeks = (def.creeks ?? []).map((c) => riverCourse({ ...def.river, ...c }, dug));
+  const dug = (x, z, h, bumps = true) => pools.reduce((g, p) => p.reshape(x, z, g), lowland(x, z, h, bumps));
+  // The river and creeks take their banks' level from the land as it is by then (on the
+  // marsh, the mud under the water: they are its deeper channels).
+  const river = riverCourse(def.river, (x, z) => dug(x, z, undefined, false));
+  const creeks = (def.creeks ?? []).map((c) => riverCourse({ ...def.river, ...c }, (x, z) => dug(x, z, undefined, false)));
   const courses = [river, ...creeks];
   const all = [...courses, ...pools];
+  // Out on the open water of the marsh (not on a hummock or the dike).
+  const open = (x, z) => marsh(x, z) > 0.5 && hummock(x, z) < 0.5 && dike(x, z) < 0.5;
+  const sheet = (x, z) => marsh(x, z) > 0.02; // where the marsh's water is drawn
 
   return {
-    river, creeks, courses, pools, marsh, marshAt: m.at, marshSize: m.size,
+    river, creeks, courses, pools, marsh, sheet, level: m.level, marshAt: [0, 0], marshSize: [m.reach, m.reach],
     swamp: pools.find((p) => p.swamp),
     // The ground's height, from the land's own (h): the marsh, the hollows, then the channels.
     reshape: (x, z, h) => courses.reduce((g, c) => c.reshape(x, z, g), dug(x, z, h)),
-    // The ground's tint, [r, g, b]: mud by the water, the marsh's darker flats, pale sand on
-    // the rises and the bays' rims. high(x, z): 0..1 how high the land is there (the rises).
+    // The ground's tint, [r, g, b]: mud by the water, the marsh grass on the hummocks, pale
+    // sand on the rises and the bays' rims. high(x, z): 0..1 how high the land is there.
     shade(x, z, high) {
       const mud = Math.max(...all.map((w) => w.mud(x, z)));
-      const flats = marsh(x, z), sand = Math.max(high, ...pools.map((p) => p.sand(x, z)));
-      const k = 1 - 0.25 * flats;
-      return [
-        k * (1 + 0.35 * sand) * (1 - 0.6 * mud),
-        k * (1 + 0.22 * sand) * (1 - 0.76 * mud),
-        (k + 0.12 * flats) * (1 + 0.05 * sand) * (1 - 0.7 * mud),
-      ];
+      const sand = Math.max(high, ...pools.map((p) => p.sand(x, z)));
+      const grass = marsh(x, z) * hummock(x, z) * (1 - dike(x, z));
+      const c = [(1 + 0.35 * sand) * (1 - 0.6 * mud), (1 + 0.22 * sand) * (1 - 0.76 * mud), (1 + 0.05 * sand) * (1 - 0.7 * mud)];
+      return c.map((v, i) => THREE.MathUtils.lerp(v, hm.tint[i], grass));
     },
-    depth: (x, z, y) => Math.max(...all.map((w) => w.depth(x, z, y))),
+    // The marsh's water is over everything there, so it is as deep as the deepest.
+    depth: (x, z, y) => Math.max(sheet(x, z) ? m.level - y : 0, ...all.map((w) => w.depth(x, z, y))),
     surface(x, z) {
+      if (open(x, z)) return m.level; // on the marsh, the channels are under its water
       for (const w of all) {
         const s = w.surface(x, z);
         if (s !== null) return s;
       }
       return null;
     },
-    wet: (x, z, margin = 1) => all.some((w) => w.wet(x, z, margin)),
+    // In the water (or within `margin` metres of a channel or pool): out on the marsh's open
+    // water, not its hummocks.
+    wet: (x, z, margin = 1) => open(x, z) || all.some((w) => w.wet(x, z, margin)),
+    // Water too deep to wander through: the channels and pools (the creatures and the Walking
+    // Thing keep out of it, but splash about the marsh).
+    deep: (x, z) => all.some((w) => w.wet(x, z, 0)),
+    hummock,
     // Roughly where the water's sounds come from: its nearest point to p.
     closest(p) {
       let best = null;

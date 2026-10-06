@@ -14,7 +14,7 @@ import { clearSave } from './save.js';
 const wait = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 const newTrust = () => ({ level: 0, petted: false, rides: 0 });
 
-export function createStory({ levels, player, gm, arms, view, squash, toTitle }) {
+export function createStory({ levels, player, gm, view, squash, toTitle }) {
   const story = {
     flags: {}, // petted, drank, ...
     // How the Walking Thing feels about him: kindness raises it (for later polish).
@@ -217,7 +217,6 @@ export function createStory({ levels, player, gm, arms, view, squash, toTitle })
     story.trust.level += 1;
     player.frozen = true;
     gm.play('pet');
-    arms.pat();
     sfx.chime([0, 4, 7, 12], 196);
     showMessage(o.message, o.hold ?? 2);
     await thing?.nuzzle?.(o.nuzzle ?? 4);
