@@ -3,7 +3,7 @@ import { buildForest } from './worlds/forest.js';
 import { buildField } from './worlds/field.js';
 import { buildSavanna } from './worlds/savanna.js';
 import { fadeTo, showLevelName } from './hud.js';
-import { playSoundscape, duck } from './sound.js';
+import { playSoundscape, duck, tuneWind } from './sound.js';
 import { playAmbience } from './ambience.js';
 import { gradientTexture } from './textures.js';
 
@@ -91,6 +91,7 @@ export async function createLevels(scene, player, camera) {
       surface: def.surface,
       speed: def.speed,
     };
+    tuneWind(def.wind);
     const spawn = def.spawns[spawnName] ?? def.spawns.start;
     player.place(spawn.at, spawn.yaw);
     if (spawn.ride) world.actors[spawn.ride].carry(player, spawn.walkOn); // arriving on its back

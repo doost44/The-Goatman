@@ -228,10 +228,15 @@ function setLoop(name, level, freq) {
   if (freq && l.filter) l.filter.frequency.setTargetAtTime(freq, t, 0.1);
 }
 
+// Each level tunes the falling wind (levels.json "wind": { volume, pitch }): a low,
+// heavy wind in the night forest, a thinner one over the open plains.
+let windTune = { volume: 1, pitch: 1 };
+export function tuneWind(tune) { windTune = { volume: 1, pitch: 1, ...tune }; }
+
 // Levels for the continuous sounds, set every frame by whoever owns them.
 export const loopsLevel = {
   // Grows gently and brightens as you fall faster.
-  wind: (level) => ready() && setLoop('fall', level ** 1.5, 600 + level * 1100),
+  wind: (level) => ready() && setLoop('fall', windTune.volume * level ** 1.5, windTune.pitch * (600 + level * 1100)),
   rumble: (level) => ready() && setLoop('rumble', level),
   drone: (level) => ready() && setLoop('drone', level, 55 + level * 55),
 };
