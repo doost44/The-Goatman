@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { CYCLE } from './goatman.js';
+import { buildHand } from './goatman-hand.js';
 
 // First-person arms, Half-Life style: GoatMan's two long red arms dangle at the bottom
 // of the screen and swing with his stride the way his body's arms do (goatman-poses.js):
 // the elbows bend as they swing, most going forward, and the hands trail. Sprinting, they
 // come up bent and pump. They live in their own little scene, drawn after the world with
 // the depth buffer cleared, so they never poke into walls. They use his body's materials,
-// so the level's colour grade applies to them too.
+// so the level's colour grade applies to them too. The hands are his body's (goatman-hand.js):
+// the long fingers curl round a pebble, spread as it is thrown and stroke when petting.
 
 const SHOULDER = [0.5, -0.36, 0.05]; // right shoulder, in camera space (the left is mirrored)
 const REACH = 1.35; // how far forward the arms hang (radians from straight down)
@@ -14,6 +16,7 @@ const INWARD = 0.1;
 const ELBOW = 0.3;
 const WRIST = -0.8; // the hands droop
 const UPPER = 0.46, FORE = 0.46;
+const TURN = 1.3; // the hands turned so the palms face in, towards each other
 const HOLD = { shoulder: 1.1, elbow: 0.8, wrist: -0.3, inward: 0.1 }; // right arm carrying a pebble
 const PAT = { shoulder: 2.3, elbow: 0.2, wrist: 0.3, time: 2.4 }; // right arm reaching up to pet
 
@@ -39,19 +42,18 @@ export function createArms(materials) {
     elbow.add(limb(FORE, 0.05, 0.04));
     const wrist = new THREE.Group();
     wrist.position.y = -FORE;
-    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.2, 0.05), materials.hand);
-    hand.position.y = -0.1;
-    wrist.add(hand);
+    const hand = buildHand(materials.hand, side);
+    hand.mesh.rotation.y = side * TURN;
+    wrist.add(hand.mesh);
     elbow.add(wrist);
     shoulder.add(elbow);
     rig.add(shoulder);
-    return { side, shoulder, elbow, wrist };
+    return { side, shoulder, elbow, wrist, hand };
   }
   const arms = [arm(-1), arm(1)];
   const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.05, 0), new THREE.MeshLambertMaterial({ color: 0x8e93ac, flatShading: true }));
-  pebble.position.set(0, -0.19, -0.06);
   pebble.scale.y = 0.8;
-  arms[1].wrist.add(pebble);
+  arms[1].hand.grip.add(pebble);
   let t = 0;
   let hold = 0; // 0..1 raising the right hand with a pebble in it
   let fling = 1; // a throw, 0..1 (1 = done)
@@ -109,6 +111,15 @@ export function createArms(materials) {
           a.wrist.rotation.x += (PAT.wrist - a.wrist.rotation.x) * reach - tap;
         }
       }
+      // The fingers: loosely curled, tighter sprinting; the right hand closes round the pebble,
+      // spreads as it lets go and strokes while petting.
+      const rest = 0.3 + 0.25 * sprint;
+      arms[0].hand.update(dt, { curl: rest });
+      arms[1].hand.update(dt, {
+        curl: api.holding ? 0.75 : rest,
+        splay: fling < 1 ? Math.sin(Math.PI * Math.min(1, fling * 1.6)) : 0,
+        stroke: reach > 0.8 ? 1 : 0,
+      });
       pebble.visible = api.holding;
       rig.position.y = -lower * 0.8 - Math.abs(Math.sin(ph)) * 0.03 * speed;
     },

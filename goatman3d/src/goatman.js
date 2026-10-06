@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadImage, toCanvas, grade, crunchy, glowTexture } from './textures.js';
 import { buildHead } from './goatman-head.js';
+import { buildHand } from './goatman-hand.js';
 import {
   HIP, THIGH, SHIN, PASTERN, HOOF, BELLY, CHEST, NECK, UPPER_ARM, FOREARM, ACTIONS, createMotion,
 } from './goatman-poses.js';
@@ -94,7 +95,11 @@ export async function createGoatMan() {
   const bellyMesh = cylinder(BELLY + 0.04, 0.24, 0.2, M.chest, true);
   belly.add(bellyMesh);
   const chest = joint(belly, 0, BELLY - 0.05, 0);
-  const chestMesh = cylinder(CHEST, 0.28, 0.24, M.chest, true);
+  // The chest rounds over into his shoulders at the top, so looking down at it in first
+  // person shows shoulders rather than the flat end of a cylinder.
+  const chestMesh = new THREE.Mesh(new THREE.LatheGeometry(
+    [[0.24, -0.02], [0.28, CHEST - 0.06], [0.22, CHEST + 0.02], [0.1, CHEST + 0.06], [0, CHEST + 0.07]].map(([r, y]) => new THREE.Vector2(r, y)), 6,
+  ), M.chest);
   chest.add(chestMesh);
   for (const m of [bellyMesh, chestMesh]) m.scale.z = 0.8; // flatter front to back
 
@@ -103,6 +108,8 @@ export async function createGoatMan() {
   const neckMesh = limb(NECK, 0.075, 0.062, M.chest, true);
   neck.add(neckMesh);
   const headMount = joint(neck, 0, NECK, 0); // where the head sits when it is on
+  const eyes = joint(headMount, 0, 0.16, -0.04); // behind his eyes: the first-person camera
+  const collar = joint(chest, 0, CHEST + 0.05, 0); // the top of his chest, the nearest thing below the camera
 
   // The head is not a child of the neck, so it can come off: each frame it is placed at
   // headMount, or partway to wherever it is going.
@@ -115,11 +122,10 @@ export async function createGoatMan() {
     const elbow = joint(shoulder, 0, -UPPER_ARM, 0);
     elbow.add(limb(FOREARM, 0.046, 0.036, M.arm));
     const wrist = joint(elbow, 0, -FOREARM, 0);
-    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.22, 0.05), M.hand);
-    hand.position.y = -0.11;
-    wrist.add(hand);
-    const grip = joint(wrist, 0, -0.16, -0.07); // where a pebble sits in his palm
-    return { shoulder, elbow, wrist, grip };
+    const hand = buildHand(M.hand, side);
+    hand.mesh.rotation.y = side * 1.2; // palms turned in towards him, thumbs forward
+    wrist.add(hand.mesh);
+    return { shoulder, elbow, wrist, hand, grip: hand.grip }; // grip: where a pebble sits
   }
   const armL = arm(-1), armR = arm(1);
 
@@ -138,8 +144,11 @@ export async function createGoatMan() {
   }
   const legL = leg(-1), legR = leg(1);
 
-  // In first person only his lower legs are drawn: look down to see the hooves.
-  const hideInFirstPerson = [pelvis, legL.thigh, legR.thigh, bellyMesh, chestMesh, neckMesh, head, armL.shoulder, armR.shoulder];
+  // In first person the camera is between his eyes: his head and neck are hidden so it never
+  // sees inside them, and his arms are the first-person ones (viewmodel.js). Look down to see
+  // his chest, belly, legs and hooves.
+  const hideInFirstPerson = [neckMesh, head, armL.shoulder, armR.shoulder];
+  const torso = [pelvis, legL.thigh, legR.thigh, bellyMesh, chestMesh]; // hidden too behind a squeezed chase camera
   let firstPerson = false;
 
   // Blue strands between the neck and the head while it is off (head1-15).
@@ -178,6 +187,7 @@ export async function createGoatMan() {
   let spray = -1; // backhead: below 0 the strands hold the head; 0..1 spraying out and fading
   let hold = 0; // right forearm raised to carry a pebble, 0..1
   let fling = 1; // a throw, 0..1 (1 = done)
+  let first = 0; // 0..1 how far into first person (he stands a little straighter there)
 
   function apply(P) {
     root.position.y = P.hipY;
@@ -193,10 +203,10 @@ export async function createGoatMan() {
     armR.elbow.rotation.x = P.elbowR;
     armL.wrist.rotation.x = P.wristL;
     armR.wrist.rotation.x = P.wristR;
-    legL.hip.rotation.x = P.thighL;
+    legL.hip.rotation.set(P.thighL, 0, -P.straddle);
+    legR.hip.rotation.set(P.thighR, 0, P.straddle);
     legL.knee.rotation.x = P.shinL;
     legL.ankle.rotation.x = P.ankleL;
-    legR.hip.rotation.x = P.thighR;
     legR.knee.rotation.x = P.shinR;
     legR.ankle.rotation.x = P.ankleR;
   }
@@ -252,11 +262,19 @@ export async function createGoatMan() {
         tex[p].needsUpdate = true;
       }
     },
-    setFirstPerson(on) {
+    // on: first person (or the chase camera squeezed up behind him, `squeezed`: then his
+    // torso and thighs would fill the screen, so only his lower legs show).
+    setFirstPerson(on, squeezed = false) {
       firstPerson = on;
       for (const o of hideInFirstPerson) o.visible = !on;
+      for (const o of torso) o.visible = !squeezed;
     },
     get firstPerson() { return firstPerson; },
+    // first: 0..1, how far into first person the view is (view.js eases it).
+    set first(k) { first = k; },
+    // Where his eyes and the top of his chest are, in the world (view.js puts the camera there).
+    eyes: (v) => eyes.getWorldPosition(v),
+    collar: (v) => collar.getWorldPosition(v),
     holding: false, // carrying a pebble (rocks.js)
     throwArm() { fling = 0; },
     handWorld: (v) => armR.grip.getWorldPosition(v),
@@ -302,11 +320,21 @@ export async function createGoatMan() {
       // Carrying a pebble, the right forearm comes up; throwing, the arm whips over.
       hold += ((gm.holding ? 1 : 0) - hold) * Math.min(1, dt * 8);
       fling = Math.min(1, fling + dt / 0.35);
-      const P = motion.update(dt, move, scripted, hold);
+      const P = motion.update(dt, move, scripted, hold, first);
       const whip = Math.sin(Math.PI * fling);
       P.armR += 1.8 * whip;
       P.elbowR -= 0.6 * whip;
       apply(P);
+      // The fingers: curled a little at rest, round the pebble, spread wide as it leaves the
+      // hand, stroking as he pets, flatter on the ground when he kneels.
+      const name = action?.name;
+      const rest = name === 'kneel' || name === 'drink' || name === 'lose' ? 0.12 : move.float ? 0.45 : 0.3;
+      armL.hand.update(dt, { curl: rest });
+      armR.hand.update(dt, {
+        curl: gm.holding ? 0.75 : rest,
+        splay: fling < 1 ? Math.sin(Math.PI * Math.min(1, fling * 1.6)) : 0,
+        stroke: name === 'pet' && action.k > 0.25 && action.k < 0.75 ? 1 : 0,
+      });
       placeHead();
 
       shadow.visible = !firstPerson && move.ground !== null;

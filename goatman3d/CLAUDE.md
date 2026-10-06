@@ -51,10 +51,12 @@ goatman3d/
     nightvision.js     admin mode's night vision (N): the frame through a green intensifier shader
     player.js          walking, sprinting, jumping, falling into the void (his hooves are player.pos)
     goatman.js         his low-poly body: tapered limbs, the head that comes off, colour grades
+    goatman-hand.js    his hands: a narrow palm and long thin three-jointed fingers and a thumb, one
+                       skinned mesh each; they curl, close round a pebble, splay and stroke
     goatman-head.js    his shaped head: skull rings wearing the painted face and profile, a tousled hair cap
     goatman-poses.js   his joint angles: standing, the walk and sprint cycle (two-bone IK goat legs),
-                       the scripted poses (kneel, drink, stand, pet, lose), all eased by damped springs
-    viewmodel.js       first-person arms, drawn in a second pass
+                       the scripted poses (kneel, ride, drink, stand, pet, lose), all eased by damped springs
+    viewmodel.js       first-person arms (with his hands), drawn in a second pass
     view.js            first/third-person camera, chase-camera pull-in, which way his body faces, rendering
     levels.js          loads levels.json, runs a level's builder (worlds/*.js), sky, fog, lights
     worlds/            one builder per level, plus their parts:
@@ -140,6 +142,8 @@ goatman3d/
 - Sound effects are all in `sfx.js` (footsteps per surface, splashes, calls, thuds...), built from `synthKit` (sound.js's building blocks), so modules import `sfx` from sfx.js and only the music and ducking from sound.js.
 - Merging geometry (`mergeGeometries`) needs every piece indexed the same way with the same attributes; trunks and grass are merged into a few meshes per level to keep draw calls low.
 - Frame rate: every triangle of a mesh is worked on each frame it is drawn, even the parts off screen, and a see-through thing costs as much as a solid one. So thousands of small things go in a scatter, ground meshes stay as coarse as still looks right (the forest's 580 m square is 80 x 80), and anything faded right out is hidden (`visible = false`). Raycasts cost too (the chase camera casts three a frame, a flying pebble one): all of a mesh's triangles are tested whenever the ray passes through its bounding sphere, so a blocker is a scatter kind (its raycast only looks at the copies near the ray) or a small mesh of its own (the forest's arches, one by one for raycasts and merged for drawing), never one big merged mesh. Compare a level's frame rate and draw calls (the admin box) before and after a change to it, and with `docs/version2/baseline.md` (the numbers on main before version 2, measured as it describes).
+- First person draws his real body round the camera (view.js): the body is moved across the ground so his eyes (`gm.eyes()`) are where the camera is, and down (never up) only when the camera dips so close that the top of his chest (`gm.collar()`) would come within `CLEAR` of it. His head, neck and arms are hidden; the arms on screen are viewmodel.js's. Nobody sees him in first person, so his pose there is adjusted (`UPRIGHT` in goatman-poses.js, scaled by `gm.first`): back straighter, knees bent more and hooves set further forward (`foot`), so looking down finds his legs and hooves past his chest. A cutscene shot (`view.shot`) always shows his own pose.
+- Riding uses `gm.play('ride')`: sitting astride the Walking Thing's back, a leg out to each side (`straddle` spreads the thighs).
 - GoatMan's scripted poses come from the paintings: `gm.play('kneel')` (down1-6), `'drink'` (head1-15: the head sinks to the ground on blue strands), `'stand'`, `'pet'`, `'lose'` (head1-15 then backhead1-13, the SQUASHED death). Each returns a promise; kneel, drink and lose hold their last pose until the next one.
 - The swirl pool and drinking from it are kept for the final level but are in no level for now (revision pass 1): `buildPool` in worlds/pool.js, `story.actions.drink` (an interaction `{ "type": "drink", "at" }` with an outcome `"drink": { edge, hold, shot }`), `sfx.drink()` and `gm.play('drink')`.
 - `STRIDE` in player.js is one footstep and his walk cycle is two of them, as one continuous phase, so footstep sounds land with his hooves. Sprinting steps are `SPRINT_STEP` times longer, and the stride keeps counting in the air so his legs keep their rhythm through a jump. All the movement numbers (speed, sprint, its ramp, the sprint FOV) sit together at the top of player.js.

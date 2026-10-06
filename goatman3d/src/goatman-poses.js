@@ -25,7 +25,7 @@ const REACH = 0.95; // how far a hoof can travel under him while planted
 
 export const STAND = {
   hipY: HIP, lean: 0.35, hunch: 0.5, sway: 0, turn: 0, neck: 0.5, head: 0.08, look: 0, roll: 0, twist: 0,
-  thighL: 0.3, shinL: -0.75, ankleL: 0.45, thighR: 0.3, shinR: -0.75, ankleR: 0.45,
+  thighL: 0.3, shinL: -0.75, ankleL: 0.45, thighR: 0.3, shinR: -0.75, ankleR: 0.45, straddle: 0, foot: 0,
   armL: 0.06, elbowL: 0.12, spreadL: 0.06, wristL: 0, armR: 0.06, elbowR: 0.12, spreadR: 0.06, wristR: 0,
 };
 // down6: on his knees, shins flat behind him, hands flat on the ground in front.
@@ -34,6 +34,18 @@ const KNEEL = {
   thighL: 0.25, shinL: -1.82, ankleL: 0, thighR: 0.2, shinR: -1.77, ankleR: 0,
   armL: 0.8, elbowL: 0, spreadL: 0.14, wristL: 0.3, armR: 0.8, elbowR: 0, spreadR: 0.14, wristR: 0.3,
 };
+// Riding the Walking Thing: sitting astride its broad back (about 3.5 m across), a leg out
+// to each side with the knees up, his long arms resting forward on it.
+const RIDE = {
+  ...STAND, hipY: 0.3, lean: 0.2, hunch: 0.4, neck: 0.45, head: 0.15, straddle: 0.85,
+  thighL: 1.2, shinL: -1.1, ankleL: 0.6, thighR: 1.2, shinR: -1.1, ankleR: 0.6,
+  armL: 0.7, elbowL: 0.7, spreadL: 0.2, wristL: 0.2, armR: 0.7, elbowR: 0.7, spreadR: 0.2, wristR: 0.2,
+};
+// In first person his back is straighter, his knees bend a little more and he stands his
+// hooves further forward, so the camera between his eyes is out in front of his chest and
+// looking down finds his legs and hooves. (Taken off the pose, scaled by how far into first
+// person the view is; nobody sees him stand like this.)
+const UPRIGHT = { hipY: 0.2, lean: 0.3, hunch: 0.35, neck: -0.15, head: -0.15, foot: -0.65 };
 // Reaching out to pet the Walking Thing: straightened up, one long arm raised.
 const REACH_UP = { ...STAND, lean: 0.1, hunch: 0.2, neck: 0.25, head: -0.45, armR: 2.3, elbowR: 0.3, spreadR: 0, wristR: -0.3, armL: 0.3 };
 
@@ -51,6 +63,8 @@ export const mix = (a, b, k) => {
 export const ACTIONS = {
   // down1-6: down onto his knees.
   kneel: { time: 1.2, hold: true, at: (k, from) => ({ pose: mix(from, KNEEL, ease(k)) }) },
+  // Onto the Walking Thing's back, a leg either side.
+  ride: { time: 1.2, hold: true, at: (k, from) => ({ pose: mix(from, RIDE, ease(k)) }) },
   // head1-15: kneeling, the head sinks to the ground on stretching blue strands (drinking).
   drink: { time: 2.6, hold: true, at: (k, from) => ({ pose: mix(from, KNEEL, ease(k / 0.4)), detach: ease((k - 0.35) / 0.65) }) },
   // Head back on, then up again.
@@ -86,8 +100,8 @@ const hermite = (a, b, m, k) => {
 // as he walks over it; then it lifts and swings forward on an arc, leaving and landing with
 // some of that speed so it doesn't jerk. The pastern lands heel first, rocks onto the toe
 // as the hoof pushes off and flicks up behind as it lifts. `w` (0..1) scales the step down
-// to standing still.
-function leg(p, w, travel, lift, st, hip) {
+// to standing still, and `ahead` moves where he stands his hooves forward.
+function leg(p, w, travel, lift, st, hip, ahead) {
   let f, h = 0, pastern;
   if (p < st) {
     const k = p / st;
@@ -103,7 +117,7 @@ function leg(p, w, travel, lift, st, hip) {
   // From the hoof up to the ankle, then the thigh and shin that reach the ankle with the
   // knee bent forward (it is the ankle that bends back, like a goat's). Near full stretch
   // the reach is eased off so the knee never snaps straight.
-  const af = FOOT + f - PASTERN * Math.sin(pastern);
+  const af = FOOT + ahead + f - PASTERN * Math.sin(pastern);
   const ad = hip - HOOF - h - PASTERN * Math.cos(pastern);
   const want = Math.hypot(af, ad) / (THIGH + SHIN);
   const L = (THIGH + SHIN) * (want < 0.85 ? want : 0.97 - 0.12 * Math.exp((0.85 - want) / 0.12));
@@ -213,8 +227,8 @@ export function createMotion() {
     out.wristR = pose.wristR + (0.35 + 0.2 * s) * w * Math.sin(arm) * (1 - hold);
     // The legs: where the hooves go, blended with the springs' legs off the ground.
     const travel = 2 * step * st, lift = 0.13 + 0.15 * s, k = ph / (Math.PI * 2);
-    const L = leg(k - Math.floor(k), w, travel, lift, st, out.hipY);
-    const R = leg(k + 0.5 - Math.floor(k + 0.5), w, travel, lift, st, out.hipY);
+    const L = leg(k - Math.floor(k), w, travel, lift, st, out.hipY, out.foot);
+    const R = leg(k + 0.5 - Math.floor(k + 0.5), w, travel, lift, st, out.hipY, out.foot);
     const g = gait.plant;
     out.thighL = pose.thighL + (L[0] - pose.thighL) * g;
     out.shinL = pose.shinL + (L[1] - pose.shinL) * g;
@@ -227,8 +241,8 @@ export function createMotion() {
   return {
     // move: { yaw, speed (1 = walking), stride, grounded, vy, sprint, float };
     // scripted: an action's pose, which takes over; hold (0..1): the right forearm raised
-    // with a pebble. Returns the pose to draw.
-    update(dt, move, scripted, hold) {
+    // with a pebble; first (0..1): in first person. Returns the pose to draw.
+    update(dt, move, scripted, hold, first = 0) {
       t += dt;
       const yaw = move.yaw;
       const turning = lastYaw === null || dt <= 0 ? 0 : Math.atan2(Math.sin(yaw - lastYaw), Math.cos(yaw - lastYaw)) / dt;
@@ -241,6 +255,7 @@ export function createMotion() {
         turn: free ? Math.max(-4, Math.min(4, turning)) : 0,
       }, SMOOTH, dt);
       const want = scripted ?? (move.float ? floating(t) : target(dt, move));
+      if (!scripted && !move.float) for (const key in UPRIGHT) want[key] -= UPRIGHT[key] * first;
       want.armR += (0.6 - want.armR) * hold;
       want.elbowR += (1.3 - want.elbowR) * hold;
       follow(pose, vel, want, SMOOTH, dt);
